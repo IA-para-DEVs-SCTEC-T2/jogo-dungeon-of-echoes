@@ -1,0 +1,19 @@
+{
+  "name": "jogo-dungeon-of-echoes",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Dungeon of Echoes – Jogo estilo Roguelike desenvolvido pela Equipe 7",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Sem testes por enquanto\" && exit 0",
+    "prepare": "husky"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@commitlint/cli": "^20.5.2",
+    "@commitlint/config-conventional": "^20.5.0",
+    "husky": "^9.1.7"
+  }
+}
