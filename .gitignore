@@ -1,0 +1,55 @@
+# --- Dependências ---
+node_modules/
+jspm_packages/
+.npm/
+
+# --- Build e Distribuição ---
+dist/
+build/
+out/
+bin/
+*.pfx
+*.certificate
+*.exe
+
+# --- Logs e Diagnósticos ---
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+logs/
+*.log
+
+# --- Ambiente e Segredo (Nunca suba arquivos .env) ---
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# --- IDEs e Editores (Dica: Amazon Kiro/VS Code/WebStorm) ---
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.amazon-kiro/
+
+# --- Sistema Operacional (Essencial para quem usa Linux/Fedora) ---
+.DS_Store
+Thumbs.db
+desktop.ini
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+
+# --- Assets e Design (Opcional) ---
+# Se você usa ferramentas como Photoshop ou Aseprite, evite subir os arquivos editáveis pesados
+*.psd
+*.ase
+*.aseprite
+# Caso queira ignorar arquivos de backup automático do Fedora/Gnome
+.directory
