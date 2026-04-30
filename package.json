@@ -10,11 +10,17 @@
     "test": "vitest run",
     "prepare": "husky"
   },
-  "keywords": ["phaser3", "rpg", "dungeon", "roguelike", "javascript"],
+  "keywords": [
+    "phaser3",
+    "rpg",
+    "dungeon",
+    "roguelike",
+    "javascript"
+  ],
   "author": "Equipe 7",
   "license": "ISC",
   "dependencies": {
-    "phaser": "3.60.0"
+    "phaser": "4.0.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.5.2",
