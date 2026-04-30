@@ -20,6 +20,10 @@ const config = {
   backgroundColor: '#1a1a2e', // Fundo escuro fora do mapa
   parent: 'game-container',   // div no index.html
 
+  // Phaser 4 muda o padrão de roundPixels para false — forçar true
+  // para manter renderização precisa dos tiles pixel-art
+  roundPixels: true,
+
   // Escala responsiva
   scale: {
     mode: Phaser.Scale.FIT,
