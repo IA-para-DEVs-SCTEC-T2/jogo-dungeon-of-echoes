@@ -2,18 +2,25 @@
   "name": "jogo-dungeon-of-echoes",
   "version": "0.1.0",
   "type": "module",
-  "description": "Dungeon of Echoes – Jogo estilo Roguelike desenvolvido pela Equipe 7",
-  "main": "index.js",
+  "description": "Dungeon of Echoes – RPG 2D tile-based com geração procedural",
   "scripts": {
-    "test": "echo \"Sem testes por enquanto\" && exit 0",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
     "prepare": "husky"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["phaser3", "rpg", "dungeon", "roguelike", "javascript"],
+  "author": "Equipe 7",
   "license": "ISC",
+  "dependencies": {
+    "phaser": "3.60.0"
+  },
   "devDependencies": {
     "@commitlint/cli": "^20.5.2",
     "@commitlint/config-conventional": "^20.5.0",
-    "husky": "^9.1.7"
+    "husky": "^9.1.7",
+    "vite": "^5.4.19",
+    "vitest": "^2.1.9"
   }
 }
