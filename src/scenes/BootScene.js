@@ -1,3 +1,5 @@
+import * as Phaser from 'phaser';
+
 /**
  * BootScene.js — Cena de inicialização
  * Spec: specs/gameloop.spec.md — Cenas Phaser
