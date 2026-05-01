@@ -4,14 +4,14 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { DungeonSystem } from '../src/systems/DungeonSystem.js';
-import { TILE } from '../src/config/constants.js';
+import { DungeonSystem } from '../src/generators/DungeonGenerator';
+import { TILE } from '../src/utils/constants';
 
 describe('DungeonSystem', () => {
   let dungeon;
 
   beforeEach(() => {
-    dungeon = new DungeonSystem(40, 30);
+    dungeon = new DungeonSystem(40, 40); // v0.1.1: grid atualizado para 40×40
     dungeon.generate(8);
   });
 

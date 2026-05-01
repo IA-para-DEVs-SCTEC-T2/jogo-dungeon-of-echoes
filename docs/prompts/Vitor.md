@@ -147,3 +147,58 @@ Requisitos:
 - Não quebrar o npm test que já existe no hook
 - Template em Markdown com comentários <!-- --> explicativos
 - Checklist alinhado com as regras do projeto (CHANGELOG, prompts, Conventional Commits)
+
+--
+
+## Prompt 4
+Autor: Vitor
+Data: 2026-05-01
+
+Contexto:
+Estou fornecendo um conjunto de arquivos do projeto, incluindo documentação e especificações relacionadas à fase_1.
+
+Objetivo:
+Analisar o estado atual do projeto em relação à fase_1 e gerar um plano claro de execução do que ainda falta.
+
+Tarefas:
+
+1. Análise do estado atual:
+- Identificar o que já foi implementado ou documentado
+- Relacionar explicitamente cada item com os requisitos da fase_1
+- Classificar cada item como:
+  - ✅ Concluído
+  - ⚠️ Parcial
+  - ❌ Não iniciado
+
+2. Identificação de lacunas:
+- Listar tudo que ainda não atende aos requisitos da fase_1
+- Explicar brevemente o que falta em cada item
+
+3. Planejamento de execução:
+- Criar um plano estruturado para completar a fase_1
+- Organizar em ordem lógica de implementação
+- Sugerir divisão em tarefas menores (estilo backlog técnico)
+
+4. Priorização:
+- Indicar o que deve ser feito primeiro
+- Justificar a ordem (dependências, risco, impacto)
+
+5. Saída estruturada:
+
+## Status da Fase 1
+(lista com ✅ ⚠️ ❌)
+
+## Lacunas Identificadas
+(lista objetiva)
+
+## Plano de Execução
+(passos numerados e claros)
+
+## Prioridades
+(explicação da ordem sugerida)
+
+Regras:
+- Basear-se apenas no contexto fornecido
+- Não inventar funcionalidades
+- Ser objetivo e técnico
+- Evitar respostas genéricas
