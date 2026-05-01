@@ -121,3 +121,29 @@ Critérios de qualidade:
 - Coerência com o projeto
 - Organização
 - Linguagem técnica adequada
+
+## Prompt 3
+Autor: Vitor
+Data: 2026-05-01
+
+Contexto:
+O projeto utiliza Husky para validação de commits. Quero garantir que todo commit
+inclua obrigatoriamente CHANGELOG.md e o arquivo de prompts do membro que está commitando.
+Também quero padronizar a criação de Pull Requests no GitHub com um template obrigatório.
+
+Objetivo:
+1. Atualizar .husky/pre-commit para bloquear commits que não incluam CHANGELOG.md
+   e pelo menos um arquivo em docs/prompts/
+2. Criar .github/pull_request_template.md com template padronizado para PRs
+
+Tarefas:
+1. Implementar validação no pre-commit usando git diff --cached --name-only
+2. Exibir mensagem clara de erro com instrução de correção quando bloqueado
+3. Criar template de PR com: descrição, tipo, o que foi feito, como testar,
+   evidências, checklist e observações
+
+Requisitos:
+- Shell script Unix compatível com o Husky
+- Não quebrar o npm test que já existe no hook
+- Template em Markdown com comentários <!-- --> explicativos
+- Checklist alinhado com as regras do projeto (CHANGELOG, prompts, Conventional Commits)

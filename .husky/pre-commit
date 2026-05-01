@@ -1,1 +1,24 @@
 npm test
+
+# --- Validação de arquivos obrigatórios por commit ---
+
+STAGED=$(git diff --cached --name-only)
+
+HAS_PROMPT=$(echo "$STAGED" | grep -c '^docs/prompts/')
+HAS_CHANGELOG=$(echo "$STAGED" | grep -cF 'CHANGELOG.md')
+
+if [ "$HAS_PROMPT" -eq 0 ] || [ "$HAS_CHANGELOG" -eq 0 ]; then
+  echo ""
+  echo "❌ Commit bloqueado. Os seguintes arquivos são obrigatórios:"
+
+  [ "$HAS_PROMPT" -eq 0 ] && \
+    echo "   - Pelo menos um arquivo em docs/prompts/ deve ser modificado"
+
+  [ "$HAS_CHANGELOG" -eq 0 ] && \
+    echo "   - CHANGELOG.md deve ser modificado"
+
+  echo ""
+  echo "   Adicione as alterações com: git add docs/prompts/<SeuNome>.md CHANGELOG.md"
+  echo ""
+  exit 1
+fi

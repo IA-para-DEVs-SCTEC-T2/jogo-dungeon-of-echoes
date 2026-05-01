@@ -50,6 +50,12 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ## [Unreleased]
 
+### Added
+- Template de Pull Request (`.github/pull_request_template.md`) com seções padronizadas: descrição, tipo de mudança, o que foi feito, como testar, evidências, checklist e observações
+
+### Changed
+- Hook `pre-commit` atualizado para exigir, em todo commit, a atualização de `CHANGELOG.md` e de pelo menos um arquivo em `docs/prompts/`
+
 ---
 
 ## [0.1.0] — 2026-04-30
