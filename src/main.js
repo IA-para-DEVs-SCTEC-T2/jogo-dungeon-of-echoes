@@ -3,7 +3,7 @@
  * Inicializa o Phaser 3 com as cenas e configurações globais.
  */
 
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene.js';
 import { GameScene } from './scenes/GameScene.js';
 import { GameOverScene } from './scenes/GameOverScene.js';

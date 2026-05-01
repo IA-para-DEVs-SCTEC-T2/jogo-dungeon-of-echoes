@@ -1,3 +1,5 @@
+import * as Phaser from 'phaser';
+
 /**
  * GameScene.js — Cena principal do jogo
  * Spec: specs/gameloop.spec.md

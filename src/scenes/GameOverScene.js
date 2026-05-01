@@ -1,3 +1,5 @@
+import * as Phaser from 'phaser';
+
 /**
  * GameOverScene.js — Tela de Game Over
  * Spec: specs/gameloop.spec.md — Cenário 2 e 3
