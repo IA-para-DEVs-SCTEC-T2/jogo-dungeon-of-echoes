@@ -193,13 +193,18 @@ Veja o histórico completo de mudanças no [CHANGELOG.md](./CHANGELOG.md).
   - 💻 GitHub: https://github.com/gmcasati  
   - 💻 Função: Mago
 
-- **Nome:** Paolo
+- **Nome:** Paolo Murari
   - 📧 Email:
   - 💻 GitHub: https://github.com/paolojcm  
   - 💻 Função: Mago
 
 - **Nome:** Andrea González
   - 📧 Email:
+  - 💻 GitHub: https://github.com/andreagonzalez  
+  - 💻 Função: Paladina
+
+- **Nome:** Rafael
+  - 📧 Email: rafael_n_rosa@estudante.sesisenai.org.br
   - 💻 GitHub: https://github.com/andreagonzalez  
   - 💻 Função: Paladina
 

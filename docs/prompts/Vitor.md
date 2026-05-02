@@ -202,3 +202,24 @@ Regras:
 - Não inventar funcionalidades
 - Ser objetivo e técnico
 - Evitar respostas genéricas
+
+## Prompt 5
+Autor: Vitor
+Data: 2026-05-02
+
+Contexto:
+O projeto possui um repositório no GitHub (`IA-para-DEVs-SCTEC-T2/jogo-dungeon-of-echoes`).
+Crie um dashboard estático em `dashboard/index.html` que mostre o estado do projeto
+em tempo real, consumindo apenas a API do GitHub.
+
+Objetivo:
+Criar uma página HTML com tailwindcss que exiba:
+1. Timeline dos últimos commits do branch `staging` com diferenciação visual entre commits de feature e merges
+2. Painel de contribuidores com avatar, login e número de commits
+3. Renderização do `CHANGELOG.md` diretamente do repositório
+
+Requisitos:
+- Layout dark com efeito glassmorphism nos cards
+- Responsivo: coluna única em mobile, grid 7/5 em desktop
+- Sem dependências de backend — apenas fetch à API pública do GitHub e CDNs
+- Exibir skeleton loader enquanto os dados carregam
