@@ -49,7 +49,8 @@ export class GameOverScene extends Phaser.Scene {
   }
 
   private _restart(): void {
-    this.scene.stop('GameOverScene');
+    // scene.start() já para a cena atual automaticamente.
+    // Chamar stop() antes causava double-stop e corrompia o estado do Phaser.
     this.scene.start('GameScene');
   }
 }
