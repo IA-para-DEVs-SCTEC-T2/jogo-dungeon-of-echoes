@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dungeon of Echoes | Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        :root { font-family: 'Inter', sans-serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        body { 
+            background-color: #020617; 
+            color: #f1f5f9;
+            background-image: radial-gradient(circle at 0% 0%, rgba(55, 48, 163, 0.15) 0%, transparent 25%), radial-gradient(circle at 100% 100%, rgba(79, 70, 229, 0.1) 0%, transparent 25%);
+        }
+        .glass-card { 
+            background: rgba(15, 23, 42, 0.6); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .commit-line::before {
+            content: ''; position: absolute; left: 23px; top: 40px; bottom: -20px; width: 2px;
+            background: linear-gradient(to bottom, #334155 0%, transparent 100%);
+        }
+        
+        .markdown-body h2 { color: #818cf8; border-bottom: 1px solid #1e293b; padding-bottom: 8px; margin-top: 24px; margin-bottom: 16px; font-weight: 700; font-size: 1.125rem; }
+        .markdown-body ul { padding-left: 20px; list-style-type: disc; color: #94a3b8; }
+        .markdown-body li { margin-bottom: 8px; }
+        .markdown-body code { background: #1e293b; padding: 2px 4px; border-radius: 4px; color: #f472b6; font-family: monospace; font-size: 0.75rem; }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+    </style>
+</head>
+<body class="min-h-screen antialiased pb-12">
+
+    <nav class="border-b border-slate-800 bg-slate-950/80 sticky top-0 z-50 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+            <div class="flex items-center gap-5">
+                <div class="relative">
+                    <div class="absolute inset-0 bg-indigo-500 blur-lg opacity-30 animate-pulse"></div>
+                    <div class="relative bg-gradient-to-br from-indigo-500 to-purple-600 p-3 rounded-2xl shadow-xl">
+                        <i class="fa-solid fa-gamepad text-2xl text-white"></i>
+                    </div>
+                </div>
+                <div>
+                    <h1 class="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">Dungeon of Echoes</h1>
+                </div>
+            </div>
+            <div id="repo-link" class="hidden sm:block text-xs font-semibold text-slate-400 bg-slate-900 px-4 py-2 rounded-full border border-slate-800">
+                IA-para-DEVs-SCTEC-T2
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-6 mt-10">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+            
+            <!-- Timeline de Commits -->
+            <div class="lg:col-span-7 space-y-6">
+                <h2 class="text-sm font-bold text-slate-500 uppercase tracking-[0.2em] mb-8">Fluxo de Desenvolvimento</h2>
+                <div id="commit-list" class="space-y-6 relative">
+                    <div class="animate-pulse bg-slate-800/20 h-32 rounded-3xl border border-slate-800"></div>
+                </div>
+            </div>
+
+            <!-- Lateral: Equipe e Changelog -->
+            <div class="lg:col-span-5 space-y-8">
+                <section class="glass-card rounded-[2rem] p-8">
+                    <h3 class="text-sm font-bold text-white uppercase tracking-wider mb-6">Equipe 7</h3>
+                    <div id="contributors" class="grid grid-cols-1 gap-3"></div>
+                </section>
+
+                <section class="glass-card rounded-[2rem] p-8 border-t-4 border-indigo-500">
+                    <h3 class="text-sm font-bold text-white uppercase tracking-wider mb-6 flex items-center gap-2">
+                        <i class="fa-solid fa-file-shield text-indigo-500"></i> Notas da Versão
+                    </h3>
+                    <div id="changelog-content" class="markdown-body text-sm leading-relaxed max-h-[500px] overflow-y-auto pr-4"></div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const OWNER = 'IA-para-DEVs-SCTEC-T2';
+        const REPO = 'jogo-dungeon-of-echoes';
+        const BRANCH = 'staging';
+
+        async function fetchData() {
+            try {
+                const [commRes, contribRes, changelogRes] = await Promise.all([
+                    fetch(`https://api.github.com/repos/${OWNER}/${REPO}/commits?sha=${BRANCH}&per_page=15`),
+                    fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contributors`),
+                    fetch(`https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/CHANGELOG.md`)
+                ]);
+
+                const commits = await commRes.json();
+                const contributors = await contribRes.json();
+
+                if (Array.isArray(commits)) renderCommits(commits);
+                if (Array.isArray(contributors)) renderContributors(contributors);
+                if (changelogRes.ok) {
+                    const text = await changelogRes.text();
+                    document.getElementById('changelog-content').innerHTML = marked.parse(text);
+                }
+            } catch (e) { console.error("Erro na busca de dados:", e); }
+        }
+
+        function renderCommits(list) {
+            const container = document.getElementById('commit-list');
+            container.innerHTML = list.map((c, index) => {
+                const isMerge = c.commit.message.toLowerCase().includes('merge');
+                const message = c.commit.message.split('\n')[0];
+                const date = new Date(c.commit.author.date).toLocaleDateString('pt-BR', { day:'2-digit', month:'short' });
+
+                return `
+                <div class="relative flex gap-6 ${index !== list.length - 1 ? 'commit-line' : ''}">
+                    <div class="relative z-10">
+                        <div class="w-12 h-12 rounded-full flex items-center justify-center border-2 ${isMerge ? 'bg-slate-900 border-purple-500' : 'bg-indigo-600 border-indigo-400'} overflow-hidden shadow-lg">
+                            ${isMerge ? '<i class="fa-solid fa-code-merge text-purple-400 text-xs"></i>' : `<img src="${c.author?.avatar_url || ''}" class="w-full h-full">`}
+                        </div>
+                    </div>
+                    <div class="flex-1 glass-card p-5 rounded-2xl border-l-4 ${isMerge ? 'border-purple-500' : 'border-indigo-500'} hover:translate-x-1 transition-transform">
+                        <div class="flex justify-between items-start mb-2 text-[10px] font-bold uppercase">
+                            <span class="mono ${isMerge ? 'text-purple-400' : 'text-indigo-400'} bg-white/5 px-2 py-0.5 rounded">${c.sha.substring(0, 7)}</span>
+                            <span class="text-slate-500">${date}</span>
+                        </div>
+                        <h4 class="text-sm font-semibold text-slate-200 mb-3">${isMerge ? '<span class="text-purple-400">[MERGE]</span> ' : ''}${message}</h4>
+                        <div class="text-[10px] text-slate-500">por <span class="text-slate-300 font-bold">@${c.author?.login || c.commit.author.name}</span></div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderContributors(list) {
+            const container = document.getElementById('contributors');
+            container.innerHTML = list.slice(0, 5).map(u => `
+                <div class="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <img src="${u.avatar_url}" class="w-10 h-10 rounded-xl grayscale group-hover:grayscale-0 transition-all">
+                        <div>
+                            <p class="text-xs font-bold text-white uppercase tracking-tighter">@${u.login}</p>
+                            <p class="text-[9px] text-slate-500 font-bold uppercase">${u.contributions} Commits</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-slate-800 text-[10px]"></i>
+                </div>`).join('');
+        }
+
+        fetchData();
+    </script>
+</body>
+</html>

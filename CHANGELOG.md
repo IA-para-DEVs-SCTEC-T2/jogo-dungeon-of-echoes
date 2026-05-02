@@ -50,6 +50,16 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ## [Unreleased]
 
+### Added
+
+#### Dashboard de Acompanhamento (`dashboard/index.html`)
+- Página estática de dashboard do projeto consumindo a API pública do GitHub em tempo real
+- Timeline de commits do branch `staging` com diferenciação visual entre commits de feature e merges
+- Listagem dos top-5 contribuidores com avatar, login e contagem de commits
+- Renderização do `CHANGELOG.md` diretamente do repositório via `marked.js`
+- Layout responsivo com Tailwind CSS, efeito glassmorphism e tipografia Inter + JetBrains Mono
+- SHA truncado (7 caracteres) com badge colorido por tipo de mudança (feature vs. merge)
+
 ---
 
 ## [0.1.1] — 2026-05-01
