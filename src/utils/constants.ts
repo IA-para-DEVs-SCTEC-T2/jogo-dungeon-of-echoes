@@ -31,6 +31,7 @@ export const ENEMY = {
   ATTACK: 8,
   XP_REWARD: 25,
   COUNT: 6,
+  DETECTION_RADIUS: 8,
 };
 
 // --- XP ---
@@ -72,6 +73,16 @@ export const COLORS = {
   LEVEL_UP_TEXT: '#00ff88',
 };
 
+// --- Atributos Base do Player ---
+export const BASE_STATS = {
+  STR: 10,
+  INT: 10,
+  DEX: 10,
+  CON: 18,  // CON=18 → maxHp inicial = 18×5 + 1×3 = 93 (próximo do balanço original)
+  WIS: 10,
+  CHA: 10,
+};
+
 // --- Estados do Jogo ---
 export const GAME_STATE = {
   PLAYING: 'PLAYING',
@@ -84,7 +95,11 @@ export const EVENTS = {
   PLAYER_ATTACKED: 'player-attacked',
   PLAYER_DIED: 'player-died',
   PLAYER_LEVELED_UP: 'player-leveled-up',
+  PLAYER_HP_CHANGED: 'player-hp-changed',
+  PLAYER_MANA_CHANGED: 'player-mana-changed',
+  PLAYER_XP_CHANGED: 'player-xp-changed',
   ENEMY_DIED: 'enemy-died',
   ENEMY_ATTACKED: 'enemy-attacked',
   COMBAT_HIT: 'combat-hit',
+  UI_LOG: 'ui-log',
 } as const;

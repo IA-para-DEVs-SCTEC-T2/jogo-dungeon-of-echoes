@@ -86,4 +86,25 @@ describe('CombatSystem', () => {
     expect(combat.resolve(null, createEnemy())).toBeNull();
     expect(combat.resolve(createPlayer(), null)).toBeNull();
   });
+
+  // Cenário 5 — HP do inimigo diminui após ataque (regressão)
+  it('HP do inimigo diminui após cada ataque', () => {
+    const player = createPlayer(100, 10);
+    const enemy  = createEnemy(30, 0);   // ataque 0 → não contra-ataca
+
+    combat.resolve(player, enemy);
+
+    expect(enemy.hp).toBe(20);
+    expect(enemy.alive).toBe(true);
+  });
+
+  // Cenário 6 — HP do player diminui quando inimigo contra-ataca
+  it('HP do player diminui pelo contra-ataque do inimigo', () => {
+    const player = createPlayer(100, 1);  // ataque 1 → inimigo sobrevive
+    const enemy  = createEnemy(30, 15);
+
+    combat.resolve(player, enemy);
+
+    expect(player.hp).toBe(85);
+  });
 });

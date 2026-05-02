@@ -1,10 +1,10 @@
 # PRD — Product Requirements Document
 # Dungeon of Echoes
 
-**Versão:** 0.1.0  
-**Data:** 2026-04-30  
+**Versão:** 0.1.2  
+**Data:** 2026-05-02  
 **Equipe:** Equipe 7 — IA para DEVs SCTEC T2  
-**Status:** MVP entregue
+**Status:** Refinamento Fase 1 entregue
 
 ---
 
@@ -73,16 +73,24 @@ Cada partida começa em uma dungeon nova. O jogador avança derrotando inimigos,
 
 ### 6.2 Player
 
-| Atributo | Valor inicial |
-|----------|--------------|
-| HP | 100 |
-| Ataque | 10 |
-| Nível | 1 |
-| XP | 0 |
+**Atributos base (inicializados via `BASE_STATS`):**
 
-- Movimento por **WASD ou setas** (4 direções, sem diagonal)
-- Bloqueado por WALL; um movimento por turno (cooldown de 150ms)
-- Ao mover para tile com inimigo → inicia combate
+| Atributo | Valor | Efeito derivado |
+|----------|-------|----------------|
+| CON | 18 | HP máximo = CON × 5 + Nível × 3 |
+| WIS | 10 | Mana máxima = WIS × 4 + INT × 2 |
+| INT | 10 | Contribui para Mana máxima |
+| STR | 10 | — (reservado para bônus de ataque futuro) |
+| DEX | 10 | — (reservado para evasão futura) |
+| CHA | 10 | — (reservado para IA generativa futura) |
+| Ataque | 10 | Dano fixo por golpe (escala com level up) |
+| Nível | 1 | — |
+| XP | 0 | — |
+
+- [x] Movimento por **WASD ou setas** (4 direções, sem diagonal)
+- [x] Movimento contínuo ao segurar direcional (cooldown interno de 150ms por tile)
+- [x] Bloqueado por WALL; ao mover para tile com inimigo → inicia combate
+- [x] Atributos derivados calculados por fórmula (não bônus fixo)
 
 ### 6.3 Combate
 
@@ -99,25 +107,33 @@ Cada partida começa em uma dungeon nova. O jogador avança derrotando inimigos,
 | Ataque | 8 |
 | XP ao morrer | 25 |
 | Quantidade por dungeon | 6 |
+| Raio de detecção | 8 tiles |
 
-- Spawnam em tiles FLOOR, sem sobreposição com player ou entre si
-- MVP: estáticos (não se movem). Estrutura preparada para IA futura
+- [x] Spawnam em tiles FLOOR, sem sobreposição com player ou entre si
+- [x] **IA com máquina de estados**: `IDLE → CHASING → ATTACKING`
+  - `IDLE`: parado, aguardando detecção
+  - `CHASING`: movimenta 1 tile por turno em direção ao player; detecção ativa quando player entra na **mesma sala** (bounds do Room BSP) ou dentro do `detectionRadius`
+  - `ATTACKING`: executa dano quando em tile adjacente ao player
+- [x] Não atravessa paredes; não ocupa tile de outro inimigo vivo
 
 ### 6.5 XP e Progressão
 
-- `xpToNextLevel = nível_atual × 100`
-- A cada level up: `maxHp += 20`, `attack += 5`, HP restaurado ao máximo
-- Suporte a múltiplos level-ups encadeados em uma única concessão de XP
+- [x] Fórmula: `xpToNextLevel = 100 × N × (N + 1) / 2` (acumulativa)
+- [x] A cada level up: `recalcStats()` recalcula `maxHp` e `maxMana` pelas fórmulas de atributos; `attack += 5`; HP restaurado ao máximo
+- [x] Suporte a múltiplos level-ups encadeados em uma única concessão de XP
 
 ### 6.6 HUD
 
 | Elemento | Conteúdo |
 |----------|----------|
-| HP | "HP: X/Y" + barra visual |
-| XP | "XP: X / Y" |
-| Nível | "Nível: X" |
+| Barra HP | Visual proporcional; cor muda para vermelho quando HP < 30% |
+| Barra Mana | Visual proporcional (azul) |
+| Labels | Nível, ATK, "XP: atual / próximo" |
+| Log | Últimas 5 mensagens (dano, level up, morte) na base da tela |
 
-Atualizado após cada ação do player.
+- [x] `UIScene` executa como overlay paralelo à `GameScene` via `this.scene.launch()`
+- [x] Atualizada via `EventBus` — nunca lê o Player diretamente a cada frame
+- [x] Cleanup de listeners no `shutdown()` — sem memory leak ao reiniciar
 
 ---
 
@@ -146,6 +162,7 @@ Os requisitos abaixo são derivados diretamente das specs em `.kiro/specs/`.
 - Spawn em tiles FLOOR sem sobreposição
 - Morte remove o sprite e emite `enemy-died`
 - Inimigo morto não participa de combate
+- **[v0.1.2]** IA de perseguição: detecta player por sala ou raio; move 1 tile/turno; ataca quando adjacente
 
 ### RF-05 — Progressão de XP
 - XP acumulativo; nunca resetado ao subir de nível
@@ -186,29 +203,30 @@ Os requisitos abaixo são derivados diretamente das specs em `.kiro/specs/`.
 
 ## 9. Escopo
 
-### Dentro do escopo (MVP v0.1.0)
+### Dentro do escopo (v0.1.2 — estado atual)
 
-- Geração procedural de dungeon (salas + corredores)
-- Player controlável (4 direções, sem diagonal)
-- Combate automático turn-based
-- 1 tipo de inimigo estático com atributos fixos
-- Sistema de XP e progressão de nível
-- HUD com HP, XP e Nível
-- Game Over com tela de resultado e restart
-- 17 testes unitários (DungeonSystem, CombatSystem, XPSystem)
+- [x] Geração procedural de dungeon (salas + corredores BSP, 40×40 tiles)
+- [x] Player controlável (4 direções, movimento contínuo, cooldown 150ms)
+- [x] Atributos base RPG (CON/WIS/INT/STR/DEX/CHA) com fórmulas derivadas
+- [x] Combate automático turn-based com dano visualmente refletido
+- [x] IA de inimigos: IDLE → CHASING → ATTACKING, detecção por sala e raio
+- [x] Sistema de XP e progressão de nível com recálculo de atributos
+- [x] HUD persistente via UIScene overlay (barras HP/Mana, log de mensagens)
+- [x] Game Over com tela de resultado e restart
+- [x] 48 testes unitários (DungeonGenerator, CombatSystem, XPSystem, EnemyAI, PlayerCollision)
+- [x] Dashboard estático de acompanhamento do projeto
 
 ### Fora do escopo (planejado para versões futuras)
 
 | Feature | Motivo da exclusão |
 |---------|-------------------|
-| FOG of War | Complexidade visual não prioritária no MVP |
-| Inventário e itens | Escopo separado; requer UI adicional |
-| Múltiplos tipos de inimigo | Balanceamento adiado para pós-MVP |
-| IA de inimigos (movimento) | Inimigos estáticos suficientes para validar combate |
+| FOG of War | Complexidade visual não prioritária no ciclo atual |
+| Inventário e itens | Escopo separado; requer UI e sistema de drop |
+| Múltiplos tipos de inimigo | Balanceamento adiado para pós-refinamento |
 | Múltiplos andares | Depende de progressão de dificuldade não especificada |
-| IA generativa (lore, inimigos) | Requer APIkey e backend; fora do escopo acadêmico atual |
+| IA generativa (lore, inimigos) | Requer API key e backend; fora do escopo acadêmico atual |
 | Sistema de save | Permadeath intencional; sem persistência é comportamento esperado |
-| Magia e habilidades | Planejado para expansão pós-MVP |
+| Magia e habilidades | Mana implementada; uso em habilidades planejado para v0.3.0 |
 
 ---
 
@@ -224,11 +242,28 @@ Os requisitos abaixo são derivados diretamente das specs em `.kiro/specs/`.
 - [x] 17 testes unitários
 - [x] Infraestrutura: Vite, Vitest, Husky, Commitlint, CI
 
+### v0.1.1 — Tileset e TypeScript (entregue em 2026-05-01)
+- [x] Migração para TypeScript (strict)
+- [x] Integração do tileset Dawnlike 16×16 (CC-BY 4.0)
+- [x] Easter egg Platino (cumprimento da licença)
+- [x] Template de Pull Request e hook pre-commit
+
+### v0.1.2 — Refinamento Fase 1 (entregue em 2026-05-02)
+- [x] Atributos base RPG (STR/INT/DEX/CON/WIS/CHA) com fórmulas derivadas
+- [x] HP máximo = CON × 5 + Nível × 3; Mana máxima = WIS × 4 + INT × 2
+- [x] UIScene overlay com barras HP/Mana, labels e log de mensagens
+- [x] EventBus cross-cena (sem dependência de Phaser, compatível com Node)
+- [x] IA de inimigos: IDLE → CHASING → ATTACKING com detecção por sala e raio
+- [x] Movimento contínuo ao segurar direcional (isDown + cooldown 150ms)
+- [x] Correção: HP visual do inimigo sincronizado após combate
+- [x] Correção: UIScene sincroniza HP do player após contra-ataque
+- [x] 48 testes unitários (+18 novos: colisão, IA, combate)
+- [x] Dashboard estático de acompanhamento do projeto (GitHub API)
+
 ### v0.2.0 — Dungeon completa (planejado)
 - [ ] FOG of War (tiles visitados vs. visíveis vs. escuros)
 - [ ] Múltiplos tipos de inimigo com atributos distintos
-- [ ] IA de inimigos: movimentação e perseguição do player
-- [ ] Escadas para próximo andar
+- [ ] Escadas para próximo andar com dificuldade crescente
 
 ### v0.3.0 — Expansão de mecânicas (planejado)
 - [ ] Inventário com itens no chão (poções, armas)
@@ -248,7 +283,7 @@ Os requisitos abaixo são derivados diretamente das specs em `.kiro/specs/`.
 |---------|-------------------|
 | Jogabilidade | Partida completa possível do boot ao game over sem erros no console |
 | Estabilidade | Zero crashes reportados em sessão de 10 minutos de jogo |
-| Testes | 100% dos testes unitários passando em `npm test` |
+| Testes | 100% dos testes unitários passando em `npm test` (48/48 em v0.1.2) |
 | Build | `npm run build` produz bundle funcional sem warnings críticos |
 | Commits | 100% dos commits na branch `main` e `staging` validados pelo Commitlint |
 | Cobertura de specs | Cada sistema implementado possui spec correspondente em `.kiro/specs/` |

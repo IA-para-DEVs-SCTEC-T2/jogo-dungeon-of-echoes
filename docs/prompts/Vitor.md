@@ -203,7 +203,7 @@ Regras:
 - Ser objetivo e técnico
 - Evitar respostas genéricas
 
-## Prompt 5
+## Prompt 5 — PR: feat(dashboard): add project tracking dashboard with GitHub API
 Autor: Vitor
 Data: 2026-05-02
 
@@ -223,3 +223,63 @@ Requisitos:
 - Responsivo: coluna única em mobile, grid 7/5 em desktop
 - Sem dependências de backend — apenas fetch à API pública do GitHub e CDNs
 - Exibir skeleton loader enquanto os dados carregam
+
+Arquivos gerados/modificados: `dashboard/index.html`, `CHANGELOG.md`
+
+---
+
+## Prompt 6 — PR: feat(ui): UIScene overlay, atributos base RPG e EventBus
+Autor: Vitor
+Data: 2026-05-02
+
+Contexto:
+O jogo possui HUD rudimentar embutido na GameScene (texto simples). Precisamos de uma
+cena overlay dedicada que se atualize via eventos sem acoplar diretamente ao Player.
+
+Objetivo:
+1. Criar `src/scenes/UIScene.ts` rodando em paralelo à GameScene via `this.scene.launch()`
+2. Criar `src/utils/EventBus.ts` (singleton sem dependência de Phaser) para comunicação cross-cena
+3. Adicionar atributos base RPG ao Player (STR/INT/DEX/CON/WIS/CHA) com fórmulas derivadas:
+   - HP máximo = CON × 5 + Nível × 3
+   - Mana máxima = WIS × 4 + INT × 2
+4. UIScene exibe: barras de HP e Mana, labels de Nível/ATK/XP e log de 5 mensagens
+
+Requisitos:
+- UIScene nunca lê o Player diretamente a cada frame
+- Emitir PLAYER_HP_CHANGED, PLAYER_MANA_CHANGED, PLAYER_XP_CHANGED via EventBus
+- Cleanup de listeners no shutdown() para evitar memory leak
+- EventBus compatível com Node.js (testes Vitest sem mock de browser)
+
+Arquivos gerados/modificados: `src/utils/EventBus.ts`, `src/scenes/UIScene.ts`,
+`src/entities/Player.ts`, `src/systems/XPSystem.ts`, `src/scenes/GameScene.ts`,
+`src/main.ts`, `src/utils/constants.ts`
+
+---
+
+## Prompt 7 — PR: fix(combat)+feat(enemy-ai)+feat(input): correções de combate, IA e movimento contínuo
+Autor: Vitor
+Data: 2026-05-02
+
+Contexto:
+Três problemas identificados no protótipo funcional:
+1. HP visual do inimigo não diminuía após sofrer dano (_syncEnemySprite nunca chamada)
+2. Inimigos eram estáticos (sem lógica de perseguição)
+3. Movimento exigia clique por ação (JustDown) em vez de ser contínuo ao segurar
+
+Objetivo:
+1. Corrigir fluxo de dano: chamar _syncEnemySprite após combate e emitir PLAYER_HP_CHANGED
+   quando CombatSystem modifica player.hp diretamente (sem passar por takeDamage)
+2. Implementar IA de perseguição no EnemySystem:
+   - Máquina de estados IDLE → CHASING → ATTACKING
+   - Detecção por setor (mesma Room BSP) e por raio (detectionRadius = 8 tiles)
+   - Movimentação: 1 tile por turno, eixo de maior distância primeiro, sem atravessar paredes
+3. Substituir JustDown por isDown — movimento contínuo com cadência controlada pelo
+   cooldown interno de 150ms do Player.tryMove
+4. Gerar testes Vitest:
+   - tests/combat.test.js: +2 cenários de HP (7 total)
+   - tests/player-collision.test.js: 8 testes de colisão e cooldown (novo)
+   - tests/enemy-ai.test.js: 8 testes de IA (novo) — 48 testes total
+
+Arquivos gerados/modificados: `src/systems/EnemySystem.ts`, `src/scenes/GameScene.ts`,
+`src/utils/constants.ts` (DETECTION_RADIUS), `tests/combat.test.js`,
+`tests/player-collision.test.js`, `tests/enemy-ai.test.js`

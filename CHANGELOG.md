@@ -50,19 +50,75 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ## [Unreleased]
 
+---
+
+## [0.1.2] — 2026-05-02
+
 ### Added
 
-#### Dashboard de Acompanhamento (`dashboard/index.html`)
-- Página estática de dashboard do projeto consumindo a API pública do GitHub em tempo real
-- Timeline de commits do branch `staging` com diferenciação visual entre commits de feature e merges
+#### HUD persistente (`UIScene`)
+- Nova cena `UIScene` executada em paralelo à `GameScene` via `this.scene.launch('UIScene')`
+- Barra de HP com gradiente verde→vermelho quando HP < 30% do máximo
+- Barra de Mana (azul) calculada pela fórmula `WIS × 4 + INT × 2`
+- Labels de Nível, ATK e XP no formato `XP: atual / próximo`
+- Log de mensagens com as últimas 5 linhas na base da tela (combate, level up, morte)
+- Sincronização via `EventBus` (singleton sem dependência de Phaser) — UIScene nunca acessa o Player diretamente
+
+#### Atributos base RPG no Player
+- Atributos `STR`, `INT`, `DEX`, `CON`, `WIS`, `CHA` inicializados via `BASE_STATS` (CON=18)
+- HP máximo calculado pela fórmula da spec: `CON × 5 + Nível × 3`
+- Mana máxima calculada pela fórmula da spec: `WIS × 4 + INT × 2`
+- Método `recalcStats()` recalcula derivados a cada level up — elimina bônus fixo por nível
+- Método `useMana(amount)` deduz mana e emite `PLAYER_MANA_CHANGED`
+
+#### IA de perseguição dos inimigos
+- Máquina de estados por inimigo: `IDLE → CHASING → ATTACKING`
+- Detecção por **setor**: inimigo entra em CHASING se o player estiver na mesma sala (bounds do Room BSP) **ou** dentro do `detectionRadius` (8 tiles por padrão)
+- Movimentação: 1 tile por turno, priorizando o eixo de maior distância; respeita paredes e colisão entre inimigos
+- Ataque automático quando adjacente ao player; dano aplicado via `player.takeDamage()` (emite `PLAYER_HP_CHANGED`)
+- Turno dos inimigos processado após cada ação do player em `GameScene._tickEnemies()`
+
+#### Movimento contínuo por teclado
+- Input migrado de `JustDown` (único disparo) para `isDown` (contínuo enquanto tecla pressionada)
+- Cadência de movimento controlada pelo cooldown interno do `Player.tryMove()` (150ms) — mantém sensação de grid clássico sem clique por ação
+
+#### Dashboard de acompanhamento (`dashboard/index.html`)
+- Página estática consumindo a API pública do GitHub em tempo real
+- Timeline de commits do branch `staging` com diferenciação visual feature vs. merge
 - Listagem dos top-5 contribuidores com avatar, login e contagem de commits
 - Renderização do `CHANGELOG.md` diretamente do repositório via `marked.js`
 - Layout responsivo com Tailwind CSS, efeito glassmorphism e tipografia Inter + JetBrains Mono
-- SHA truncado (7 caracteres) com badge colorido por tipo de mudança (feature vs. merge)
+
+### Fixed
+
+- **HP do inimigo não diminuía visualmente**: `_syncEnemySprite()` estava definida mas nunca era chamada após combate — corrigido em `_resolveCombat()` e `_tickEnemies()`
+- **UIScene não atualizava HP do player após contra-ataque**: `CombatSystem` modificava `player.hp` diretamente sem emitir evento; `_resolveCombat()` agora emite `PLAYER_HP_CHANGED` via `EventBus` após cada contra-ataque
+- **Fórmula de XP inconsistente**: unificada para `100 × N × (N + 1) / 2` (spec) em `XPSystem._xpToNextLevel()`, eliminando o loop acumulativo anterior
+- **EventBus incompatível com ambiente de teste Node.js**: substituída dependência de `Phaser.Events.EventEmitter` por um emitter mínimo sem `window` — testes continuam passando sem mock de browser
+
+### Testing
+
+- `tests/combat.test.js` — 2 novos cenários: HP do inimigo diminui após ataque; HP do player diminui no contra-ataque (7 testes total)
+- `tests/player-collision.test.js` — nova suíte com 8 testes: movimento válido, bloqueio em 4 direções, cooldown de input e retorno de alvo inimigo
+- `tests/enemy-ai.test.js` — nova suíte com 8 testes: estados IDLE/CHASING/ATTACKING, movimentação, colisão com parede, colisão entre inimigos, detecção por sala, inimigo morto
+- Total: **48 testes passando** (eram 30 antes desta versão)
 
 ---
 
 ## [0.1.1] — 2026-05-01
+
+### Added
+
+#### Visual — Tileset Dawnlike 16×16
+- Integração do tileset **Dawnlike** (DragonDePlatino, CC-BY 4.0) substituindo os placeholders de retângulos coloridos
+- Tiles de chão renderizados com `Ground0.png` (frame 3 — pedra cinza)
+- Tiles de parede renderizados com `Wall.png` (frame 3)
+- Sprite do personagem jogável carregado de `Player0.png` (frame 24 — idle de frente)
+- Sprite de inimigos carregado de `Undead0.png` (frame 0 — esqueleto)
+- Easter egg obrigatório: sprite do **Platino** (mascote do autor, `Reptile0.png`) posicionado na última sala da dungeon com alpha reduzido — cumprimento da licença CC-BY 4.0
+- Crédito `© DragonDePlatino CC-BY 4.0` exibido junto ao easter egg
+- Assets servidos via `public/assets/dawnlike/` (Vite static serving)
+- Zoom de câmera em 2× para melhor visualização dos tiles 16×16 — 2026-05-01
 
 ### Added
 
