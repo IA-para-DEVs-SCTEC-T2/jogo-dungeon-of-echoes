@@ -50,11 +50,50 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ## [Unreleased]
 
+---
+
+## [0.1.1] — 2026-05-01
+
 ### Added
-- Template de Pull Request (`.github/pull_request_template.md`) com seções padronizadas: descrição, tipo de mudança, o que foi feito, como testar, evidências, checklist e observações
+
+#### Visual — Tileset Dawnlike 16×16
+- Integração do tileset **Dawnlike** (DragonDePlatino, CC-BY 4.0) substituindo os placeholders de retângulos coloridos
+- Tiles de chão renderizados com `Ground0.png` (frame 3 — pedra cinza)
+- Tiles de parede renderizados com `Wall.png` (frame 3)
+- Sprite do personagem jogável carregado de `Player0.png` (frame 24 — idle de frente)
+- Sprite de inimigos carregado de `Undead0.png` (frame 0 — esqueleto)
+- Easter egg obrigatório: sprite do **Platino** (mascote do autor, `Reptile0.png`) posicionado na última sala da dungeon com alpha reduzido — cumprimento da licença CC-BY 4.0
+- Crédito `© DragonDePlatino CC-BY 4.0` exibido junto ao easter egg
+- Assets servidos via `public/assets/dawnlike/` (Vite static serving)
+- Zoom de câmera em 2× para melhor visualização dos tiles 16×16
+
+#### Configuração do motor
+- `pixelArt: true` adicionado ao config do Phaser — desativa anti-aliasing nas texturas (necessário para tiles pixel art ficarem nítidos no WebGL)
+- Physics Arcade configurada (`physics.default: 'arcade'`, gravity zero)
+- Grid corrigido para **40×40** tiles (era 40×30)
+
+#### Migração para TypeScript
+- Todos os arquivos `.js` convertidos para `.ts` com tipagem explícita (`strict: true`)
+- `tsconfig.json` adicionado com `moduleResolution: bundler` (compatível com Vite)
+- `typescript` adicionado como devDependency
+
+#### Reorganização de pastas
+- `src/entities/Player.ts` — entidade `Player` estendendo `Phaser.GameObjects.Sprite` diretamente (antes era `PlayerSystem` desacoplado)
+- `src/generators/DungeonGenerator.ts` — lógica de geração de dungeon movida de `systems/` para pasta dedicada
+- `src/utils/constants.ts` — constantes centralizadas (antes em `src/config/constants.js`)
+
+#### Governança
+- Template de Pull Request (`.github/pull_request_template.md`) com seções padronizadas
+- Hook `pre-commit` atualizado para exigir `CHANGELOG.md` e `docs/prompts/<membro>.md` em todo commit
+
+### Fixed
+- `index.html` corrigido: `src="/src/main.js"` → `src="/src/main.ts"` — causava `NS_ERROR_CORRUPTED_CONTENT` após migração TypeScript
+- Import do Phaser 4 corrigido: `import Phaser from 'phaser'` → `import * as Phaser from 'phaser'` em todos os arquivos de cena
 
 ### Changed
-- Hook `pre-commit` atualizado para exigir, em todo commit, a atualização de `CHANGELOG.md` e de pelo menos um arquivo em `docs/prompts/`
+- `TILE_SIZE` reduzido de 32 para **16** pixels — alinhado com a grade nativa do Dawnlike
+- Renderização da dungeon migrada de `this.add.rectangle()` para `this.add.image()` com frames do spritesheet
+- Sprites de personagens e inimigos migrados de retângulos para `this.add.sprite()` com frames do Dawnlike
 
 ---
 
@@ -108,5 +147,6 @@ procedural de masmorras, combate turno-a-turno e progressão de personagem.
 
 ---
 
-[Unreleased]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/releases/tag/v0.1.0

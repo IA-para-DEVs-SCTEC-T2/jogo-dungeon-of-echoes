@@ -4,8 +4,8 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { XPSystem } from '../src/systems/XPSystem.js';
-import { EVENTS } from '../src/config/constants.js';
+import { XPSystem } from '../src/systems/XPSystem';
+import { EVENTS } from '../src/utils/constants';
 
 // Mock simples de EventEmitter
 function createEmitter() {

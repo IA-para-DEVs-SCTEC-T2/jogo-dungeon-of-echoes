@@ -4,9 +4,9 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { CombatSystem } from '../src/systems/CombatSystem.js';
-import { XPSystem } from '../src/systems/XPSystem.js';
-import { EVENTS } from '../src/config/constants.js';
+import { CombatSystem } from '../src/systems/CombatSystem';
+import { XPSystem } from '../src/systems/XPSystem';
+import { EVENTS } from '../src/utils/constants';
 
 function createEmitter() {
   return { emit: vi.fn() };
