@@ -17,6 +17,12 @@ O projeto é de contexto acadêmico e demonstra arquitetura modular em JavaScrip
 
 ---
 
+## Dashboard
+
+https://ia-para-devs-sctec-t2.github.io/jogo-dungeon-of-echoes/dashboard/
+
+---
+
 ## Status do Projeto
 
 | Item | Status |
@@ -223,12 +229,12 @@ Veja o histórico completo de mudanças no [CHANGELOG.md](./CHANGELOG.md).
   - 💻 Função: Mago
 
 - **Nome:** Paolo Murari
-  - 📧 Email:
+  - 📧 Email: paolojcm@gmail.com
   - 💻 GitHub: https://github.com/paolojcm  
   - 💻 Função: Mago
 
 - **Nome:** Andrea González
-  - 📧 Email:
+  - 📧 Email: andreavgonzalez7@gmail.com
   - 💻 GitHub: https://github.com/andreagonzalez  
   - 💻 Função: Paladina
 

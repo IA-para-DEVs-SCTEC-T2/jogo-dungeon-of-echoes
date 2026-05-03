@@ -8,148 +8,473 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
         :root { font-family: 'Inter', sans-serif; }
         .mono { font-family: 'JetBrains Mono', monospace; }
-        body { 
-            background-color: #020617; 
+
+        body {
+            background-color: #020617;
             color: #f1f5f9;
-            background-image: radial-gradient(circle at 0% 0%, rgba(55, 48, 163, 0.15) 0%, transparent 25%), radial-gradient(circle at 100% 100%, rgba(79, 70, 229, 0.1) 0%, transparent 25%);
+            background-image:
+                radial-gradient(circle at 0% 0%, rgba(55, 48, 163, 0.18) 0%, transparent 30%),
+                radial-gradient(circle at 100% 100%, rgba(79, 70, 229, 0.12) 0%, transparent 30%);
         }
-        .glass-card { 
-            background: rgba(15, 23, 42, 0.6); 
-            backdrop-filter: blur(12px); 
-            border: 1px solid rgba(255, 255, 255, 0.05);
+
+        .glass-card {
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
         }
+
+        /* Linha conectora da timeline */
         .commit-line::before {
-            content: ''; position: absolute; left: 23px; top: 40px; bottom: -20px; width: 2px;
+            content: '';
+            position: absolute;
+            left: 23px;
+            top: 48px;
+            bottom: -24px;
+            width: 2px;
             background: linear-gradient(to bottom, #334155 0%, transparent 100%);
         }
-        
-        .markdown-body h2 { color: #818cf8; border-bottom: 1px solid #1e293b; padding-bottom: 8px; margin-top: 24px; margin-bottom: 16px; font-weight: 700; font-size: 1.125rem; }
+
+        /* Markdown do changelog */
+        .markdown-body h1 { color: #e2e8f0; font-size: 1rem; font-weight: 700; margin-bottom: 12px; }
+        .markdown-body h2 { color: #818cf8; border-bottom: 1px solid #1e293b; padding-bottom: 8px; margin-top: 20px; margin-bottom: 12px; font-weight: 700; font-size: 0.9rem; }
+        .markdown-body h3 { color: #94a3b8; font-size: 0.8rem; font-weight: 600; margin-top: 12px; margin-bottom: 6px; }
         .markdown-body ul { padding-left: 20px; list-style-type: disc; color: #94a3b8; }
-        .markdown-body li { margin-bottom: 8px; }
-        .markdown-body code { background: #1e293b; padding: 2px 4px; border-radius: 4px; color: #f472b6; font-family: monospace; font-size: 0.75rem; }
-        ::-webkit-scrollbar { width: 5px; }
+        .markdown-body li { margin-bottom: 6px; font-size: 0.8rem; }
+        .markdown-body code { background: #1e293b; padding: 2px 5px; border-radius: 4px; color: #f472b6; font-family: monospace; font-size: 0.72rem; }
+        .markdown-body strong { color: #e2e8f0; }
+
+        /* Stat card hover */
+        .stat-card { transition: transform 0.2s, box-shadow 0.2s; }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(99, 102, 241, 0.15); }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+
+        /* Badge PR */
+        .badge-open  { background: rgba(34, 197, 94, 0.1);  color: #4ade80;  border: 1px solid rgba(34,197,94,0.25); }
+        .badge-closed { background: rgba(168, 85, 247, 0.1); color: #c084fc; border: 1px solid rgba(168,85,247,0.25); }
+
+        /* Skeleton pulse */
+        .skeleton { animation: pulse 1.8s cubic-bezier(0.4,0,0.6,1) infinite; background: rgba(51,65,85,0.4); border-radius: 1rem; }
+        @keyframes pulse { 0%,100%{ opacity:1 } 50%{ opacity:.4 } }
     </style>
 </head>
-<body class="min-h-screen antialiased pb-12">
+<body class="min-h-screen antialiased pb-16">
 
+    <!-- ====== NAVBAR ====== -->
     <nav class="border-b border-slate-800 bg-slate-950/80 sticky top-0 z-50 backdrop-blur-md">
-        <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
-            <div class="flex items-center gap-5">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center gap-4">
+            <div class="flex items-center gap-4">
                 <div class="relative">
-                    <div class="absolute inset-0 bg-indigo-500 blur-lg opacity-30 animate-pulse"></div>
+                    <div class="absolute inset-0 bg-indigo-500 blur-lg opacity-30 animate-pulse rounded-full"></div>
                     <div class="relative bg-gradient-to-br from-indigo-500 to-purple-600 p-3 rounded-2xl shadow-xl">
-                        <i class="fa-solid fa-gamepad text-2xl text-white"></i>
+                        <i class="fa-solid fa-gamepad text-xl text-white"></i>
                     </div>
                 </div>
                 <div>
-                    <h1 class="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">Dungeon of Echoes</h1>
+                    <h1 class="text-lg font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
+                        Dungeon of Echoes
+                    </h1>
+                    <p class="text-[10px] text-slate-500 font-semibold uppercase tracking-widest">Development Dashboard</p>
                 </div>
             </div>
-            <div id="repo-link" class="hidden sm:block text-xs font-semibold text-slate-400 bg-slate-900 px-4 py-2 rounded-full border border-slate-800">
-                IA-para-DEVs-SCTEC-T2
-            </div>
+            <a href="https://github.com/IA-para-DEVs-SCTEC-T2/jogo-dungeon-of-echoes"
+               target="_blank"
+               class="hidden sm:flex items-center gap-2 text-xs font-semibold text-slate-400 bg-slate-900 px-4 py-2 rounded-full border border-slate-800 hover:border-indigo-500 hover:text-white transition-colors">
+                <i class="fa-brands fa-github"></i> IA-para-DEVs-SCTEC-T2
+            </a>
         </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto px-6 mt-10">
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
-            
-            <!-- Timeline de Commits -->
+    <main class="max-w-7xl mx-auto px-6 mt-10 space-y-10">
+
+        <!-- ====== STAT CARDS (VISÃO GERAL) ====== -->
+        <section>
+            <h2 class="text-xs font-bold text-slate-500 uppercase tracking-[0.2em] mb-5">
+                <i class="fa-solid fa-chart-bar mr-2 text-indigo-400"></i>Visão Geral do Projeto
+            </h2>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+
+                <div id="stat-commits" class="stat-card glass-card rounded-2xl p-5 col-span-2 md:col-span-1 lg:col-span-2">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                            <i class="fa-solid fa-code-commit text-indigo-400 text-sm"></i>
+                        </div>
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">Total de Commits</span>
+                    </div>
+                    <p id="val-commits" class="text-3xl font-extrabold text-white mono skeleton h-9 w-16">—</p>
+                    <p id="val-last-commit" class="text-[10px] text-slate-500 mt-1">último: —</p>
+                </div>
+
+                <div id="stat-branches" class="stat-card glass-card rounded-2xl p-5">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
+                            <i class="fa-solid fa-code-branch text-cyan-400 text-sm"></i>
+                        </div>
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">Branches</span>
+                    </div>
+                    <p id="val-branches" class="text-3xl font-extrabold text-white mono skeleton h-9 w-10">—</p>
+                    <p class="text-[10px] text-slate-500 mt-1">ativas</p>
+                </div>
+
+                <div id="stat-pr-open" class="stat-card glass-card rounded-2xl p-5">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-9 h-9 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center">
+                            <i class="fa-solid fa-code-pull-request text-green-400 text-sm"></i>
+                        </div>
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">PRs Abertos</span>
+                    </div>
+                    <p id="val-pr-open" class="text-3xl font-extrabold text-white mono skeleton h-9 w-10">—</p>
+                    <p class="text-[10px] text-slate-500 mt-1">em revisão</p>
+                </div>
+
+                <div id="stat-pr-closed" class="stat-card glass-card rounded-2xl p-5">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
+                            <i class="fa-solid fa-circle-check text-purple-400 text-sm"></i>
+                        </div>
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">PRs Fechados</span>
+                    </div>
+                    <p id="val-pr-closed" class="text-3xl font-extrabold text-white mono skeleton h-9 w-10">—</p>
+                    <p class="text-[10px] text-slate-500 mt-1">concluídos</p>
+                </div>
+
+                <div id="stat-contributors" class="stat-card glass-card rounded-2xl p-5">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
+                            <i class="fa-solid fa-users text-orange-400 text-sm"></i>
+                        </div>
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">Contribuidores</span>
+                    </div>
+                    <p id="val-contributors" class="text-3xl font-extrabold text-white mono skeleton h-9 w-10">—</p>
+                    <p class="text-[10px] text-slate-500 mt-1">no projeto</p>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ====== GRID PRINCIPAL ====== -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+            <!-- ---- Timeline de Commits ---- -->
             <div class="lg:col-span-7 space-y-6">
-                <h2 class="text-sm font-bold text-slate-500 uppercase tracking-[0.2em] mb-8">Fluxo de Desenvolvimento</h2>
-                <div id="commit-list" class="space-y-6 relative">
-                    <div class="animate-pulse bg-slate-800/20 h-32 rounded-3xl border border-slate-800"></div>
+                <h2 class="text-xs font-bold text-slate-500 uppercase tracking-[0.2em]">
+                    <i class="fa-solid fa-timeline mr-2 text-indigo-400"></i>Fluxo de Desenvolvimento
+                    <span class="ml-2 text-slate-600 normal-case tracking-normal font-normal">(staging)</span>
+                </h2>
+                <div id="commit-list" class="space-y-4 relative">
+                    <div class="skeleton h-28 rounded-2xl"></div>
+                    <div class="skeleton h-28 rounded-2xl opacity-70"></div>
+                    <div class="skeleton h-28 rounded-2xl opacity-40"></div>
                 </div>
             </div>
 
-            <!-- Lateral: Equipe e Changelog -->
+            <!-- ---- Sidebar: Equipe + PRs + Changelog ---- -->
             <div class="lg:col-span-5 space-y-8">
-                <section class="glass-card rounded-[2rem] p-8">
-                    <h3 class="text-sm font-bold text-white uppercase tracking-wider mb-6">Equipe 7</h3>
-                    <div id="contributors" class="grid grid-cols-1 gap-3"></div>
+
+                <!-- Pull Requests -->
+                <section class="glass-card rounded-[2rem] p-7 border-t-4 border-green-500">
+                    <h3 class="text-xs font-bold text-white uppercase tracking-wider mb-5 flex items-center gap-2">
+                        <i class="fa-solid fa-code-pull-request text-green-400"></i> Pull Requests
+                    </h3>
+                    <div id="pr-list" class="space-y-2">
+                        <div class="skeleton h-12 rounded-xl"></div>
+                        <div class="skeleton h-12 rounded-xl opacity-60"></div>
+                    </div>
                 </section>
 
-                <section class="glass-card rounded-[2rem] p-8 border-t-4 border-indigo-500">
-                    <h3 class="text-sm font-bold text-white uppercase tracking-wider mb-6 flex items-center gap-2">
-                        <i class="fa-solid fa-file-shield text-indigo-500"></i> Notas da Versão
+                <!-- Contribuidores -->
+                <section class="glass-card rounded-[2rem] p-7 border-t-4 border-orange-500">
+                    <h3 class="text-xs font-bold text-white uppercase tracking-wider mb-5 flex items-center gap-2">
+                        <i class="fa-solid fa-users text-orange-400"></i> Equipe — Contribuidores
                     </h3>
-                    <div id="changelog-content" class="markdown-body text-sm leading-relaxed max-h-[500px] overflow-y-auto pr-4"></div>
+                    <div id="contributors" class="space-y-2">
+                        <div class="skeleton h-14 rounded-2xl"></div>
+                        <div class="skeleton h-14 rounded-2xl opacity-70"></div>
+                        <div class="skeleton h-14 rounded-2xl opacity-40"></div>
+                    </div>
                 </section>
+
+                <!-- Changelog -->
+                <section class="glass-card rounded-[2rem] p-7 border-t-4 border-indigo-500">
+                    <h3 class="text-xs font-bold text-white uppercase tracking-wider mb-5 flex items-center gap-2">
+                        <i class="fa-solid fa-file-shield text-indigo-400"></i> Notas da Versão
+                    </h3>
+                    <div id="changelog-content" class="markdown-body text-sm leading-relaxed max-h-[480px] overflow-y-auto pr-2">
+                        <div class="skeleton h-4 rounded mb-3"></div>
+                        <div class="skeleton h-4 rounded mb-3 w-5/6"></div>
+                        <div class="skeleton h-4 rounded mb-3 w-4/6"></div>
+                    </div>
+                </section>
+
             </div>
         </div>
     </main>
 
     <script>
-        const OWNER = 'IA-para-DEVs-SCTEC-T2';
-        const REPO = 'jogo-dungeon-of-echoes';
-        const BRANCH = 'staging';
+    // ─── Configuração ─────────────────────────────────────────────────────────
+    const OWNER  = 'IA-para-DEVs-SCTEC-T2';
+    const REPO   = 'jogo-dungeon-of-echoes';
+    const BRANCH = 'staging';
 
-        async function fetchData() {
+    // ─── Utilitários de API ───────────────────────────────────────────────────
+
+    /**
+     * Busca uma URL e retorna o JSON. Lança erro em caso de falha HTTP.
+     */
+    async function apiFetch(url) {
+        const res = await fetch(url, {
+            headers: { 'Accept': 'application/vnd.github+json' }
+        });
+        if (!res.ok) throw new Error(`GitHub API error ${res.status}: ${url}`);
+        return res.json();
+    }
+
+    /**
+     * Busca todas as páginas de um endpoint paginado da API do GitHub.
+     * Usa o header Link para navegar pelas páginas.
+     */
+    async function apiFetchAllPages(url) {
+        let results = [];
+        let nextUrl = `${url}${url.includes('?') ? '&' : '?'}per_page=100`;
+
+        while (nextUrl) {
+            const res = await fetch(nextUrl, {
+                headers: { 'Accept': 'application/vnd.github+json' }
+            });
+            if (!res.ok) break;
+
+            const data = await res.json();
+            if (!Array.isArray(data)) break;
+            results = results.concat(data);
+
+            // Verifica se há próxima página via Link header
+            const linkHeader = res.headers.get('Link') || '';
+            const match = linkHeader.match(/<([^>]+)>;\s*rel="next"/);
+            nextUrl = match ? match[1] : null;
+        }
+
+        return results;
+    }
+
+    // ─── Coleta de dados dos Contributors ────────────────────────────────────
+
+    /**
+     * Busca todos os contribuidores do repositório considerando commits de
+     * TODAS as branches. Isso corrige o bug onde contributors que só fizeram
+     * commits em branches não-padrão não apareciam.
+     *
+     * Estratégia:
+     * 1. Lista todas as branches do repositório
+     * 2. Busca commits de cada branch (com paginação)
+     * 3. Agrega por author.login, somando contribuições
+     * 4. Retorna ordenado por total de commits
+     */
+    async function fetchAllContributors() {
+        // Passo 1: Listar todas as branches
+        const branches = await apiFetchAllPages(
+            `https://api.github.com/repos/${OWNER}/${REPO}/branches`
+        );
+
+        const authorMap = new Map(); // login → { login, avatar_url, contributions }
+
+        // Passo 2: Para cada branch, buscar commits e extrair autores
+        await Promise.all(branches.map(async (branch) => {
             try {
-                const [commRes, contribRes, changelogRes] = await Promise.all([
-                    fetch(`https://api.github.com/repos/${OWNER}/${REPO}/commits?sha=${BRANCH}&per_page=15`),
-                    fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contributors`),
-                    fetch(`https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/CHANGELOG.md`)
-                ]);
+                const commits = await apiFetchAllPages(
+                    `https://api.github.com/repos/${OWNER}/${REPO}/commits?sha=${branch.name}`
+                );
 
-                const commits = await commRes.json();
-                const contributors = await contribRes.json();
+                commits.forEach(c => {
+                    const login  = c.author?.login;
+                    const avatar = c.author?.avatar_url;
+                    if (!login) return; // commit sem usuário GitHub vinculado
 
-                if (Array.isArray(commits)) renderCommits(commits);
-                if (Array.isArray(contributors)) renderContributors(contributors);
-                if (changelogRes.ok) {
-                    const text = await changelogRes.text();
-                    document.getElementById('changelog-content').innerHTML = marked.parse(text);
-                }
-            } catch (e) { console.error("Erro na busca de dados:", e); }
+                    if (authorMap.has(login)) {
+                        authorMap.get(login).contributions++;
+                    } else {
+                        authorMap.set(login, { login, avatar_url: avatar, contributions: 1 });
+                    }
+                });
+            } catch (_) {
+                // branch inacessível — ignora silenciosamente
+            }
+        }));
+
+        // Passo 3: Ordenar por contribuições (maior primeiro)
+        return [...authorMap.values()].sort((a, b) => b.contributions - a.contributions);
+    }
+
+    // ─── Renderização ─────────────────────────────────────────────────────────
+
+    function renderStatNumber(id, value) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.textContent = value;
+            el.classList.remove('skeleton', 'h-9', 'w-16', 'w-10');
+        }
+    }
+
+    function renderCommits(list) {
+        const container = document.getElementById('commit-list');
+        if (!list.length) {
+            container.innerHTML = '<p class="text-slate-500 text-sm">Nenhum commit encontrado.</p>';
+            return;
         }
 
-        function renderCommits(list) {
-            const container = document.getElementById('commit-list');
-            container.innerHTML = list.map((c, index) => {
-                const isMerge = c.commit.message.toLowerCase().includes('merge');
-                const message = c.commit.message.split('\n')[0];
-                const date = new Date(c.commit.author.date).toLocaleDateString('pt-BR', { day:'2-digit', month:'short' });
+        container.innerHTML = list.map((c, i) => {
+            const isMerge = c.commit.message.toLowerCase().startsWith('merge');
+            const message = c.commit.message.split('\n')[0];
+            const date    = new Date(c.commit.author.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+            const sha     = c.sha.substring(0, 7);
+            const author  = c.author?.login || c.commit.author.name;
+            const avatar  = c.author?.avatar_url;
 
-                return `
-                <div class="relative flex gap-6 ${index !== list.length - 1 ? 'commit-line' : ''}">
-                    <div class="relative z-10">
-                        <div class="w-12 h-12 rounded-full flex items-center justify-center border-2 ${isMerge ? 'bg-slate-900 border-purple-500' : 'bg-indigo-600 border-indigo-400'} overflow-hidden shadow-lg">
-                            ${isMerge ? '<i class="fa-solid fa-code-merge text-purple-400 text-xs"></i>' : `<img src="${c.author?.avatar_url || ''}" class="w-full h-full">`}
-                        </div>
+            return `
+            <div class="relative flex gap-5 ${i !== list.length - 1 ? 'commit-line' : ''}">
+                <div class="relative z-10 flex-shrink-0">
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center border-2 overflow-hidden shadow-lg
+                        ${isMerge ? 'bg-slate-900 border-purple-500' : 'bg-slate-900 border-indigo-500'}">
+                        ${isMerge
+                            ? '<i class="fa-solid fa-code-merge text-purple-400 text-sm"></i>'
+                            : `<img src="${avatar || ''}" class="w-full h-full object-cover" alt="${author}">`
+                        }
                     </div>
-                    <div class="flex-1 glass-card p-5 rounded-2xl border-l-4 ${isMerge ? 'border-purple-500' : 'border-indigo-500'} hover:translate-x-1 transition-transform">
-                        <div class="flex justify-between items-start mb-2 text-[10px] font-bold uppercase">
-                            <span class="mono ${isMerge ? 'text-purple-400' : 'text-indigo-400'} bg-white/5 px-2 py-0.5 rounded">${c.sha.substring(0, 7)}</span>
-                            <span class="text-slate-500">${date}</span>
-                        </div>
-                        <h4 class="text-sm font-semibold text-slate-200 mb-3">${isMerge ? '<span class="text-purple-400">[MERGE]</span> ' : ''}${message}</h4>
-                        <div class="text-[10px] text-slate-500">por <span class="text-slate-300 font-bold">@${c.author?.login || c.commit.author.name}</span></div>
+                </div>
+                <div class="flex-1 glass-card p-5 rounded-2xl border-l-4 hover:translate-x-1 transition-transform
+                    ${isMerge ? 'border-purple-500' : 'border-indigo-500'}">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="mono text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-white/5
+                            ${isMerge ? 'text-purple-400' : 'text-indigo-400'}">${sha}</span>
+                        <span class="text-[10px] text-slate-500 font-semibold">${date}</span>
                     </div>
-                </div>`;
-            }).join('');
+                    <p class="text-sm font-semibold text-slate-200 mb-2 leading-snug">
+                        ${isMerge ? '<span class="text-purple-400 mr-1">[MERGE]</span>' : ''}${message}
+                    </p>
+                    <p class="text-[10px] text-slate-500">
+                        por <span class="text-slate-300 font-bold">@${author}</span>
+                    </p>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function renderContributors(list) {
+        const container = document.getElementById('contributors');
+        if (!list.length) {
+            container.innerHTML = '<p class="text-slate-500 text-sm">Nenhum contribuidor encontrado.</p>';
+            return;
         }
 
-        function renderContributors(list) {
-            const container = document.getElementById('contributors');
-            container.innerHTML = list.slice(0, 5).map(u => `
-                <div class="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-colors">
-                    <div class="flex items-center gap-3">
-                        <img src="${u.avatar_url}" class="w-10 h-10 rounded-xl grayscale group-hover:grayscale-0 transition-all">
-                        <div>
-                            <p class="text-xs font-bold text-white uppercase tracking-tighter">@${u.login}</p>
-                            <p class="text-[9px] text-slate-500 font-bold uppercase">${u.contributions} Commits</p>
-                        </div>
+        // Cores de destaque por posição (ouro, prata, bronze, demais)
+        const rankColors = ['text-yellow-400', 'text-slate-300', 'text-orange-600'];
+
+        container.innerHTML = list.map((u, i) => `
+            <div class="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/5
+                        group hover:bg-white/10 transition-colors">
+                <div class="flex items-center gap-3">
+                    <img src="${u.avatar_url}" class="w-10 h-10 rounded-xl grayscale group-hover:grayscale-0 transition-all object-cover"
+                         alt="${u.login}" onerror="this.src='https://github.com/identicons/${u.login}.png'">
+                    <div>
+                        <p class="text-xs font-bold text-white tracking-tighter">@${u.login}</p>
+                        <p class="text-[9px] text-slate-500 font-bold uppercase">${u.contributions} commits</p>
                     </div>
-                    <i class="fa-solid fa-chevron-right text-slate-800 text-[10px]"></i>
-                </div>`).join('');
+                </div>
+                <span class="text-xs font-bold ${rankColors[i] || 'text-slate-600'}">${i < 3 ? ['🥇','🥈','🥉'][i] : `#${i+1}`}</span>
+            </div>`).join('');
+
+        renderStatNumber('val-contributors', list.length);
+    }
+
+    function renderPullRequests(open, closed) {
+        const container = document.getElementById('pr-list');
+        const all = [
+            ...open.map(pr   => ({ ...pr, state: 'open' })),
+            ...closed.slice(0, 5).map(pr => ({ ...pr, state: 'closed' }))
+        ].sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+
+        if (!all.length) {
+            container.innerHTML = '<p class="text-slate-500 text-sm">Nenhum PR encontrado.</p>';
+            return;
         }
 
-        fetchData();
+        container.innerHTML = all.map(pr => {
+            const isOpen  = pr.state === 'open';
+            const date    = new Date(pr.updated_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+            return `
+            <a href="${pr.html_url}" target="_blank"
+               class="flex items-center justify-between gap-3 p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors group">
+                <div class="flex items-center gap-3 min-w-0">
+                    <i class="fa-solid ${isOpen ? 'fa-code-pull-request text-green-400' : 'fa-circle-check text-purple-400'} flex-shrink-0"></i>
+                    <div class="min-w-0">
+                        <p class="text-xs font-semibold text-slate-200 truncate group-hover:text-white">${pr.title}</p>
+                        <p class="text-[9px] text-slate-500">atualizado em ${date}</p>
+                    </div>
+                </div>
+                <span class="flex-shrink-0 text-[9px] font-bold px-2 py-0.5 rounded-full ${isOpen ? 'badge-open' : 'badge-closed'}">
+                    ${isOpen ? 'aberto' : 'fechado'}
+                </span>
+            </a>`;
+        }).join('');
+    }
+
+    // ─── Orquestração principal ───────────────────────────────────────────────
+
+    async function fetchData() {
+        try {
+            // Todas as chamadas independentes em paralelo
+            const [commits, branches, prOpen, prClosed, contributors, changelogRes] = await Promise.all([
+                apiFetch(`https://api.github.com/repos/${OWNER}/${REPO}/commits?sha=${BRANCH}&per_page=20`),
+                apiFetch(`https://api.github.com/repos/${OWNER}/${REPO}/branches?per_page=100`),
+                apiFetch(`https://api.github.com/repos/${OWNER}/${REPO}/pulls?state=open&per_page=100`),
+                apiFetch(`https://api.github.com/repos/${OWNER}/${REPO}/pulls?state=closed&per_page=20`),
+                fetchAllContributors(),
+                fetch(`https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/CHANGELOG.md`)
+            ]);
+
+            // Stat: commits (contagem aproximada da página atual)
+            renderStatNumber('val-commits', commits.length >= 20 ? `${commits.length}+` : commits.length);
+
+            // Stat: último commit
+            if (commits.length) {
+                const lastDate = new Date(commits[0].commit.author.date)
+                    .toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+                const el = document.getElementById('val-last-commit');
+                if (el) el.textContent = `último: ${lastDate}`;
+            }
+
+            // Stat: branches
+            renderStatNumber('val-branches', branches.length);
+
+            // Stat: PRs
+            renderStatNumber('val-pr-open',   prOpen.length);
+            renderStatNumber('val-pr-closed',  prClosed.length);
+
+            // Renderizações
+            renderCommits(commits);
+            renderPullRequests(prOpen, prClosed);
+            renderContributors(contributors);
+
+            // Changelog
+            if (changelogRes.ok) {
+                const text = await changelogRes.text();
+                document.getElementById('changelog-content').innerHTML = marked.parse(text);
+            } else {
+                document.getElementById('changelog-content').innerHTML =
+                    '<p class="text-slate-500 text-sm">CHANGELOG.md não encontrado na branch staging.</p>';
+            }
+
+        } catch (e) {
+            console.error('Erro ao carregar dados do dashboard:', e);
+        }
+    }
+
+    fetchData();
     </script>
 </body>
 </html>
