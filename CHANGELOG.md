@@ -50,6 +50,10 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ## [Unreleased]
 
+### Added
+- Variantes de chão aleatórias por sessão: 14 frames distintos do `Ground0.png` (pedra, terra, grama, areia, neve, rocha vulcânica, etc.)
+- Cada nova partida sorteia um tipo de chão diferente, gerando ambientes visualmente únicos
+
 ---
 
 ## [0.1.2] — 2026-05-02

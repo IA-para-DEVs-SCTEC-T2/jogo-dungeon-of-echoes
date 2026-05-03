@@ -24,6 +24,9 @@ export class GameScene extends Phaser.Scene {
   private combatSystem!: CombatSystem;
   private gameState!: string;
 
+  // Frame de chão sorteado para esta sessão
+  private floorFrame!: number;
+
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: Record<string, Phaser.Input.Keyboard.Key>;
 
@@ -33,6 +36,10 @@ export class GameScene extends Phaser.Scene {
 
   create(): void {
     this.gameState = GAME_STATE.PLAYING;
+
+    // Sortear frame de chão aleatório para esta sessão
+    const variants = DAWNLIKE_FRAMES.FLOOR_VARIANTS;
+    this.floorFrame = variants[Math.floor(Math.random() * variants.length)];
 
     this._initSystems();
     this._renderDungeon();
@@ -85,7 +92,7 @@ export class GameScene extends Phaser.Scene {
         const py = y * TILE_SIZE + TILE_SIZE / 2;
 
         this.add
-          .image(px, py, isFloor ? SPRITES.FLOOR : SPRITES.WALL, isFloor ? DAWNLIKE_FRAMES.FLOOR : DAWNLIKE_FRAMES.WALL)
+          .image(px, py, isFloor ? SPRITES.FLOOR : SPRITES.WALL, isFloor ? this.floorFrame : DAWNLIKE_FRAMES.WALL)
           .setDepth(0);
       }
     }
