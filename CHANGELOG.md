@@ -54,6 +54,15 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 - Variantes de chão aleatórias por sessão: 14 frames distintos do `Ground0.png` (pedra, terra, grama, areia, neve, rocha vulcânica, etc.)
 - Cada nova partida sorteia um tipo de chão diferente, gerando ambientes visualmente únicos
 
+#### Dashboard — redesign e correção de contributors
+- Barra de stat cards no topo: Total de Commits, Branches ativas, PRs Abertos, PRs Fechados e Total de Contribuidores
+- Seção dedicada de Pull Requests com badges de status (aberto/fechado) e links diretos para o GitHub
+- Ranking de contributors com medalhas 🥇🥈🥉 e contagem de commits por membro
+- Skeleton loaders em todos os blocos durante o carregamento dos dados
+
+### Fixed
+- **Contributors incompletos no dashboard**: o endpoint `/contributors` da API do GitHub considerava apenas a branch padrão, ocultando membros que commitaram exclusivamente em `staging` ou outras branches. Corrigido com `fetchAllContributors()`: lista todas as branches, busca commits de cada uma com paginação via header `Link` e agrega por `author.login`
+
 ---
 
 ## [0.1.2] — 2026-05-02
