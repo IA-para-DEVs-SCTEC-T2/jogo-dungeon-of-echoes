@@ -42,10 +42,28 @@ export const XP = {
 };
 
 // --- Dawnlike frame indices ---
-// Ajuste os valores abaixo conforme o layout real dos spritesheets
 export const DAWNLIKE_FRAMES = {
-  FLOOR: 3,    // Ground0.png — pedra cinza
-  WALL: 3,     // Wall0.png   — parede de pedra
+  // Grupos de frames de chão do Ground0.png (8 colunas × 7 linhas = 56 frames)
+  // Cada grupo representa um tipo de terreno visualmente distinto.
+  // Layout: linha 0 = pedra, linha 1 = terra, linha 2 = grama, etc.
+  FLOOR_VARIANTS: [
+    0,   // pedra cinza clara
+    1,   // pedra cinza média
+    2,   // pedra escura
+    3,   // pedra azulada
+    8,   // terra marrom clara
+    9,   // terra marrom média
+    10,  // terra avermelhada
+    16,  // grama verde
+    17,  // grama escura
+    24,  // areia / deserto
+    25,  // areia escura
+    32,  // lama / pântano
+    40,  // neve / gelo
+    48,  // rocha vulcânica
+  ],
+  FLOOR: 3,    // fallback — pedra cinza
+  WALL: 3,     // Wall.png — parede de pedra
   PLAYER: 24,  // Player0.png — personagem de frente (idle)
   ENEMY: 0,    // Undead0.png — esqueleto (frame 0)
   PLATINO: 0,  // Reptiles0.png — lagartixa do DragonDePlatino (easter egg)
