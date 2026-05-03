@@ -346,3 +346,20 @@ Objetivo:
 4. Exibir banner de aviso amarelo quando rate limit for detectado
 
 Arquivos gerados/modificados: `dashboard/index.html`, `CHANGELOG.md`, `docs/prompts/Vitor.md`
+
+---
+
+## Prompt 10 — fix(dashboard): fallback para /contributors quando /stats/contributors falha
+Autor: Vitor
+Data: 2026-05-03
+
+Contexto:
+O endpoint `/stats/contributors` pode retornar erro (ex: repositório sem histórico calculado
+ou rate limit) deixando o ranking de contributors vazio mesmo com o retry de 202.
+
+Objetivo:
+Adicionar fallback automático em `fetchAllContributors`: se `/stats/contributors` falhar
+ou retornar dado inválido, a função tenta o endpoint simples `/contributors` como segunda
+opção, garantindo que o ranking sempre exiba dados disponíveis.
+
+Arquivos gerados/modificados: `dashboard/index.html`, `CHANGELOG.md`, `docs/prompts/Vitor.md`

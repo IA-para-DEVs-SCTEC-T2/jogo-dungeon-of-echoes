@@ -63,6 +63,7 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 ### Fixed
 - **Contributors incompletos no dashboard**: substituída varredura por branches (múltiplas chamadas, risco de duplicatas) pelo endpoint `/stats/contributors` — uma única chamada que retorna contagem real de commits únicos por autor em todo o repositório; inclui retry automático para retorno 202
 - **Dashboard travava no 403 (rate limit)**: refatorada `fetchData` com `safeApiFetch` — cada seção falha de forma isolada e um banner de aviso é exibido quando o rate limit da API pública do GitHub (60 req/hora) é atingido
+- **Contributors zerados quando `/stats/contributors` retorna erro**: adicionado fallback automático para o endpoint `/contributors` simples — garante exibição do ranking mesmo quando as estatísticas calculadas não estão disponíveis
 
 ---
 
