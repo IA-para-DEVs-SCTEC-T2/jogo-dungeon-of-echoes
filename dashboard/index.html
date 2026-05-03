@@ -265,49 +265,37 @@
     // ─── Coleta de dados dos Contributors ────────────────────────────────────
 
     /**
-     * Busca todos os contribuidores do repositório considerando commits de
-     * TODAS as branches. Isso corrige o bug onde contributors que só fizeram
-     * commits em branches não-padrão não apareciam.
+     * Busca todos os contribuidores usando o endpoint /stats/contributors.
+     * Essa é a abordagem correta: uma única chamada que retorna contagem real
+     * de commits únicos por autor em TODO o repositório (todas as branches),
+     * sem risco de duplicatas e sem estourar o rate limit da API.
      *
-     * Estratégia:
-     * 1. Lista todas as branches do repositório
-     * 2. Busca commits de cada branch (com paginação)
-     * 3. Agrega por author.login, somando contribuições
-     * 4. Retorna ordenado por total de commits
+     * O endpoint pode retornar 202 (calculando) na primeira chamada —
+     * nesse caso aguardamos 3s e tentamos uma segunda vez.
      */
     async function fetchAllContributors() {
-        // Passo 1: Listar todas as branches
-        const branches = await apiFetchAllPages(
-            `https://api.github.com/repos/${OWNER}/${REPO}/branches`
-        );
+        const url = `https://api.github.com/repos/${OWNER}/${REPO}/stats/contributors`;
 
-        const authorMap = new Map(); // login → { login, avatar_url, contributions }
+        let res = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' } });
 
-        // Passo 2: Para cada branch, buscar commits e extrair autores
-        await Promise.all(branches.map(async (branch) => {
-            try {
-                const commits = await apiFetchAllPages(
-                    `https://api.github.com/repos/${OWNER}/${REPO}/commits?sha=${branch.name}`
-                );
+        // 202 = GitHub ainda está calculando as estatísticas; tentar novamente
+        if (res.status === 202) {
+            await new Promise(r => setTimeout(r, 3000));
+            res = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' } });
+        }
 
-                commits.forEach(c => {
-                    const login  = c.author?.login;
-                    const avatar = c.author?.avatar_url;
-                    if (!login) return; // commit sem usuário GitHub vinculado
+        if (!res.ok) return [];
 
-                    if (authorMap.has(login)) {
-                        authorMap.get(login).contributions++;
-                    } else {
-                        authorMap.set(login, { login, avatar_url: avatar, contributions: 1 });
-                    }
-                });
-            } catch (_) {
-                // branch inacessível — ignora silenciosamente
-            }
-        }));
+        const data = await res.json();
+        if (!Array.isArray(data)) return [];
 
-        // Passo 3: Ordenar por contribuições (maior primeiro)
-        return [...authorMap.values()].sort((a, b) => b.contributions - a.contributions);
+        return data
+            .map(entry => ({
+                login:         entry.author.login,
+                avatar_url:    entry.author.avatar_url,
+                contributions: entry.total,   // total de commits únicos no repositório
+            }))
+            .sort((a, b) => b.contributions - a.contributions);
     }
 
     // ─── Renderização ─────────────────────────────────────────────────────────
@@ -425,52 +413,83 @@
 
     // ─── Orquestração principal ───────────────────────────────────────────────
 
+    /** Busca segura: retorna null em caso de erro (rate limit, rede, etc.) */
+    async function safeApiFetch(url) {
+        try { return await apiFetch(url); }
+        catch (e) {
+            const isRateLimit = e.message.includes('403');
+            console.warn(isRateLimit ? `Rate limit atingido: ${url}` : e.message);
+            return null;
+        }
+    }
+
+    function showRateLimitBanner() {
+        const existing = document.getElementById('rate-limit-banner');
+        if (existing) return;
+        const banner = document.createElement('div');
+        banner.id = 'rate-limit-banner';
+        banner.className = 'max-w-7xl mx-auto px-6 mt-4';
+        banner.innerHTML = `
+            <div class="flex items-center gap-3 bg-yellow-500/10 border border-yellow-500/30 text-yellow-300
+                        text-xs font-semibold px-5 py-3 rounded-2xl">
+                <i class="fa-solid fa-triangle-exclamation text-yellow-400"></i>
+                Rate limit da API do GitHub atingido (60 req/hora sem token).
+                Alguns dados podem estar indisponíveis. Tente novamente em alguns minutos.
+            </div>`;
+        document.querySelector('main').prepend(banner);
+    }
+
     async function fetchData() {
-        try {
-            // Todas as chamadas independentes em paralelo
-            const [commits, branches, prOpen, prClosed, contributors, changelogRes] = await Promise.all([
-                apiFetch(`https://api.github.com/repos/${OWNER}/${REPO}/commits?sha=${BRANCH}&per_page=20`),
-                apiFetch(`https://api.github.com/repos/${OWNER}/${REPO}/branches?per_page=100`),
-                apiFetch(`https://api.github.com/repos/${OWNER}/${REPO}/pulls?state=open&per_page=100`),
-                apiFetch(`https://api.github.com/repos/${OWNER}/${REPO}/pulls?state=closed&per_page=20`),
-                fetchAllContributors(),
-                fetch(`https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/CHANGELOG.md`)
-            ]);
+        let rateLimited = false;
 
-            // Stat: commits (contagem aproximada da página atual)
+        // Cada chamada é independente — uma falha não derruba as outras
+        const [commits, branches, prOpen, prClosed, contributors, changelogRes] = await Promise.all([
+            safeApiFetch(`https://api.github.com/repos/${OWNER}/${REPO}/commits?sha=${BRANCH}&per_page=20`),
+            safeApiFetch(`https://api.github.com/repos/${OWNER}/${REPO}/branches?per_page=100`),
+            safeApiFetch(`https://api.github.com/repos/${OWNER}/${REPO}/pulls?state=open&per_page=100`),
+            safeApiFetch(`https://api.github.com/repos/${OWNER}/${REPO}/pulls?state=closed&per_page=20`),
+            fetchAllContributors(),
+            fetch(`https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/CHANGELOG.md`).catch(() => null)
+        ]);
+
+        if (!commits || !branches || !prOpen || !prClosed) rateLimited = true;
+        if (rateLimited) showRateLimitBanner();
+
+        // Stat: commits
+        if (commits) {
             renderStatNumber('val-commits', commits.length >= 20 ? `${commits.length}+` : commits.length);
-
-            // Stat: último commit
             if (commits.length) {
                 const lastDate = new Date(commits[0].commit.author.date)
                     .toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
                 const el = document.getElementById('val-last-commit');
                 if (el) el.textContent = `último: ${lastDate}`;
             }
+            renderCommits(commits);
+        } else {
+            document.getElementById('commit-list').innerHTML =
+                '<p class="text-yellow-400/70 text-sm">Dados indisponíveis — rate limit atingido.</p>';
+        }
 
-            // Stat: branches
-            renderStatNumber('val-branches', branches.length);
+        // Stat: branches
+        if (branches) renderStatNumber('val-branches', branches.length);
 
-            // Stat: PRs
+        // PRs
+        if (prOpen && prClosed) {
             renderStatNumber('val-pr-open',   prOpen.length);
             renderStatNumber('val-pr-closed',  prClosed.length);
-
-            // Renderizações
-            renderCommits(commits);
             renderPullRequests(prOpen, prClosed);
-            renderContributors(contributors);
+        }
 
-            // Changelog
-            if (changelogRes.ok) {
-                const text = await changelogRes.text();
-                document.getElementById('changelog-content').innerHTML = marked.parse(text);
-            } else {
-                document.getElementById('changelog-content').innerHTML =
-                    '<p class="text-slate-500 text-sm">CHANGELOG.md não encontrado na branch staging.</p>';
-            }
+        // Contributors
+        renderContributors(contributors || []);
 
-        } catch (e) {
-            console.error('Erro ao carregar dados do dashboard:', e);
+        // Changelog
+        if (changelogRes?.ok) {
+            const text = await changelogRes.text();
+            document.getElementById('changelog-content').innerHTML = marked.parse(text);
+        } else {
+            document.getElementById('changelog-content').innerHTML =
+                '<p class="text-slate-500 text-sm">CHANGELOG.md não encontrado na branch staging.</p>';
         }
     }
 
