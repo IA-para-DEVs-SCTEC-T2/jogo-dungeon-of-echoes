@@ -274,28 +274,20 @@
      * nesse caso aguardamos 3s e tentamos uma segunda vez.
      */
     async function fetchAllContributors() {
-        const url = `https://api.github.com/repos/${OWNER}/${REPO}/stats/contributors`;
-
-        let res = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' } });
-
-        // 202 = GitHub ainda está calculando as estatísticas; tentar novamente
-        if (res.status === 202) {
-            await new Promise(r => setTimeout(r, 3000));
-            res = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' } });
-        }
-
-        if (!res.ok) return [];
-
-        const data = await res.json();
-        if (!Array.isArray(data)) return [];
-
-        return data
-            .map(entry => ({
-                login:         entry.author.login,
-                avatar_url:    entry.author.avatar_url,
-                contributions: entry.total,   // total de commits únicos no repositório
-            }))
-            .sort((a, b) => b.contributions - a.contributions);
+        try {
+            // Tenta o endpoint de estatísticas
+            let res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/stats/contributors`);
+            if (res.status === 202) { await new Promise(r => setTimeout(r, 2000)); res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/stats/contributors`); }
+            
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data)) return data.map(e => ({ login: e.author.login, avatar_url: e.author.avatar_url, contributions: e.total })).sort((a,b) => b.contributions - a.contributions);
+            }
+            
+            // FALLBACK: Se falhar, usa o endpoint simples
+            const simpleData = await apiFetch(`https://api.github.com/repos/${OWNER}/${REPO}/contributors`);
+            return simpleData.map(u => ({ login: u.login, avatar_url: u.avatar_url, contributions: u.contributions }));
+        } catch (e) { return []; }
     }
 
     // ─── Renderização ─────────────────────────────────────────────────────────
