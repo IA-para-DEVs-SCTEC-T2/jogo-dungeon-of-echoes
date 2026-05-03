@@ -305,6 +305,7 @@ Objetivo:
    independente da branch em que fizeram commits
 5. Adicionar ranking de contributors com medalhas (🥇🥈🥉)
 6. Melhorar UX com skeleton loaders, hover effects e responsividade
+7. Mensagem de erro quando o total de acessos atingir o límite na dashboard
 
 Correção do bug dos contributors:
 - Causa: `/contributors` só contabiliza commits na branch padrão
@@ -316,5 +317,32 @@ Requisitos:
 - Separação clara de responsabilidades (funções para API, renderização, orquestração)
 - Paginação tratada via `apiFetchAllPages()` com suporte ao header `Link` do GitHub
 - Skeleton loaders durante o carregamento de todos os dados
+
+Arquivos gerados/modificados: `dashboard/index.html`, `CHANGELOG.md`, `docs/prompts/Vitor.md`
+
+---
+
+## Prompt 9 — fix(dashboard): substituir varredura de branches por /stats/contributors e tratar rate limit
+Autor: Vitor
+Data: 2026-05-03
+
+Contexto:
+A correção anterior de contributors (varrer todas as branches + deduplicar por SHA) gerava
+dois problemas novos:
+1. Commits com `c.author === null` eram adicionados ao Set de SHAs vistos, impedindo que a
+   mesma SHA fosse contada em outra branch onde o autor estivesse vinculado — zerando a
+   contagem de alguns membros.
+2. Múltiplas chamadas paralelas à API (uma por branch) esgotavam o rate limit de 60 req/hora
+   da API pública do GitHub, retornando 403 e travando o dashboard inteiro via exceção no
+   `Promise.all`.
+
+Objetivo:
+1. Substituir `fetchAllContributors` por chamada única ao endpoint `/stats/contributors`,
+   que retorna contagem real de commits únicos por autor em todo o repositório sem risco
+   de duplicatas e sem múltiplas chamadas
+2. Tratar retorno 202 (GitHub calculando stats) com retry automático após 3s
+3. Refatorar `fetchData` para usar `safeApiFetch` — wrapper que captura erros individualmente
+   e retorna `null` em vez de lançar exceção, evitando que um 403 derrube todas as seções
+4. Exibir banner de aviso amarelo quando rate limit for detectado
 
 Arquivos gerados/modificados: `dashboard/index.html`, `CHANGELOG.md`, `docs/prompts/Vitor.md`
