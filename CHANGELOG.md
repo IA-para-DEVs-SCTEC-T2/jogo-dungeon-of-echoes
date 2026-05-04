@@ -54,6 +54,10 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 - Variantes de chão aleatórias por sessão: 14 frames distintos do `Ground0.png` (pedra, terra, grama, areia, neve, rocha vulcânica, etc.)
 - Cada nova partida sorteia um tipo de chão diferente, gerando ambientes visualmente únicos
 
+### Changed
+- Reorganização da arquitetura de documentação: specs movidas de `.kiro/steering/` para `.kiro/specs/`, seguindo o padrão correto do Kiro
+- Recriado `.kiro/steering/game-steering.md` com diretrizes atualizadas (stack TypeScript, estrutura de pastas correta)
+
 ---
 
 ## [0.1.2] — 2026-05-02
