@@ -11,7 +11,7 @@ O que foi feito:
 
 2. Criada branch `feature/fog-of-war-spec` seguindo o padrão `feature/*` do projeto.
 
-3. Criado `specs/fog-of-war.spec.md` seguindo o formato das specs existentes, cobrindo:
+3. Criado `.kiro/specs/fog-of-war.spec.md` seguindo o formato das specs existentes, cobrindo:
    - 3 estados de visibilidade: `HIDDEN`, `VISIBLE`, `REVEALED`
    - Raio de visão por distância de Chebyshev (`visionRadius = 5`)
    - Revelação de sala inteira ao entrar (independente do raio)
