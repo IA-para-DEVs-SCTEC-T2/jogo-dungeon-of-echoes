@@ -54,16 +54,9 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 - Variantes de chão aleatórias por sessão: 14 frames distintos do `Ground0.png` (pedra, terra, grama, areia, neve, rocha vulcânica, etc.)
 - Cada nova partida sorteia um tipo de chão diferente, gerando ambientes visualmente únicos
 
-#### Dashboard — redesign e correção de contributors
-- Barra de stat cards no topo: Total de Commits, Branches ativas, PRs Abertos, PRs Fechados e Total de Contribuidores
-- Seção dedicada de Pull Requests com badges de status (aberto/fechado) e links diretos para o GitHub
-- Ranking de contributors com medalhas 🥇🥈🥉 e contagem de commits por membro
-- Skeleton loaders em todos os blocos durante o carregamento dos dados
-
-### Fixed
-- **Contributors incompletos no dashboard**: substituída varredura por branches (múltiplas chamadas, risco de duplicatas) pelo endpoint `/stats/contributors` — uma única chamada que retorna contagem real de commits únicos por autor em todo o repositório; inclui retry automático para retorno 202
-- **Dashboard travava no 403 (rate limit)**: refatorada `fetchData` com `safeApiFetch` — cada seção falha de forma isolada e um banner de aviso é exibido quando o rate limit da API pública do GitHub (60 req/hora) é atingido
-- **Contributors zerados quando `/stats/contributors` retorna erro**: adicionado fallback automático para o endpoint `/contributors` simples — garante exibição do ranking mesmo quando as estatísticas calculadas não estão disponíveis
+### Changed
+- Reorganização da arquitetura de documentação: specs movidas de `.kiro/steering/` para `.kiro/specs/`, seguindo o padrão correto do Kiro
+- Recriado `.kiro/steering/game-steering.md` com diretrizes atualizadas (stack TypeScript, estrutura de pastas correta)
 
 ---
 
