@@ -9,6 +9,11 @@ export interface CombatResult {
   playerDied: boolean;
 }
 
+export interface AttackResult {
+  hit: boolean;
+  damage: number;
+}
+
 export class CombatSystem {
   private emitter: Phaser.Events.EventEmitter;
   private xpSystem: XPSystem;
@@ -16,6 +21,17 @@ export class CombatSystem {
   constructor(emitter: Phaser.Events.EventEmitter, xpSystem: XPSystem) {
     this.emitter = emitter;
     this.xpSystem = xpSystem;
+  }
+
+  /** Ataque com 80% de chance de acerto. Não aplica dano — chamador é responsável. */
+  attack(
+    attacker: { attack: number },
+    _defender: { hp: number },
+  ): AttackResult {
+    const hit = Math.random() < 0.8;
+    return hit
+      ? { hit: true, damage: attacker.attack }
+      : { hit: false, damage: 0 };
   }
 
   resolve(
