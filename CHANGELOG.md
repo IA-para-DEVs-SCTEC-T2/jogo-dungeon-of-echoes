@@ -51,6 +51,9 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 ## [Unreleased]
 
 ### Added
+- Spec de Fog of War (`.kiro/specs/fog-of-war.spec.md`): define os 3 estados de visibilidade de tile (`HIDDEN`, `VISIBLE`, `REVEALED`), raio de visão por distância de Chebyshev, revelação de sala inteira ao entrar, ocultação de sprites de inimigos fora do campo de visão e 10 cenários testáveis (incluindo 2 property-based tests de monotonicidade de estado)
+
+### Added
 - Variantes de chão aleatórias por sessão: 14 frames distintos do `Ground0.png` (pedra, terra, grama, areia, neve, rocha vulcânica, etc.)
 - Cada nova partida sorteia um tipo de chão diferente, gerando ambientes visualmente únicos
 
