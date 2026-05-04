@@ -283,3 +283,83 @@ Objetivo:
 Arquivos gerados/modificados: `src/systems/EnemySystem.ts`, `src/scenes/GameScene.ts`,
 `src/utils/constants.ts` (DETECTION_RADIUS), `tests/combat.test.js`,
 `tests/player-collision.test.js`, `tests/enemy-ai.test.js`
+
+---
+
+## Prompt 8 — PR: feat(dashboard): redesign completo com visão geral, PRs, contributors corrigidos
+Autor: Vitor
+Data: 2026-05-03
+
+Contexto:
+O dashboard existente em `dashboard/index.html` exibia apenas a timeline de commits e
+contribuidores, porém apresentava um bug crítico: apenas um usuário aparecia como
+contributor porque o endpoint `/contributors` da API do GitHub considera apenas a
+branch padrão, ignorando commits feitos em branches como `staging`.
+
+Objetivo:
+1. Redesenhar o dashboard com layout em grid moderno e seções bem definidas
+2. Adicionar barra de stat cards com: Total de Commits, Branches ativas, PRs Abertos,
+   PRs Fechados e Total de Contribuidores
+3. Adicionar seção dedicada de Pull Requests (abertos e fechados) com badges de status
+4. Corrigir a listagem de contributors para incluir todos os membros do repositório,
+   independente da branch em que fizeram commits
+5. Adicionar ranking de contributors com medalhas (🥇🥈🥉)
+6. Melhorar UX com skeleton loaders, hover effects e responsividade
+7. Mensagem de erro quando o total de acessos atingir o límite na dashboard
+
+Correção do bug dos contributors:
+- Causa: `/contributors` só contabiliza commits na branch padrão
+- Solução: listar todas as branches, buscar commits de cada uma com paginação via
+  header `Link`, agregar por `author.login` num `Map` e ordenar por total de commits
+
+Requisitos:
+- JavaScript puro, sem frameworks
+- Separação clara de responsabilidades (funções para API, renderização, orquestração)
+- Paginação tratada via `apiFetchAllPages()` com suporte ao header `Link` do GitHub
+- Skeleton loaders durante o carregamento de todos os dados
+
+Arquivos gerados/modificados: `dashboard/index.html`, `CHANGELOG.md`, `docs/prompts/Vitor.md`
+
+---
+
+## Prompt 9 — fix(dashboard): substituir varredura de branches por /stats/contributors e tratar rate limit
+Autor: Vitor
+Data: 2026-05-03
+
+Contexto:
+A correção anterior de contributors (varrer todas as branches + deduplicar por SHA) gerava
+dois problemas novos:
+1. Commits com `c.author === null` eram adicionados ao Set de SHAs vistos, impedindo que a
+   mesma SHA fosse contada em outra branch onde o autor estivesse vinculado — zerando a
+   contagem de alguns membros.
+2. Múltiplas chamadas paralelas à API (uma por branch) esgotavam o rate limit de 60 req/hora
+   da API pública do GitHub, retornando 403 e travando o dashboard inteiro via exceção no
+   `Promise.all`.
+
+Objetivo:
+1. Substituir `fetchAllContributors` por chamada única ao endpoint `/stats/contributors`,
+   que retorna contagem real de commits únicos por autor em todo o repositório sem risco
+   de duplicatas e sem múltiplas chamadas
+2. Tratar retorno 202 (GitHub calculando stats) com retry automático após 3s
+3. Refatorar `fetchData` para usar `safeApiFetch` — wrapper que captura erros individualmente
+   e retorna `null` em vez de lançar exceção, evitando que um 403 derrube todas as seções
+4. Exibir banner de aviso amarelo quando rate limit for detectado
+
+Arquivos gerados/modificados: `dashboard/index.html`, `CHANGELOG.md`, `docs/prompts/Vitor.md`
+
+---
+
+## Prompt 10 — fix(dashboard): fallback para /contributors quando /stats/contributors falha
+Autor: Vitor
+Data: 2026-05-03
+
+Contexto:
+O endpoint `/stats/contributors` pode retornar erro (ex: repositório sem histórico calculado
+ou rate limit) deixando o ranking de contributors vazio mesmo com o retry de 202.
+
+Objetivo:
+Adicionar fallback automático em `fetchAllContributors`: se `/stats/contributors` falhar
+ou retornar dado inválido, a função tenta o endpoint simples `/contributors` como segunda
+opção, garantindo que o ranking sempre exiba dados disponíveis.
+
+Arquivos gerados/modificados: `dashboard/index.html`, `CHANGELOG.md`, `docs/prompts/Vitor.md`
