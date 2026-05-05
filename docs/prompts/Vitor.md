@@ -349,6 +349,45 @@ Arquivos gerados/modificados: `dashboard/index.html`, `CHANGELOG.md`, `docs/prom
 
 ---
 
+## Prompt 11 — feat(turn-system): TurnManager, Enemy entity, combate com 80% hit chance
+Autor: Vitor
+Data: 2026-05-04
+
+Contexto:
+O jogo possuía um sistema "turno-based" simulado via cooldown de 150ms em `GameScene.update()`,
+usando `isDown` (input contínuo). Isso não é verdadeiramente turn-based: o jogo avançava em
+tempo real com throttle, não esperando a ação do jogador.
+
+Objetivo:
+Implementar a Fase 2 do roguelike com arquitetura de turno real, seguindo o documento `fase_2.md`:
+1. Criar `src/entities/Enemy.ts` — entidade pura sem Phaser (apenas dados e lógica de domínio)
+2. Adicionar `attack(attacker, defender)` ao `CombatSystem` com 80% chance de acerto (miss ou hit)
+3. Criar `src/systems/TurnManager.ts` — controla estado do turno, bloqueia input fora do turno do
+   jogador, processa ação do player, executa turno de todos os inimigos, retorna resultados
+4. Refatorar `src/scenes/GameScene.ts`:
+   - Substituir `isDown` (contínuo) por `JustDown` (um keypress = um turno)
+   - Remover `_tickEnemies()` e `_resolveCombat()` — lógica migrada para TurnManager
+   - Adicionar tecla SPACE para ação WAIT (passa o turno)
+   - Delegar todo fluxo de turno ao TurnManager
+
+Tipo de Ação (Action):
+```ts
+type Action =
+  | { type: 'MOVE'; dx: number; dy: number }
+  | { type: 'ATTACK'; target: EnemySystem }
+  | { type: 'WAIT' }
+```
+
+Regras arquiteturais mantidas:
+- TurnManager não importa Phaser diretamente
+- Sistemas nunca importam cenas
+- Feedback visual via EventBus (EVENTS.UI_LOG)
+
+Arquivos gerados/modificados: `src/entities/Enemy.ts` (novo), `src/systems/TurnManager.ts` (novo),
+`src/systems/CombatSystem.ts`, `src/scenes/GameScene.ts`, `docs/fase_2_plano.md` (novo)
+
+---
+
 ## Prompt 10 — fix(dashboard): fallback para /contributors quando /stats/contributors falha
 Autor: Vitor
 Data: 2026-05-03

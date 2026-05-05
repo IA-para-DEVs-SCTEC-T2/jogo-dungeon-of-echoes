@@ -4,6 +4,7 @@ import { Player } from '../entities/Player';
 import { EnemySystem, createEnemies } from '../systems/EnemySystem';
 import { CombatSystem } from '../systems/CombatSystem';
 import { XPSystem } from '../systems/XPSystem';
+import { TurnManager } from '../systems/TurnManager';
 import { EventBus } from '../utils/EventBus';
 import {
   TILE_SIZE,
@@ -23,12 +24,14 @@ export class GameScene extends Phaser.Scene {
   private xpSystem!: XPSystem;
   private combatSystem!: CombatSystem;
   private gameState!: string;
+  private turnManager!: TurnManager;
 
   // Frame de chão sorteado para esta sessão
   private floorFrame!: number;
 
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: Record<string, Phaser.Input.Keyboard.Key>;
+  private spaceKey!: Phaser.Input.Keyboard.Key;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -66,10 +69,11 @@ export class GameScene extends Phaser.Scene {
     this.dungeon = new DungeonGenerator();
     this.dungeon.generate();
 
-    this.xpSystem    = new XPSystem(emitter);
-    this.player      = new Player(this, this.dungeon.startPos.x, this.dungeon.startPos.y);
-    this.enemies     = createEnemies(this.dungeon, ENEMY.COUNT, this.dungeon.startPos);
+    this.xpSystem     = new XPSystem(emitter);
+    this.player       = new Player(this, this.dungeon.startPos.x, this.dungeon.startPos.y);
+    this.enemies      = createEnemies(this.dungeon, ENEMY.COUNT, this.dungeon.startPos);
     this.combatSystem = new CombatSystem(emitter, this.xpSystem);
+    this.turnManager  = new TurnManager();
   }
 
   private _emitInitialUIState(): void {
@@ -153,80 +157,56 @@ export class GameScene extends Phaser.Scene {
       left:  Phaser.Input.Keyboard.KeyCodes.A,
       right: Phaser.Input.Keyboard.KeyCodes.D,
     }) as Record<string, Phaser.Input.Keyboard.Key>;
+    this.spaceKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
   }
 
-  private _handleInput(time: number): void {
-    // isDown permite movimento contínuo ao segurar a tecla.
-    // Player.tryMove tem cooldown interno (150ms) que controla a cadência.
+  private _handleInput(_time: number): void {
+    if (!this.turnManager.isPlayerTurn()) return;
+
+    const JD = Phaser.Input.Keyboard.JustDown;
     let dx = 0;
     let dy = 0;
 
-    if      (this.cursors.up.isDown    || this.wasd.up.isDown)    dy = -1;
-    else if (this.cursors.down.isDown  || this.wasd.down.isDown)  dy =  1;
-    else if (this.cursors.left.isDown  || this.wasd.left.isDown)  dx = -1;
-    else if (this.cursors.right.isDown || this.wasd.right.isDown) dx =  1;
+    if      (JD(this.cursors.up)    || JD(this.wasd.up))    dy = -1;
+    else if (JD(this.cursors.down)  || JD(this.wasd.down))  dy =  1;
+    else if (JD(this.cursors.left)  || JD(this.wasd.left))  dx = -1;
+    else if (JD(this.cursors.right) || JD(this.wasd.right)) dx =  1;
 
-    if (dx === 0 && dy === 0) return;
+    const isWait = JD(this.spaceKey);
+    if (dx === 0 && dy === 0 && !isWait) return;
 
-    const result = this.player.tryMove(dx, dy, this.dungeon, this.enemies, time);
+    const tx = this.player.gridX + dx;
+    const ty = this.player.gridY + dy;
+    const targetEnemy = !isWait && this.enemies.find(
+      (e) => e.alive && e.gridX === tx && e.gridY === ty,
+    );
 
-    if (result.moved) {
-      this._tickEnemies();
-    } else if (result.enemy) {
-      this._resolveCombat(result.enemy as EnemySystem);
-      this._tickEnemies();
-    }
-  }
+    const action = isWait
+      ? { type: 'WAIT' as const }
+      : targetEnemy
+        ? { type: 'ATTACK' as const, target: targetEnemy }
+        : { type: 'MOVE' as const, dx, dy };
 
-  // ─── Turno dos Inimigos ──────────────────────────────────────────────────
+    const result = this.turnManager.processPlayerAction(
+      action,
+      this.player,
+      this.enemies,
+      this.dungeon,
+      this.combatSystem,
+    );
 
-  private _tickEnemies(): void {
-    if (this.gameState !== GAME_STATE.PLAYING) return;
+    result.messages.forEach((msg) => EventBus.emit(EVENTS.UI_LOG, msg));
 
-    this.enemies.forEach((enemy) => {
-      if (!enemy.alive) return;
+    // Sincronizar sprites após o turno completo
+    this.enemies.forEach((e) => this._syncEnemySprite(e));
 
-      const result = enemy.update(
-        this.player.gridX,
-        this.player.gridY,
-        this.dungeon,
-        this.enemies,
-      );
-
-      if (result.attacked && result.damage > 0) {
-        this.player.takeDamage(result.damage);
-        this._showDamageText(this.player.getPixelPos(), result.damage, '#ff8800');
-        EventBus.emit(EVENTS.UI_LOG, `Inimigo atacou: -${result.damage} HP`);
-      }
-
-      this._syncEnemySprite(enemy);
+    result.enemiesDied.forEach((e) => {
+      EventBus.emit(EVENTS.UI_LOG, `+${e.xpReward} XP`);
+      this._removeEnemySprite(e);
     });
-  }
 
-  // ─── Combate (player → inimigo) ──────────────────────────────────────────
-
-  private _resolveCombat(enemy: EnemySystem): void {
-    const result = this.combatSystem.resolve(this.player, enemy);
-    if (!result) return;
-
-    if (result.playerDamage > 0) {
-      this._showDamageText(enemy.getPixelPos(), result.playerDamage, COLORS.DAMAGE_TEXT);
-      EventBus.emit(EVENTS.UI_LOG, `Atacou inimigo: -${result.playerDamage} HP`);
-    }
-
-    if (result.enemyDamage > 0) {
-      this._showDamageText(this.player.getPixelPos(), result.enemyDamage, '#ff8800');
-      EventBus.emit(EVENTS.UI_LOG, `Inimigo contra-atacou: -${result.enemyDamage} HP`);
-      // CombatSystem modifica player.hp diretamente; sincroniza UIScene manualmente
-      EventBus.emit(EVENTS.PLAYER_HP_CHANGED, { hp: this.player.hp, maxHp: this.player.maxHp });
-    }
-
-    if (result.enemyDied) {
-      this._removeEnemySprite(enemy);
-      EventBus.emit(EVENTS.UI_LOG, `Inimigo derrotado. +${ENEMY.XP_REWARD} XP`);
-    } else {
-      // FIX: atualiza a barra de HP do inimigo após sofrer dano
-      this._syncEnemySprite(enemy);
+    if (result.playerDied) {
+      this.events.emit(EVENTS.PLAYER_DIED);
     }
   }
 

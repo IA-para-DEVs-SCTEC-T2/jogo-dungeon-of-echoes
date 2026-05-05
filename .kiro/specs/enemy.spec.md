@@ -45,9 +45,12 @@ Inimigos são entidades hostis posicionadas na dungeon. No MVP, possuem comporta
 - R4: HP nunca fica abaixo de 0
 - R5: Quando HP = 0, `alive` = false, sprite removido, evento `enemy-died` emitido
 
-### Comportamento (MVP)
-- R6: No MVP, inimigos são estáticos (não se movem)
-- R7: Estrutura preparada para receber lógica de movimento futura
+### Comportamento (v0.2)
+- R6: Inimigos possuem máquina de estados: `IDLE → CHASING → ATTACKING`
+- R7: Detecção: entra em `CHASING` se player estiver na mesma sala BSP ou dentro do `detectionRadius` (8 tiles)
+- R8: Movimento: 1 tile por turno em direção ao player, priorizando o eixo de maior distância; respeita paredes e colisão entre inimigos
+- R9: Ataque: quando adjacente (distância Manhattan = 1), ataca com 80% de chance de acerto via `CombatSystem.attack()`
+- R10: Inimigos só agem após a ação do jogador (controlado pelo `TurnManager`)
 
 ---
 

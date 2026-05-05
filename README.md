@@ -241,7 +241,7 @@ Veja o histórico completo de mudanças no [CHANGELOG.md](./CHANGELOG.md).
 - **Nome:** Rafael
   - 📧 Email: rafael_n_rosa@estudante.sesisenai.org.br
   - 💻 GitHub: https://github.com/andreagonzalez  
-  - 💻 Função: Paladina
+  - 💻 Função: Paladino
 
 
 

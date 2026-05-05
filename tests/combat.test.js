@@ -108,3 +108,48 @@ describe('CombatSystem', () => {
     expect(player.hp).toBe(85);
   });
 });
+
+describe('CombatSystem.attack() — 80% hit chance', () => {
+  let combat, emitter, xpSystem;
+
+  beforeEach(() => {
+    emitter   = createEmitter();
+    xpSystem  = new XPSystem(emitter);
+    combat    = new CombatSystem(emitter, xpSystem);
+  });
+
+  it('retorna damage = attacker.attack quando acerta', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5); // < 0.8 → acerto
+    const result = combat.attack({ attack: 7 }, { hp: 30 });
+    expect(result.hit).toBe(true);
+    expect(result.damage).toBe(7);
+    vi.restoreAllMocks();
+  });
+
+  it('retorna damage = 0 quando erra', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.9); // ≥ 0.8 → erro
+    const result = combat.attack({ attack: 7 }, { hp: 30 });
+    expect(result.hit).toBe(false);
+    expect(result.damage).toBe(0);
+    vi.restoreAllMocks();
+  });
+
+  it('NÃO modifica o HP do defensor (responsabilidade do chamador)', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.1); // acerto garantido
+    const defender = { hp: 30 };
+    combat.attack({ attack: 10 }, defender);
+    expect(defender.hp).toBe(30); // inalterado
+    vi.restoreAllMocks();
+  });
+
+  it('taxa de acerto estatisticamente próxima de 80% em 1000 amostras', () => {
+    vi.restoreAllMocks(); // usar Math.random real
+    let hits = 0;
+    for (let i = 0; i < 1000; i++) {
+      if (combat.attack({ attack: 1 }, { hp: 99 }).hit) hits++;
+    }
+    // Aceitar desvio de ±5% (750–850 hits)
+    expect(hits).toBeGreaterThanOrEqual(750);
+    expect(hits).toBeLessThanOrEqual(850);
+  });
+});
