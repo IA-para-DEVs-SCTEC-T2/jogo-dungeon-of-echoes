@@ -26,19 +26,23 @@ O sistema de combate resolve interações de ataque entre o player e os inimigos
 ## Fórmula de Dano
 
 ```
-damage = attacker.attack
+hitChance = 80%
+if random < hitChance:
+  damage = attacker.attack
+else:
+  miss (damage = 0)
 ```
 
-> MVP usa dano fixo. Variação (crítico, defesa) é expansão futura.
+> Dano fixo em caso de acerto. Crítico e defesa são expansão futura.
 
 ---
 
 ## Regras
 
 - R1: Combate é iniciado quando player tenta mover para tile com inimigo
-- R2: Player ataca primeiro, depois o inimigo contra-ataca (se ainda vivo)
-- R3: Dano é sempre o valor de `attack` do atacante (sem aleatoriedade no MVP)
-- R4: Inimigo morto não contra-ataca
+- R2: Player ataca primeiro via `TurnManager`; inimigo age no turno seguinte
+- R3: Cada ataque tem 80% de chance de acerto — miss não aplica dano
+- R4: Inimigo morto não age no turno de inimigos
 - R5: Combate não consome o "turno de movimento" — player fica no tile atual
 - R6: Após combate, se inimigo morreu: conceder XP ao player via sistema de XP
 - R7: Feedback visual de dano deve aparecer por 800ms e desaparecer

@@ -21,3 +21,26 @@ Resultado:
 Cada nova partida (incluindo ao clicar "Jogar Novamente") gera um ambiente com chão visualmente diferente, sem impacto na lógica de jogo ou nos testes existentes (48 testes passando).
 
 Branch criada: `feature/floor-variants`
+
+---
+
+## Prompt 3 — refactor: reorganização da arquitetura de specs e steering
+Autor: Paolo
+Data: 2026-05-04
+
+Prompt exato utilizado:
+> "Agora a estrutura de pastas para steering e specs segundo o kiro está correta?"
+> "faça por gentileza"
+
+O que foi feito:
+
+1. Identificado que os arquivos `*.spec.md` estavam em `.kiro/steering/` misturados com as diretrizes do projeto.
+2. Movidos todos os arquivos de spec para `.kiro/specs/`:
+   - `player.spec.md`, `dungeon.spec.md`, `enemy.spec.md`, `combat.spec.md`, `xp.spec.md`, `gameloop.spec.md`, `input.spec.md`
+3. Identificado que o `game-steering.md` havia sido deletado em commit anterior (`509b805`).
+4. Recriado o `.kiro/steering/game-steering.md` com conteúdo recuperado do histórico git, atualizado para refletir a stack atual (TypeScript, estrutura de pastas correta).
+
+Resultado:
+Estrutura `.kiro/` agora segue o padrão correto do Kiro:
+- `.kiro/steering/` → apenas diretrizes gerais (`game-steering.md`)
+- `.kiro/specs/` → todas as especificações de sistemas do jogo

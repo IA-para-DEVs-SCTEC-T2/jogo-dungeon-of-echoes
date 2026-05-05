@@ -1,7 +1,7 @@
 # Spec — Input
 
 ## Descrição
-O sistema de input captura e interpreta as teclas pressionadas pelo jogador, traduzindo-as em ações do jogo (mover, atacar, esperar). No MVP, o input é processado pela `GameScene` usando o `InputPlugin` nativo do Phaser. Apenas um input é processado por turno.
+O sistema de input captura e interpreta as teclas pressionadas pelo jogador, traduzindo-as em ações do jogo (mover, atacar, esperar). O input é processado pela `GameScene` via `Phaser.Input.Keyboard.JustDown` — apenas um disparo por keypress. A ação é delegada ao `TurnManager`, que processa o turno completo (player + inimigos) antes de aceitar novo input.
 
 ---
 
@@ -38,13 +38,13 @@ O sistema de input captura e interpreta as teclas pressionadas pelo jogador, tra
 ## Regras
 
 - R1: Input só é processado quando o estado do jogo é `PLAYING`
-- R2: Apenas um input é processado por turno — inputs simultâneos são ignorados
-- R3: Teclas W/↑, S/↓, A/←, D/→ são equivalentes (ambas mapeiam para a mesma direção)
-- R4: Se o tile destino é `FLOOR` e está vazio → emite ação `move`
-- R5: Se o tile destino contém um inimigo vivo → emite ação `attack` (sem mover)
-- R6: Se o tile destino é `WALL` ou fora dos limites → input ignorado silenciosamente
-- R7: Espaço sempre emite ação `wait`, independente do tile adjacente
-- R8: Input não é processado durante animações ou transições de cena (futuro)
+- R2: Apenas um input por keypress (`JustDown`) — segurar a tecla não repete a ação
+- R3: Input bloqueado enquanto `TurnManager.isPlayerTurn()` retornar `false`
+- R4: Teclas W/↑, S/↓, A/←, D/→ são equivalentes (ambas mapeiam para a mesma direção)
+- R5: Se o tile destino é `FLOOR` e está vazio → ação `MOVE`
+- R6: Se o tile destino contém um inimigo vivo → ação `ATTACK` (player não move)
+- R7: Se o tile destino é `WALL` ou fora dos limites → input ignorado silenciosamente
+- R8: Espaço gera ação `WAIT` — passa o turno sem mover, inimigos ainda agem
 
 ---
 

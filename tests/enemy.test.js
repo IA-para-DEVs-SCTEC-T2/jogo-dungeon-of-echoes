@@ -97,3 +97,62 @@ describe('createEnemies', () => {
     enemies.forEach((e) => expect(e.alive).toBe(true));
   });
 });
+
+// ─── Enemy.ts — entidade pura ──────────────────────────────────────────────
+
+import { Enemy } from '../src/entities/Enemy';
+import { TILE_SIZE } from '../src/utils/constants';
+
+describe('Enemy (entidade pura)', () => {
+  let enemy;
+
+  beforeEach(() => {
+    enemy = new Enemy('e0', 4, 6, 10, 3);
+  });
+
+  it('inicializa com os atributos fornecidos', () => {
+    expect(enemy.id).toBe('e0');
+    expect(enemy.gridX).toBe(4);
+    expect(enemy.gridY).toBe(6);
+    expect(enemy.hp).toBe(10);
+    expect(enemy.maxHp).toBe(10);
+    expect(enemy.attack).toBe(3);
+    expect(enemy.alive).toBe(true);
+  });
+
+  it('usa valores padrão hp=10 e attack=3 quando omitidos', () => {
+    const e = new Enemy('x', 0, 0);
+    expect(e.hp).toBe(10);
+    expect(e.attack).toBe(3);
+  });
+
+  it('takeDamage reduz hp corretamente', () => {
+    enemy.takeDamage(4);
+    expect(enemy.hp).toBe(6);
+    expect(enemy.alive).toBe(true);
+  });
+
+  it('hp nunca fica abaixo de 0', () => {
+    enemy.takeDamage(999);
+    expect(enemy.hp).toBe(0);
+  });
+
+  it('seta alive=false quando hp chega a 0', () => {
+    enemy.takeDamage(10);
+    expect(enemy.alive).toBe(false);
+  });
+
+  it('takeDamage em inimigo morto é ignorado silenciosamente', () => {
+    enemy.alive = false;
+    enemy.hp = 0;
+    enemy.takeDamage(5);
+    expect(enemy.hp).toBe(0); // não vai negativo
+    expect(enemy.alive).toBe(false);
+  });
+
+  it('getPixelPos calcula posição em pixels com TILE_SIZE=16', () => {
+    const pos = enemy.getPixelPos();
+    expect(pos.x).toBe(4 * TILE_SIZE + TILE_SIZE / 2);
+    expect(pos.y).toBe(6 * TILE_SIZE + TILE_SIZE / 2);
+  });
+});

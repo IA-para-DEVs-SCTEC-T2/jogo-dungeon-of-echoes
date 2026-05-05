@@ -50,9 +50,41 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ## [Unreleased]
 
+---
+
+## [0.2.0] — 2026-05-04
+
 ### Added
-- Variantes de chão aleatórias por sessão: 14 frames distintos do `Ground0.png` (pedra, terra, grama, areia, neve, rocha vulcânica, etc.)
-- Cada nova partida sorteia um tipo de chão diferente, gerando ambientes visualmente únicos
+
+#### Sistema de Turnos Real (`TurnManager`)
+- Novo `src/systems/TurnManager.ts`: centraliza o controle de turno — o jogo só avança quando o jogador age
+- Tipo `Action` explícito: `MOVE | ATTACK | WAIT` — cada tecla pressiona gera exatamente uma ação
+- Input migrado de `isDown` (contínuo) para `JustDown` (um keypress = um turno) — elimina o cooldown de 150ms
+- Tecla `SPACE` registrada para ação `WAIT` (passa o turno sem mover)
+- Inimigos só agem após a ação do jogador ser processada — sem paralelismo de turno
+
+#### Entidade Enemy pura (`src/entities/Enemy.ts`)
+- Nova classe `Enemy` sem dependência de Phaser: apenas dados (`gridX`, `gridY`, `hp`, `attack`, `alive`) e lógica de domínio
+- Método `takeDamage(amount)` com guarda de `alive`
+- Método `getPixelPos()` para conversão de grid para pixels
+- Separação clara entre entidade de domínio (`Enemy.ts`) e lógica de IA + sprite (`EnemySystem.ts`)
+
+#### Combate com Chance de Acerto
+- `CombatSystem.attack(attacker, defender)`: novo método com **80% de chance de acerto** por ataque
+- Miss resulta em mensagem `"Você errou o ataque"` / `"Inimigo errou"` no log
+- Método `resolve()` anterior mantido para não quebrar testes existentes
+
+#### Feedback de Combate no Log
+- Mensagens detalhadas por evento: dano causado, miss, morte de inimigo, morte do player
+- Todas as mensagens emitidas via `EventBus` (`EVENTS.UI_LOG`) para o log da UIScene
+
+### Changed
+
+- `GameScene._handleInput()`: removidos `_tickEnemies()` e `_resolveCombat()` — lógica migrada para `TurnManager`
+- `GameScene._setupInput()`: SPACE registrado como tecla de WAIT
+- Spec de Fog of War (`.kiro/specs/fog-of-war.spec.md`): 3 estados de visibilidade (`HIDDEN`, `VISIBLE`, `REVEALED`), raio Chebyshev, revelação de sala inteira, 10 cenários testáveis
+- Variantes de chão aleatórias por sessão: 14 frames do `Ground0.png` sorteados por partida
+- Reorganização de documentação: specs movidas de `.kiro/steering/` para `.kiro/specs/`
 
 ---
 
