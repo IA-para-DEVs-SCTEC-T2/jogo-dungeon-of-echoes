@@ -50,6 +50,9 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ## [Unreleased]
 
+### Added
+- Spec de Minimap (`.kiro/specs/minimap.spec.md`): define o componente `MinimapRenderer` como overlay fixo na UIScene, integrado ao Fog of War (3 cores por estado de visibilidade), marcador do player (azul), marcadores de inimigos visíveis (vermelho), atualização por turno via EventBus e 10 cenários testáveis
+
 ---
 
 ## [0.2.0] — 2026-05-04
