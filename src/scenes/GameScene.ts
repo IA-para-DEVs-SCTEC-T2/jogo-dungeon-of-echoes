@@ -179,13 +179,16 @@ export class GameScene extends Phaser.Scene {
 
         const displayName = item.getDisplayName(this.player.identifiedItems);
         this.player.inventory.addItem(item);
+        const slotIndex = this.player.inventory.items.findIndex((i) => i === item);
 
-        // Remove sprite do mapa
-        item.sprite?.destroy();
+        // Remove sprite do mapa — destrói no próximo frame para não interromper o render atual
+        const spriteToDestroy = item.sprite;
         item.sprite = null;
+        spriteToDestroy?.setVisible(false);
+        this.time.delayedCall(0, () => spriteToDestroy?.destroy());
 
         EventBus.emit(EVENTS.UI_LOG, `Você pegou uma ${displayName}`);
-        EventBus.emit(EVENTS.ITEM_PICKED_UP, { item });
+        EventBus.emit(EVENTS.ITEM_PICKED_UP, { item, slotIndex });
       }
     }
 

@@ -18,6 +18,9 @@ const config: Phaser.Types.Core.GameConfig = {
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
+    parent: 'game-container',
+    width: 800,
+    height: 600,
   },
 
   // Arcade Physics — habilitado conforme escopo da Fase 1

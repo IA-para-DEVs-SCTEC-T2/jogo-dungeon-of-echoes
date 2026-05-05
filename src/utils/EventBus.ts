@@ -1,16 +1,17 @@
-type Listener = { fn: (...args: unknown[]) => void; ctx: unknown };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Listener = { fn: (data: any) => void; ctx: unknown };
 
 class SimpleEventEmitter {
   private _map: Map<string, Listener[]> = new Map();
 
-  on(event: string, fn: (...args: unknown[]) => void, ctx?: unknown): this {
+  on<T = unknown>(event: string, fn: (data: T) => void, ctx?: unknown): this {
     const list = this._map.get(event) ?? [];
     list.push({ fn, ctx: ctx ?? null });
     this._map.set(event, list);
     return this;
   }
 
-  off(event: string, fn: (...args: unknown[]) => void, ctx?: unknown): this {
+  off<T = unknown>(event: string, fn: (data: T) => void, ctx?: unknown): this {
     const list = this._map.get(event);
     if (!list) return this;
     this._map.set(
@@ -23,7 +24,7 @@ class SimpleEventEmitter {
   emit(event: string, ...args: unknown[]): this {
     const list = this._map.get(event);
     if (list) {
-      [...list].forEach(({ fn, ctx }) => fn.apply(ctx, args));
+      [...list].forEach(({ fn, ctx }) => fn.call(ctx, args[0]));
     }
     return this;
   }

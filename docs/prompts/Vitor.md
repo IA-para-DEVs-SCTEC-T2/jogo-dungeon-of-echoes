@@ -402,3 +402,39 @@ ou retornar dado inválido, a função tenta o endpoint simples `/contributors` 
 opção, garantindo que o ranking sempre exiba dados disponíveis.
 
 Arquivos gerados/modificados: `dashboard/index.html`, `CHANGELOG.md`, `docs/prompts/Vitor.md`
+
+---
+
+## Prompt 12 — feat(inventory): sistema de inventário, itens e identificação roguelike (Fase 3)
+Autor: Vitor
+Data: 2026-05-05
+
+Contexto:
+O jogo possui o sistema de turnos real implementado (Fase 2). Preciso implementar a Fase 3
+conforme o documento `fase_3.md`: inventário com slots, dois tipos de poção, sistema de
+identificação roguelike clássico (itens com nomes desconhecidos até serem usados) e
+integração visual na UIScene com action bar estilo Diablo.
+
+Objetivo:
+1. Criar `src/entities/Item.ts` com entidade pura: `id`, `type`, `identified`, `gridX/Y`, `getDisplayName()`
+2. Criar `src/systems/InventorySystem.ts` com 20 slots, `addItem`, `removeItem`, `useItem`, `isFull`
+3. Adicionar `player.inventory` e `player.identifiedItems` ao Player
+4. Adicionar ação `USE_ITEM` ao `TurnManager` (consome turno)
+5. Implementar coleta automática ao pisar sobre item em `GameScene._checkItemPickup()`
+6. Adicionar action bar visual à `UIScene`: 9 slots com ícone colorido por tipo, acende ao coletar, apaga ao usar
+
+Regras do sistema de identificação:
+- Antes de usar: mostrar nome genérico ("Poção Vermelha" / "Poção Azul")
+- Após usar qualquer item do tipo: revelar nome real para todos da partida
+- Identificação em `player.identifiedItems: Record<string, boolean>` — resetado ao reiniciar
+
+Bugs corrigidos no mesmo PR:
+- `GameScene`: sprite de item destruído no próximo frame via `this.time.delayedCall(0, ...)` para
+  corrigir "can't access property drawImage, this.data is null" no Canvas renderer do Phaser
+- `EventBus`: `on/off` tornados genéricos (`on<T>`) para eliminar erros de tipo nos handlers tipados da UIScene
+- `index.html` + `main.ts`: fullscreen responsivo com `#game-container { width: 100vw; height: 100vh }`
+
+Arquivos gerados/modificados: `src/entities/Item.ts` (novo), `src/systems/InventorySystem.ts` (novo),
+`src/entities/Player.ts`, `src/systems/TurnManager.ts`, `src/scenes/GameScene.ts`,
+`src/scenes/UIScene.ts`, `src/utils/EventBus.ts`, `src/utils/constants.ts`,
+`index.html`, `src/main.ts`

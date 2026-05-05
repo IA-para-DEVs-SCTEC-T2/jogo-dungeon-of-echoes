@@ -50,18 +50,48 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ## [Unreleased]
 
+---
+
+## [0.3.0] — 2026-05-05
+
 ### Added
-- Sistema de inventário com 20 slots (`InventorySystem`): adicionar, remover e usar itens
-- Entidade `Item` com sistema de identificação roguelike: itens aparecem com nomes genéricos ("Poção Vermelha") até serem usados, revelando o nome real ("Poção de Cura")
-- Identificação persistente por partida via `player.identifiedItems` — resetado ao reiniciar
-- Dois tipos de poção: `potion_heal` (+10 HP) e `potion_poison` (-5 HP)
-- Spawn de 3–6 itens aleatórios no mapa em tiles FLOOR
-- Coleta automática ao mover para tile com item
-- Ação `USE_ITEM` integrada ao `TurnManager` (consome turno)
-- Input: tecla `I` loga inventário no console e no log da UI; teclas `1–9` usam item do slot correspondente
-- Constante `INVENTORY` em `constants.ts` com `MAX_SLOTS`, `POTION_HEAL_AMOUNT`, `POTION_POISON_AMOUNT`, `ITEM_SPAWN_MIN/MAX`
-- Eventos `ITEM_PICKED_UP` e `ITEM_USED` adicionados ao `EVENTS`
-- 26 novos testes em `tests/inventory.test.js` (108 testes total)
+
+#### Sistema de Inventário (`InventorySystem`)
+- `src/systems/InventorySystem.ts`: 20 slots, métodos `addItem`, `removeItem`, `useItem`, `isFull`, `getInventoryLog`
+- `src/entities/Item.ts`: entidade pura com `id`, `type`, `identified`, `gridX/Y`, `getDisplayName()`
+
+#### Sistema de Identificação Roguelike
+- Itens aparecem com nomes genéricos ("Poção Vermelha", "Poção Azul") até serem usados
+- Após uso, o nome real ("Poção de Cura", "Poção de Veneno") é revelado para todos os itens do tipo nesta partida
+- Identificação persistida em `player.identifiedItems: Record<string, boolean>` — resetado ao reiniciar
+
+#### Itens e Efeitos
+- `potion_heal`: cura +10 HP (limitado ao `maxHp`)
+- `potion_poison`: causa −5 HP (não reduz abaixo de 0)
+- Spawn de 3–6 itens em tiles FLOOR aleatórios, sem sobreposição com player
+
+#### Integração com o Jogo
+- Coleta automática ao pisar sobre o tile do item
+- Ação `USE_ITEM` integrada ao `TurnManager` — usar item consome turno
+- Tecla `I`: lista inventário no log da UI
+- Teclas `1–9`: usam o item do slot correspondente
+
+#### Action Bar (UIScene)
+- 9 slots visuais centralizados na barra inferior da tela
+- Slot acende com ícone colorido ao coletar (amarelo = cura, roxo = veneno)
+- Slot apaga ao usar o item
+- `EventBus` tornando genérico (`on<T>` / `off<T>`) — handlers tipados sem cast
+
+#### Fullscreen Responsivo
+- `#game-container` com `width: 100vw; height: 100vh` — canvas ocupa toda a tela
+- `main.ts`: `width`/`height`/`parent` consolidados dentro do objeto `scale` (configuração canônica do Phaser)
+
+### Fixed
+- `GameScene._checkItemPickup()`: sprite destruído no próximo frame via `delayedCall(0)` — corrige `Uncaught TypeError: can't access property "drawImage", this.data is null` ao coletar poção
+
+### Changed
+- Evento `ITEM_PICKED_UP` agora inclui `slotIndex` para a UIScene saber qual slot acender
+- `EventBus.on/off` agora são genéricos — elimina erros de tipo nos handlers da UIScene
 
 ---
 
@@ -262,6 +292,9 @@ procedural de masmorras, combate turno-a-turno e progressão de personagem.
 
 ---
 
-[Unreleased]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.1.2...v0.2.0
+[0.1.2]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/releases/tag/v0.1.0
