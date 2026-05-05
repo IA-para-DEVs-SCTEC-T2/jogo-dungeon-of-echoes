@@ -50,6 +50,19 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ## [Unreleased]
 
+### Added
+- Sistema de inventário com 20 slots (`InventorySystem`): adicionar, remover e usar itens
+- Entidade `Item` com sistema de identificação roguelike: itens aparecem com nomes genéricos ("Poção Vermelha") até serem usados, revelando o nome real ("Poção de Cura")
+- Identificação persistente por partida via `player.identifiedItems` — resetado ao reiniciar
+- Dois tipos de poção: `potion_heal` (+10 HP) e `potion_poison` (-5 HP)
+- Spawn de 3–6 itens aleatórios no mapa em tiles FLOOR
+- Coleta automática ao mover para tile com item
+- Ação `USE_ITEM` integrada ao `TurnManager` (consome turno)
+- Input: tecla `I` loga inventário no console e no log da UI; teclas `1–9` usam item do slot correspondente
+- Constante `INVENTORY` em `constants.ts` com `MAX_SLOTS`, `POTION_HEAL_AMOUNT`, `POTION_POISON_AMOUNT`, `ITEM_SPAWN_MIN/MAX`
+- Eventos `ITEM_PICKED_UP` e `ITEM_USED` adicionados ao `EVENTS`
+- 26 novos testes em `tests/inventory.test.js` (108 testes total)
+
 ---
 
 ## [0.2.0] — 2026-05-04

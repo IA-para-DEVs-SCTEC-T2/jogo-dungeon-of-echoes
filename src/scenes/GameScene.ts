@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { DungeonGenerator } from '../generators/DungeonGenerator';
 import { Player } from '../entities/Player';
+import { Item } from '../entities/Item';
 import { EnemySystem, createEnemies } from '../systems/EnemySystem';
 import { CombatSystem } from '../systems/CombatSystem';
 import { XPSystem } from '../systems/XPSystem';
@@ -15,12 +16,14 @@ import {
   ENEMY,
   EVENTS,
   GAME_STATE,
+  INVENTORY,
 } from '../utils/constants';
 
 export class GameScene extends Phaser.Scene {
   private dungeon!: DungeonGenerator;
   private player!: Player;
   private enemies!: EnemySystem[];
+  private items!: Item[];
   private xpSystem!: XPSystem;
   private combatSystem!: CombatSystem;
   private gameState!: string;
@@ -32,6 +35,8 @@ export class GameScene extends Phaser.Scene {
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: Record<string, Phaser.Input.Keyboard.Key>;
   private spaceKey!: Phaser.Input.Keyboard.Key;
+  private iKey!: Phaser.Input.Keyboard.Key;
+  private numKeys!: Phaser.Input.Keyboard.Key[];
 
   constructor() {
     super({ key: 'GameScene' });
@@ -47,6 +52,7 @@ export class GameScene extends Phaser.Scene {
     this._initSystems();
     this._renderDungeon();
     this._createEnemySprites();
+    this._spawnItems();
     this._spawnPlatino();
     this._setupCamera();
     this._setupInput();
@@ -74,6 +80,7 @@ export class GameScene extends Phaser.Scene {
     this.enemies      = createEnemies(this.dungeon, ENEMY.COUNT, this.dungeon.startPos);
     this.combatSystem = new CombatSystem(emitter, this.xpSystem);
     this.turnManager  = new TurnManager();
+    this.items        = [];
   }
 
   private _emitInitialUIState(): void {
@@ -122,6 +129,70 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  // ─── Spawn de Itens ──────────────────────────────────────────────────────
+
+  private _spawnItems(): void {
+    const types: Array<'potion_heal' | 'potion_poison'> = ['potion_heal', 'potion_poison'];
+    const count = INVENTORY.ITEM_SPAWN_MIN +
+      Math.floor(Math.random() * (INVENTORY.ITEM_SPAWN_MAX - INVENTORY.ITEM_SPAWN_MIN + 1));
+
+    const occupied = new Set<string>();
+    occupied.add(`${this.dungeon.startPos.x},${this.dungeon.startPos.y}`);
+
+    for (let i = 0; i < count; i++) {
+      const type = types[Math.floor(Math.random() * types.length)];
+      let pos = this.dungeon.getRandomFloorPosition(this.dungeon.startPos);
+      let attempts = 0;
+
+      while (occupied.has(`${pos.x},${pos.y}`) && attempts < 50) {
+        pos = this.dungeon.getRandomFloorPosition(this.dungeon.startPos);
+        attempts++;
+      }
+
+      if (occupied.has(`${pos.x},${pos.y}`)) continue;
+      occupied.add(`${pos.x},${pos.y}`);
+
+      const item = new Item(`item_${i}`, type, pos.x, pos.y);
+      const px   = pos.x * TILE_SIZE + TILE_SIZE / 2;
+      const py   = pos.y * TILE_SIZE + TILE_SIZE / 2;
+
+      // Sprite simples: quadrado amarelo para poção de cura, roxo para veneno
+      const color = type === 'potion_heal' ? 0xffdd00 : 0xaa44ff;
+      item.sprite = this.add.rectangle(px, py, TILE_SIZE - 6, TILE_SIZE - 6, color).setDepth(3);
+
+      this.items.push(item);
+    }
+  }
+
+  // ─── Coleta de Itens ─────────────────────────────────────────────────────
+
+  private _checkItemPickup(): void {
+    const px = this.player.gridX;
+    const py = this.player.gridY;
+
+    for (const item of this.items) {
+      if (item.gridX === px && item.gridY === py) {
+        if (this.player.inventory.isFull()) {
+          EventBus.emit(EVENTS.UI_LOG, 'Inventário cheio! Não foi possível coletar.');
+          continue;
+        }
+
+        const displayName = item.getDisplayName(this.player.identifiedItems);
+        this.player.inventory.addItem(item);
+
+        // Remove sprite do mapa
+        item.sprite?.destroy();
+        item.sprite = null;
+
+        EventBus.emit(EVENTS.UI_LOG, `Você pegou uma ${displayName}`);
+        EventBus.emit(EVENTS.ITEM_PICKED_UP, { item });
+      }
+    }
+
+    // Limpar itens coletados da lista do mapa
+    this.items = this.items.filter((i) => i.gridX !== null);
+  }
+
   // ─── Easter Egg: Platino (DragonDePlatino, CC-BY 4.0) ───────────────────
 
   private _spawnPlatino(): void {
@@ -158,12 +229,54 @@ export class GameScene extends Phaser.Scene {
       right: Phaser.Input.Keyboard.KeyCodes.D,
     }) as Record<string, Phaser.Input.Keyboard.Key>;
     this.spaceKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.iKey     = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.I);
+
+    // Teclas 1–9 para usar itens dos slots 0–8
+    this.numKeys = [
+      Phaser.Input.Keyboard.KeyCodes.ONE,
+      Phaser.Input.Keyboard.KeyCodes.TWO,
+      Phaser.Input.Keyboard.KeyCodes.THREE,
+      Phaser.Input.Keyboard.KeyCodes.FOUR,
+      Phaser.Input.Keyboard.KeyCodes.FIVE,
+      Phaser.Input.Keyboard.KeyCodes.SIX,
+      Phaser.Input.Keyboard.KeyCodes.SEVEN,
+      Phaser.Input.Keyboard.KeyCodes.EIGHT,
+      Phaser.Input.Keyboard.KeyCodes.NINE,
+    ].map((code) => this.input.keyboard!.addKey(code));
   }
 
   private _handleInput(_time: number): void {
     if (!this.turnManager.isPlayerTurn()) return;
 
     const JD = Phaser.Input.Keyboard.JustDown;
+
+    // ─── Tecla I: logar inventário no console ────────────────────────────
+    if (JD(this.iKey)) {
+      const lines = this.player.inventory.getInventoryLog(this.player.identifiedItems);
+      lines.forEach((l) => {
+        console.log(l);
+        EventBus.emit(EVENTS.UI_LOG, l);
+      });
+      return; // não consome turno
+    }
+
+    // ─── Teclas 1–9: usar item do slot ───────────────────────────────────
+    for (let i = 0; i < this.numKeys.length; i++) {
+      if (JD(this.numKeys[i])) {
+        const result = this.turnManager.processPlayerAction(
+          { type: 'USE_ITEM', itemIndex: i },
+          this.player,
+          this.enemies,
+          this.dungeon,
+          this.combatSystem,
+        );
+        result.messages.forEach((msg) => EventBus.emit(EVENTS.UI_LOG, msg));
+        if (result.playerDied) this.events.emit(EVENTS.PLAYER_DIED);
+        return;
+      }
+    }
+
+    // ─── Movimento / Ataque / Espera ─────────────────────────────────────
     let dx = 0;
     let dy = 0;
 
@@ -196,6 +309,11 @@ export class GameScene extends Phaser.Scene {
     );
 
     result.messages.forEach((msg) => EventBus.emit(EVENTS.UI_LOG, msg));
+
+    // Verificar coleta de itens após movimento
+    if (result.playerMoved) {
+      this._checkItemPickup();
+    }
 
     // Sincronizar sprites após o turno completo
     this.enemies.forEach((e) => this._syncEnemySprite(e));

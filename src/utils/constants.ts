@@ -107,6 +107,15 @@ export const GAME_STATE = {
   GAME_OVER: 'GAME_OVER',
 } as const;
 
+// --- Inventário ---
+export const INVENTORY = {
+  MAX_SLOTS: 20,
+  POTION_HEAL_AMOUNT: 10,
+  POTION_POISON_AMOUNT: 5,
+  ITEM_SPAWN_MIN: 3,
+  ITEM_SPAWN_MAX: 6,
+};
+
 // --- Eventos ---
 export const EVENTS = {
   PLAYER_MOVED: 'player-moved',
@@ -120,4 +129,6 @@ export const EVENTS = {
   ENEMY_ATTACKED: 'enemy-attacked',
   COMBAT_HIT: 'combat-hit',
   UI_LOG: 'ui-log',
+  ITEM_PICKED_UP: 'item-picked-up',
+  ITEM_USED: 'item-used',
 } as const;

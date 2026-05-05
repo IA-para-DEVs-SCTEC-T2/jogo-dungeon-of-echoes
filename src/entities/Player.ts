@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { PLAYER, TILE_SIZE, SPRITES, DAWNLIKE_FRAMES, EVENTS, BASE_STATS } from '../utils/constants';
 import { EventBus } from '../utils/EventBus';
+import { InventorySystem } from '../systems/InventorySystem';
 import type { DungeonGenerator } from '../generators/DungeonGenerator';
 
 export class Player extends Phaser.GameObjects.Sprite {
@@ -24,6 +25,10 @@ export class Player extends Phaser.GameObjects.Sprite {
   xp: number;
   level: number;
   attack: number;
+
+  // Inventário e identificação de itens
+  inventory: InventorySystem;
+  identifiedItems: Record<string, boolean>;
 
   private _lastMoveTime: number;
   private _emitter: Phaser.Events.EventEmitter;
@@ -60,6 +65,10 @@ export class Player extends Phaser.GameObjects.Sprite {
 
     this._lastMoveTime = 0;
     this._emitter = scene.events;
+
+    // Inventário e identificação
+    this.inventory       = new InventorySystem();
+    this.identifiedItems = {};
   }
 
   /** Recalcula maxHp e maxMana a partir dos atributos base e nível atual. */
@@ -138,6 +147,11 @@ export class Player extends Phaser.GameObjects.Sprite {
     this.mana = this.maxMana;
 
     this._lastMoveTime = 0;
+
+    // Resetar inventário e identificação para nova partida
+    this.inventory.reset();
+    this.identifiedItems = {};
+
     this.setPosition(
       gridX * TILE_SIZE + TILE_SIZE / 2,
       gridY * TILE_SIZE + TILE_SIZE / 2,
