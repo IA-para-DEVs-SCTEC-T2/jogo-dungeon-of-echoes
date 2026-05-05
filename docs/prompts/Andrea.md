@@ -27,36 +27,45 @@ Spec completa e pronta para guiar a implementação do Fog of War, sem nenhuma a
 
 Branch criada: `feature/fog-of-war-spec`
 
-## Prompt 2 — docs(specs): add minimap spec
+## Prompt 3 — feat(inventory): Fase 3 — Sistema de Inventário, Itens e Identificação
 Autor: Andrea
 Data: 2026-05-05
 
 Prompt utilizado:
-> "Pense como um desenvolvedor senior, analise o projeto e sugira alguma melhoria que eu possa fazer para colaborar com o projeto, mas leve em consideração que sou aprendiz."
+> Arquivo fase_3.md fornecido pelo professor com especificação completa da Fase 3.
 
 O que foi feito:
 
-1. Analisado o estado atual do projeto (v0.2.0, 82 testes passando, TurnManager implementado).
+1. Criada branch `feature/inventory-system` a partir de `staging`.
 
-2. Identificado o Minimap como contribuição ideal para aprendiz: documentação pura, sem alteração de código, complemento natural ao Fog of War já especificado.
+2. Criado `src/entities/Item.ts`:
+   - Entidade pura com `id`, `type`, `identified`, `gridX`, `gridY`, `sprite`
+   - `getDisplayName()` retorna nome genérico ou real conforme estado de identificação
+   - Tipos: `potion_heal` e `potion_poison`
 
-3. Criada branch `feature/minimap-spec` seguindo o padrão `feature/*` do projeto.
+3. Criado `src/systems/InventorySystem.ts`:
+   - 20 slots, sem stacking
+   - `addItem()`, `removeItem()`, `useItem()`, `isFull()`, `getInventoryLog()`
+   - `useItem()` aplica efeito, identifica o tipo e remove do inventário
 
-4. Criado `.kiro/specs/minimap.spec.md` seguindo o formato das specs existentes, cobrindo:
-   - Componente `MinimapRenderer` gerenciado pela UIScene
-   - Posição fixa no canto superior direito via `setScrollFactor(0)`
-   - Tamanho 80×80px (grid 40×40 com tileSize=2px)
-   - 3 cores integradas ao Fog of War: HIDDEN (preto), REVEALED (cinza escuro), VISIBLE (cinza claro)
-   - Marcador do player (azul, sempre visível)
-   - Marcadores de inimigos (vermelho, apenas em tiles VISIBLE e alive=true)
-   - Atualização por turno via EventBus (PLAYER_MOVED, PLAYER_ATTACKED, ENEMY_DIED)
-   - Constante `MINIMAP` proposta para `constants.ts`
-   - 10 cenários testáveis com Given/When/Then
-   - Seção de integração com UIScene, FogSystem, EventBus e GameScene
+4. Atualizado `src/entities/Player.ts`:
+   - Adicionados `inventory: InventorySystem` e `identifiedItems: Record<string, boolean>`
+   - `reset()` limpa inventário e identificação para nova partida
 
-5. Atualizado `CHANGELOG.md` com entrada na seção `[Unreleased]`.
+5. Atualizado `src/systems/TurnManager.ts`:
+   - Nova ação `USE_ITEM` que consome turno, aplica efeito de HP e emite eventos
+
+6. Atualizado `src/scenes/GameScene.ts`:
+   - `_spawnItems()`: spawna 3–6 itens aleatórios no mapa
+   - `_checkItemPickup()`: coleta automática ao mover para tile com item
+   - Input `I`: loga inventário; teclas `1–9`: usam item do slot
+
+7. Atualizado `src/utils/constants.ts`:
+   - Constante `INVENTORY` e eventos `ITEM_PICKED_UP`, `ITEM_USED`
+
+8. Criado `tests/inventory.test.js` com 26 testes cobrindo todos os cenários da spec.
 
 Resultado:
-Spec completa e pronta para guiar a implementação do Minimap, sem nenhuma alteração no código de produção ou nos testes existentes (82 testes passando).
+108 testes passando. Sistema de inventário completo e funcional seguindo o padrão roguelike clássico.
 
-Branch criada: `feature/minimap-spec`
+Branch criada: `feature/inventory-system`
