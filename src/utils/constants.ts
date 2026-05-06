@@ -62,11 +62,14 @@ export const DAWNLIKE_FRAMES = {
     40,  // neve / gelo
     48,  // rocha vulcânica
   ],
-  FLOOR: 3,    // fallback — pedra cinza
-  WALL: 3,     // Wall.png — parede de pedra
-  PLAYER: 24,  // Player0.png — personagem de frente (idle)
-  ENEMY: 0,    // Undead0.png — esqueleto (frame 0)
-  PLATINO: 0,  // Reptiles0.png — lagartixa do DragonDePlatino (easter egg)
+  FLOOR: 3,           // fallback — pedra cinza
+  WALL: 3,            // Wall.png — parede de pedra
+  PLAYER: 24,         // Player0.png — personagem de frente (frame fixo)
+  ENEMY: 0,           // Undead0.png — esqueleto (frame fixo)
+  PLATINO: 0,         // Reptiles0.png — lagartixa do DragonDePlatino (easter egg)
+  POTION_HEAL: 0,     // Potion.png — frasco vermelho (poção de cura)
+  POTION_POISON: 7,   // Potion.png — frasco azul (poção de veneno)
+  GOLD: 0,            // Money.png — moeda de ouro (frame fixo)
 };
 
 // --- Chaves dos spritesheets carregados na BootScene ---
@@ -76,6 +79,8 @@ export const SPRITES = {
   PLAYER: 'player',
   ENEMY: 'undead',
   PLATINO: 'reptiles',
+  POTION: 'potion',
+  MONEY: 'money',
 } as const;
 
 // --- Cores de fallback (usadas se assets não carregarem) ---
@@ -131,4 +136,25 @@ export const EVENTS = {
   UI_LOG: 'ui-log',
   ITEM_PICKED_UP: 'item-picked-up',
   ITEM_USED: 'item-used',
+  ITEM_DROPPED: 'item-dropped',
+  AREA_CHANGED: 'area-changed',
+} as const;
+
+// --- Cidade (hub) ---
+export const TOWN = {
+  WIDTH:       24,
+  HEIGHT:      20,
+  START_X:     12,
+  START_Y:     8,
+  EXIT_X:      12,
+  EXIT_Y:      18,
+  FLOOR_FRAME: 16,  // grama verde do Ground0.png
+} as const;
+
+// --- Loot ---
+export const LOOT = {
+  CHANCE_NOTHING:  0.40,
+  CHANCE_HEAL:     0.30,  // acumulado: 0–0.30
+  CHANCE_POISON:   0.20,  // acumulado: 0.30–0.50
+  CHANCE_GOLD:     0.10,  // acumulado: 0.50–0.60
 } as const;

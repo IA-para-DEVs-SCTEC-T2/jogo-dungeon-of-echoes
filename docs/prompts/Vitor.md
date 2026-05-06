@@ -402,3 +402,99 @@ ou retornar dado inválido, a função tenta o endpoint simples `/contributors` 
 opção, garantindo que o ranking sempre exiba dados disponíveis.
 
 Arquivos gerados/modificados: `dashboard/index.html`, `CHANGELOG.md`, `docs/prompts/Vitor.md`
+
+---
+
+## Prompt 12 — feat(inventory): sistema de inventário, itens e identificação roguelike (Fase 3)
+Autor: Vitor
+Data: 2026-05-05
+
+Contexto:
+O jogo possui o sistema de turnos real implementado (Fase 2). Preciso implementar a Fase 3
+conforme o documento `fase_3.md`: inventário com slots, dois tipos de poção, sistema de
+identificação roguelike clássico (itens com nomes desconhecidos até serem usados) e
+integração visual na UIScene com action bar estilo Diablo.
+
+Objetivo:
+1. Criar `src/entities/Item.ts` com entidade pura: `id`, `type`, `identified`, `gridX/Y`, `getDisplayName()`
+2. Criar `src/systems/InventorySystem.ts` com 20 slots, `addItem`, `removeItem`, `useItem`, `isFull`
+3. Adicionar `player.inventory` e `player.identifiedItems` ao Player
+4. Adicionar ação `USE_ITEM` ao `TurnManager` (consome turno)
+5. Implementar coleta automática ao pisar sobre item em `GameScene._checkItemPickup()`
+6. Adicionar action bar visual à `UIScene`: 9 slots com ícone colorido por tipo, acende ao coletar, apaga ao usar
+
+Regras do sistema de identificação:
+- Antes de usar: mostrar nome genérico ("Poção Vermelha" / "Poção Azul")
+- Após usar qualquer item do tipo: revelar nome real para todos da partida
+- Identificação em `player.identifiedItems: Record<string, boolean>` — resetado ao reiniciar
+
+Bugs corrigidos no mesmo PR:
+- `GameScene`: sprite de item destruído no próximo frame via `this.time.delayedCall(0, ...)` para
+  corrigir "can't access property drawImage, this.data is null" no Canvas renderer do Phaser
+- `EventBus`: `on/off` tornados genéricos (`on<T>`) para eliminar erros de tipo nos handlers tipados da UIScene
+- `index.html` + `main.ts`: fullscreen responsivo com `#game-container { width: 100vw; height: 100vh }`
+
+Arquivos gerados/modificados: `src/entities/Item.ts` (novo), `src/systems/InventorySystem.ts` (novo),
+`src/entities/Player.ts`, `src/systems/TurnManager.ts`, `src/scenes/GameScene.ts`,
+`src/scenes/UIScene.ts`, `src/utils/EventBus.ts`, `src/utils/constants.ts`,
+`index.html`, `src/main.ts`
+
+---
+
+## Prompt 13 — feat(sprites): integração do tileset Dawnlike com sprites reais e LootSystem
+Autor: Vitor
+Data: 2026-05-06
+
+Contexto:
+O jogo usava retângulos coloridos para representar itens no mapa e na action bar da UIScene.
+Os spritesheets Dawnlike estavam carregados mas não utilizados para itens.
+Inimigos mortos não dropavam loot.
+
+Objetivo:
+1. Substituir retângulos de itens por sprites reais do Dawnlike (`Items/Potion.png`, `Items/Money.png`)
+2. Carregar `Potion.png` e `Money.png` no `BootScene.preload()`
+3. Adicionar tipo `gold` ao `ItemType` com visual em `Money.png` frame 0
+4. Criar `LootSystem` (novo sistema) com tabela de drop: 40% nada, 30% heal, 20% poison, 10% gold
+5. Wiring: morte de inimigo → `lootSystem.roll()` → `ITEM_DROPPED` → sprite no mapa
+6. Action bar da UIScene: trocar `Rectangle` por `Sprite` real, mapeado por `_getItemVisual()`
+7. Sprites são estáticos (sem animação de frame swap)
+
+Frames inspecionados em Potion.png (32 colunas × 16px):
+- Frame 0 = poção vermelha (heal)
+- Frame 7 = poção azul (poison)
+- Money.png frame 0 = moeda de ouro (pixels amarelos confirmados)
+
+Arquivos gerados/modificados: `src/systems/LootSystem.ts` (novo), `src/entities/Item.ts`,
+`src/utils/constants.ts`, `src/scenes/BootScene.ts`, `src/scenes/GameScene.ts`,
+`src/scenes/UIScene.ts`, `.kiro/specs/loot.spec.md` (novo), `.kiro/specs/sprites.spec.md` (novo)
+
+---
+
+## Prompt 14 — feat(world): sistema de mundo persistente (town + dungeon) e correções de UI
+Autor: Vitor
+Data: 2026-05-06
+
+Contexto:
+O jogo iniciava diretamente na dungeon sem hub. Não havia persistência de estado entre
+transições de área. A action bar mostrava retângulo colorido em vez de sprite real (bug
+introduzido na migração para Sprite sem atualizar o handler `_onItemPickedUp`).
+
+Objetivo:
+1. Implementar `TownMap` (subclasse de `DungeonGenerator`, mapa 24×20 fixo) como hub seguro
+2. Implementar `WorldSystem` (singleton): `saveDungeon`, `loadDungeon`, `hasDungeon`, `clearDungeon`
+3. GameScene inicia na cidade; player pisa em tile (12,18) → entra na dungeon
+4. Ao retornar ao startPos da dungeon com `_canExitDungeon = true` → salva estado e volta à cidade
+5. Dungeon persiste entre visitas (mesmo grid, mesmos itens no chão); inimigos SEMPRE respawnam
+6. `_canExitDungeon` começa `false` ao entrar na dungeon; torna-se `true` após mover do startPos
+7. Player (HP, inventário, XP) persiste entre áreas — GameScene nunca reinicia
+8. Corrigir bug da action bar: `slot.icon.setTexture(texture, frame)` em vez de `setFillStyle`
+
+Arquitetura de transição:
+- `_loadArea('town' | 'dungeon')` → `_cleanup()` + recria tiles/entidades
+- `_tileObjects` e `_decorObjects` rastreados para destruição no cleanup
+- `_handleItemDropped` como arrow function estável (referência para `EventBus.off` em `shutdown()`)
+- `EVENTS.AREA_CHANGED` emitido para futura integração com UIScene
+
+Arquivos gerados/modificados: `src/systems/WorldSystem.ts` (novo), `src/scenes/GameScene.ts`,
+`src/scenes/UIScene.ts`, `src/utils/constants.ts`, `.kiro/specs/world.spec.md` (novo),
+`.kiro/specs/gameloop.spec.md`, `.kiro/specs/input.spec.md`, `.kiro/steering/game-steering.md`

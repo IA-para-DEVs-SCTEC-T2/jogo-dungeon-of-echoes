@@ -1,10 +1,10 @@
 # PRD — Product Requirements Document
 # Dungeon of Echoes
 
-**Versão:** 0.1.2  
-**Data:** 2026-05-02  
+**Versão:** 0.3.0  
+**Data:** 2026-05-05  
 **Equipe:** Equipe 7 — IA para DEVs SCTEC T2  
-**Status:** Refinamento Fase 1 entregue
+**Status:** Fase 3 entregue — Sistema de Inventário e Itens
 
 ---
 
@@ -95,8 +95,8 @@ Cada partida começa em uma dungeon nova. O jogador avança derrotando inimigos,
 ### 6.3 Combate
 
 - **Automático** ao tentar mover para tile ocupado por inimigo vivo
-- Sequência: player ataca → inimigo contra-ataca (se vivo)
-- Dano fixo = `attacker.attack` (sem aleatoriedade no MVP)
+- Sequência: player ataca → inimigo contra-ataca (se vivo) no turno seguinte
+- **80% de chance de acerto** por ataque — miss gera mensagem no log sem causar dano
 - Feedback visual: texto flutuante por 800ms + flash de câmera
 
 ### 6.4 Inimigos
@@ -122,14 +122,28 @@ Cada partida começa em uma dungeon nova. O jogador avança derrotando inimigos,
 - [x] A cada level up: `recalcStats()` recalcula `maxHp` e `maxMana` pelas fórmulas de atributos; `attack += 5`; HP restaurado ao máximo
 - [x] Suporte a múltiplos level-ups encadeados em uma única concessão de XP
 
-### 6.6 HUD
+### 6.6 Inventário e Itens
+
+- [x] Inventário com **20 slots** (`InventorySystem`) — sem stack por slot
+- [x] Entidade `Item`: `id`, `type`, `identified`, `gridX/Y`
+- [x] Dois tipos de poção: `potion_heal` (+10 HP) e `potion_poison` (-5 HP)
+- [x] **Sistema de identificação roguelike**: itens aparecem com nomes genéricos ("Poção Vermelha / Azul") até serem usados; após uso, nome real revelado para todos os itens do mesmo tipo na partida
+- [x] Spawn de 3–6 itens em tiles FLOOR aleatórios
+- [x] Coleta automática ao pisar sobre o tile com item
+- [x] Uso via teclas `1–9`; tecla `I` lista inventário no log
+- [x] Usar item **consome turno** (integrado ao `TurnManager`)
+- [x] Action bar visual na UIScene: 9 slots na barra inferior com ícone colorido por tipo
+- [x] HP limitado a `[0, maxHp]` ao usar qualquer poção
+
+### 6.7 HUD
 
 | Elemento | Conteúdo |
 |----------|----------|
 | Barra HP | Visual proporcional; cor muda para vermelho quando HP < 30% |
 | Barra Mana | Visual proporcional (azul) |
 | Labels | Nível, ATK, "XP: atual / próximo" |
-| Log | Últimas 5 mensagens (dano, level up, morte) na base da tela |
+| Log | Últimas 5 mensagens (dano, level up, coleta, uso de item, morte) na base da tela |
+| Action bar | 9 slots de inventário com ícone colorido (amarelo = cura, roxo = veneno) |
 
 - [x] `UIScene` executa como overlay paralelo à `GameScene` via `this.scene.launch()`
 - [x] Atualizada via `EventBus` — nunca lê o Player diretamente a cada frame
@@ -184,6 +198,17 @@ Os requisitos abaixo são derivados diretamente das specs em `.kiro/specs/`.
 - Input ignorado completamente no estado `GAME_OVER`
 - Teclas não mapeadas devem ser ignoradas silenciosamente
 
+### RF-09 — Inventário
+- Item coletado vai para primeiro slot livre; slot cheio bloqueia coleta com feedback
+- Uso de item inválido (slot vazio) deve ser ignorado silenciosamente
+- HP resultante de uso de poção deve ser limitado ao intervalo `[0, maxHp]`
+- Identificação é por partida: se `potion_heal` foi identificada, todos os itens do tipo mostram nome real
+
+### RF-10 — Itens no Mapa
+- Itens visualmente renderizados na UIScene com cor correspondente ao tipo
+- Coleta remove sprite do mapa e atualiza action bar
+- Ao usar, slot correspondente é limpo na action bar
+
 ---
 
 ## 8. Requisitos Não Funcionais
@@ -203,30 +228,32 @@ Os requisitos abaixo são derivados diretamente das specs em `.kiro/specs/`.
 
 ## 9. Escopo
 
-### Dentro do escopo (v0.1.2 — estado atual)
+### Dentro do escopo (v0.3.0 — estado atual)
 
 - [x] Geração procedural de dungeon (salas + corredores BSP, 40×40 tiles)
-- [x] Player controlável (4 direções, movimento contínuo, cooldown 150ms)
+- [x] Player controlável (4 direções, turn-based real via TurnManager)
 - [x] Atributos base RPG (CON/WIS/INT/STR/DEX/CHA) com fórmulas derivadas
-- [x] Combate automático turn-based com dano visualmente refletido
+- [x] Combate automático turn-based com 80% hit chance
 - [x] IA de inimigos: IDLE → CHASING → ATTACKING, detecção por sala e raio
 - [x] Sistema de XP e progressão de nível com recálculo de atributos
-- [x] HUD persistente via UIScene overlay (barras HP/Mana, log de mensagens)
+- [x] HUD persistente via UIScene overlay (barras HP/Mana, log, action bar de inventário)
+- [x] Sistema de inventário: 20 slots, coleta automática, uso por tecla
+- [x] Sistema de identificação roguelike de itens (nome desconhecido → real ao usar)
 - [x] Game Over com tela de resultado e restart
-- [x] 48 testes unitários (DungeonGenerator, CombatSystem, XPSystem, EnemyAI, PlayerCollision)
+- [x] 108 testes unitários
 - [x] Dashboard estático de acompanhamento do projeto
 
 ### Fora do escopo (planejado para versões futuras)
 
 | Feature | Motivo da exclusão |
 |---------|-------------------|
-| FOG of War | Complexidade visual não prioritária no ciclo atual |
-| Inventário e itens | Escopo separado; requer UI e sistema de drop |
+| FOG of War | Complexidade visual; spec pronta em `.kiro/specs/fog-of-war.spec.md` |
 | Múltiplos tipos de inimigo | Balanceamento adiado para pós-refinamento |
 | Múltiplos andares | Depende de progressão de dificuldade não especificada |
 | IA generativa (lore, inimigos) | Requer API key e backend; fora do escopo acadêmico atual |
 | Sistema de save | Permadeath intencional; sem persistência é comportamento esperado |
-| Magia e habilidades | Mana implementada; uso em habilidades planejado para v0.3.0 |
+| Magia e habilidades | Mana implementada; uso em habilidades planejado para v0.4.0 |
+| Equipamentos (armas, armaduras) | Escopo post-v0.3 |
 
 ---
 
@@ -260,15 +287,25 @@ Os requisitos abaixo são derivados diretamente das specs em `.kiro/specs/`.
 - [x] 48 testes unitários (+18 novos: colisão, IA, combate)
 - [x] Dashboard estático de acompanhamento do projeto (GitHub API)
 
-### v0.2.0 — Dungeon completa (planejado)
-- [ ] FOG of War (tiles visitados vs. visíveis vs. escuros)
+### v0.2.0 — Sistema de Turnos Real (entregue em 2026-05-04)
+- [x] `TurnManager`: turno real — jogo só avança ao agir
+- [x] `Enemy` entidade pura desacoplada de Phaser
+- [x] `CombatSystem.attack()` com 80% hit chance
+- [x] Input: `JustDown` (um keypress = um turno), `SPACE` para WAIT
+- [x] Log de combate com mensagens detalhadas por evento
+
+### v0.3.0 — Inventário e Itens (entregue em 2026-05-05)
+- [x] `InventorySystem` com 20 slots
+- [x] `Item` com sistema de identificação roguelike
+- [x] Dois tipos de poção: heal (+10 HP) e poison (−5 HP)
+- [x] Coleta automática ao pisar; uso via teclas 1–9
+- [x] Action bar visual na UIScene
+- [x] Fullscreen responsivo (FIT + parent 100vw/100vh)
+
+### v0.4.0 — Dungeon Completa (planejado)
+- [ ] FOG of War (HIDDEN / VISIBLE / REVEALED)
 - [ ] Múltiplos tipos de inimigo com atributos distintos
 - [ ] Escadas para próximo andar com dificuldade crescente
-
-### v0.3.0 — Expansão de mecânicas (planejado)
-- [ ] Inventário com itens no chão (poções, armas)
-- [ ] Sistema de classes do player (Warrior, Mage, Rogue)
-- [ ] Múltiplos andares com dificuldade crescente
 
 ### v1.0.0 — IA Generativa (planejado)
 - [ ] Integração com LLM (Claude Haiku) para lore dinâmica
@@ -283,7 +320,7 @@ Os requisitos abaixo são derivados diretamente das specs em `.kiro/specs/`.
 |---------|-------------------|
 | Jogabilidade | Partida completa possível do boot ao game over sem erros no console |
 | Estabilidade | Zero crashes reportados em sessão de 10 minutos de jogo |
-| Testes | 100% dos testes unitários passando em `npm test` (48/48 em v0.1.2) |
+| Testes | 100% dos testes unitários passando em `npm test` (108/108 em v0.3.0) |
 | Build | `npm run build` produz bundle funcional sem warnings críticos |
 | Commits | 100% dos commits na branch `main` e `staging` validados pelo Commitlint |
 | Cobertura de specs | Cada sistema implementado possui spec correspondente em `.kiro/specs/` |
