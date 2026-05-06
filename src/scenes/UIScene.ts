@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { EVENTS } from '../utils/constants';
+import { EVENTS, SPRITES, DAWNLIKE_FRAMES } from '../utils/constants';
 import { EventBus } from '../utils/EventBus';
 import { Item, ItemType } from '../entities/Item';
 
@@ -20,14 +20,9 @@ const SLOT_SIZE  = 24;
 const SLOT_GAP   = 4;
 const SLOT_DEPTH = 200;
 
-const ITEM_COLORS: Record<ItemType, number> = {
-  potion_heal:   0xffdd00,
-  potion_poison: 0xaa44ff,
-};
-
 type SlotGraphics = {
   bg:   Phaser.GameObjects.Rectangle;
-  icon: Phaser.GameObjects.Rectangle;
+  icon: Phaser.GameObjects.Sprite;
   key:  Phaser.GameObjects.Text;
 };
 
@@ -137,10 +132,10 @@ export class UIScene extends Phaser.Scene {
         .setOrigin(0, 0).setScrollFactor(0).setDepth(SLOT_DEPTH + 1)
         .setStrokeStyle(1, 0x4455aa);
 
-      // Ícone: oculto até ter item no slot
+      // Ícone: sprite real do item (invisível até ter item no slot)
       const icon = this.add
-        .rectangle(x + 4, barY + 4, SLOT_SIZE - 8, SLOT_SIZE - 8, 0xffffff)
-        .setOrigin(0, 0).setScrollFactor(0).setDepth(SLOT_DEPTH + 2)
+        .sprite(x + SLOT_SIZE / 2, barY + SLOT_SIZE / 2, SPRITES.POTION, 0)
+        .setScrollFactor(0).setDepth(SLOT_DEPTH + 2)
         .setVisible(false);
 
       // Tecla de atalho (1–9)
@@ -217,12 +212,20 @@ export class UIScene extends Phaser.Scene {
     this._logLines.forEach((line, i) => line.setText(this._logBuffer[i] ?? ''));
   }
 
+  private _getItemVisual(type: ItemType): { texture: string; frame: number } {
+    switch (type) {
+      case 'potion_heal':   return { texture: SPRITES.POTION, frame: DAWNLIKE_FRAMES.POTION_HEAL };
+      case 'potion_poison': return { texture: SPRITES.POTION, frame: DAWNLIKE_FRAMES.POTION_POISON };
+      case 'gold':          return { texture: SPRITES.MONEY,  frame: DAWNLIKE_FRAMES.GOLD };
+    }
+  }
+
   private _onItemPickedUp(data: { item: Item; slotIndex: number }): void {
     if (!this.sys.isActive()) return;
     const slot = this._slots[data.slotIndex];
     if (!slot) return;
-    const color = ITEM_COLORS[data.item.type] ?? 0xffffff;
-    slot.icon.setFillStyle(color).setVisible(true);
+    const { texture, frame } = this._getItemVisual(data.item.type);
+    slot.icon.setTexture(texture, frame).setVisible(true);
     slot.bg.setStrokeStyle(1, 0xffd700);
   }
 

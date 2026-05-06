@@ -6,18 +6,20 @@
  * O nome exibido depende do estado de identificação do player.
  */
 
-export type ItemType = 'potion_heal' | 'potion_poison';
+export type ItemType = 'potion_heal' | 'potion_poison' | 'gold';
 
-/** Mapa de nomes genéricos (desconhecidos) por tipo — embaralhados por partida */
+/** Mapa de nomes genéricos (desconhecidos) por tipo */
 export const UNKNOWN_NAMES: Record<ItemType, string> = {
   potion_heal:   'Poção Vermelha',
   potion_poison: 'Poção Azul',
+  gold:          'Moeda de Ouro',
 };
 
 /** Mapa de nomes reais (após identificação) */
 export const REAL_NAMES: Record<ItemType, string> = {
   potion_heal:   'Poção de Cura',
   potion_poison: 'Poção de Veneno',
+  gold:          'Moeda de Ouro',
 };
 
 export class Item {
@@ -30,7 +32,7 @@ export class Item {
   gridY: number | null;
 
   /** Referência ao sprite Phaser (gerenciado pela GameScene) */
-  sprite: Phaser.GameObjects.Rectangle | null = null;
+  sprite: Phaser.GameObjects.Sprite | null = null;
 
   constructor(id: string, type: ItemType, gridX: number | null = null, gridY: number | null = null) {
     this.id         = id;

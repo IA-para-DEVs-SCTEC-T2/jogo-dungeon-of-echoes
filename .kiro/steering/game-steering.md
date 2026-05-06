@@ -30,34 +30,38 @@ Dungeon of Echoes é um RPG 2D tile-based jogado no navegador. O jogador explora
 
 | Camada | Tecnologia |
 |--------|-----------|
-| Engine | Phaser 3 |
+| Engine | Phaser 4 |
 | Linguagem | TypeScript (ES Modules) |
 | Build | Vite |
-| Testes | Vitest |
+| Testes | Vitest (108 testes) |
 | Qualidade | Husky + Commitlint |
+| Assets | Dawnlike 16×16 tileset (CC-BY) |
 
-## Restrições do MVP
+## Restrições
 
 - **Sem IA generativa** neste estágio (preparar hooks para expansão futura)
 - **Sem banco de dados** — estado apenas em memória durante a sessão
 - **Sem servidor backend** — jogo 100% client-side
-- **Sem animações complexas** — sprites simples ou formas geométricas são suficientes
-- **Sem sistema de save** — cada sessão começa do zero
+- **Sem animações complexas** — sprites estáticos (frame fixo por entidade)
+- **Sem save persistente** — cada sessão começa do zero; estado da dungeon persiste *dentro* da sessão via `WorldSystem`
+- **Sistemas nunca importam Scenes** — comunicação via EventBus
+- **Scenes nunca calculam lógica de domínio** — delegam a Systems
 
 ## Estrutura de Pastas
 
 ```
 /src
   /scenes       → Cenas Phaser (Boot, Game, GameOver, UI)
-  /systems      → Lógica de jogo (Player, Dungeon, Enemy, Combat, XP)
-  /entities     → Entidades do jogo (Player)
+  /systems      → Lógica de jogo (TurnManager, CombatSystem, EnemySystem,
+                   XPSystem, InventorySystem, LootSystem, WorldSystem)
+  /entities     → Entidades puras (Player, Item)
   /generators   → Geração procedural (DungeonGenerator)
   /utils        → Constantes, EventBus
 .kiro/
   /steering     → Diretrizes do projeto (este arquivo)
   /specs        → Especificações de cada sistema
-/tests          → Testes unitários
-/public         → Assets estáticos (DawnLike tileset)
+/tests          → Testes unitários (Vitest)
+/public/assets/dawnlike → Tileset Dawnlike 16×16 (CC-BY)
 ```
 
 ## Fluxo de Desenvolvimento
@@ -70,10 +74,11 @@ Dungeon of Echoes é um RPG 2D tile-based jogado no navegador. O jogador explora
 
 ## Expansões Futuras Planejadas
 
-Estes sistemas NÃO fazem parte do MVP mas o código deve ser estruturado para suportá-los:
+Estes sistemas NÃO fazem parte do MVP atual mas o código deve ser estruturado para suportá-los:
 
-- **Inventário**: slots de equipamento, itens no chão
+- **Fog of War**: visibilidade por tile (spec pronta em `.kiro/specs/fog-of-war.spec.md`)
+- **Minimap**: overlay com estado de exploração (spec em `.kiro/specs/minimap.spec.md`)
+- **Múltiplos andares**: escadas, progressão vertical de dungeon
 - **Habilidades**: árvore de habilidades por classe
-- **IA de Inimigos**: pathfinding A*, comportamentos variados
-- **Múltiplos andares**: progressão de dungeon
-- **Narrativa por IA**: lores geradas por LLM (conforme README original)
+- **IA de Inimigos**: pathfinding A*, comportamentos variados por tipo
+- **Narrativa por IA**: lores geradas por LLM — Claude Haiku (preparar hooks)

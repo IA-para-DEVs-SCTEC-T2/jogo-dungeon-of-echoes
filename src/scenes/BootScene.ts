@@ -29,6 +29,18 @@ export class BootScene extends Phaser.Scene {
       frameHeight: 16,
     });
 
+    // Itens — poções (Dawnlike Items/Potion.png, 8×5 frames de 16×16)
+    this.load.spritesheet(SPRITES.POTION, `${base}/Items/Potion.png`, {
+      frameWidth: 16,
+      frameHeight: 16,
+    });
+
+    // Itens — dinheiro (Dawnlike Items/Money.png, 8×8 frames de 16×16)
+    this.load.spritesheet(SPRITES.MONEY, `${base}/Items/Money.png`, {
+      frameWidth: 16,
+      frameHeight: 16,
+    });
+
     // Easter egg — Platino (DragonDePlatino, CC-BY 4.0)
     this.load.spritesheet(SPRITES.PLATINO, `${base}/Characters/Reptile0.png`, {
       frameWidth: 16,

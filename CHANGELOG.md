@@ -50,6 +50,32 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ## [Unreleased]
 
+### Added
+
+#### Sistema de Mundo Persistente (`WorldSystem`)
+- `src/systems/WorldSystem.ts`: singleton que persiste o estado da dungeon (grid, itens no chão) entre transições de área dentro da sessão
+- `TownMap`: mapa fixo 24×20 implementado como subclasse de `DungeonGenerator` — compatível com `TurnManager` e `EnemySystem` sem alterações
+- Player inicia na cidade (hub seguro, sem inimigos); pisa em `(12,18)` para entrar na dungeon
+- Retorno à cidade: ao voltar ao `startPos` da dungeon, estado é salvo automaticamente
+- Inimigos sempre respawnam ao entrar na dungeon; itens no chão persistem entre visitas
+- Flag `_canExitDungeon`: previne saída imediata ao spawnar no startPos da dungeon
+
+#### Sistema de Loot (`LootSystem`)
+- `src/systems/LootSystem.ts`: drops ao matar inimigos — 30% poção de cura, 20% veneno, 10% ouro, 40% nada
+- Tipo `gold` adicionado ao `ItemType`, com visual em `Items/Money.png` frame 0
+- Loot emitido via `EVENTS.ITEM_DROPPED` — cena cria sprite sem conhecer a lógica de probabilidade
+
+#### Sprites Dawnlike para Itens
+- Itens no mapa e na action bar usam sprites reais (`Items/Potion.png`, `Items/Money.png`) em vez de retângulos coloridos
+- Frames mapeados: poção vermelha = frame 0, poção azul = frame 7, ouro = frame 0
+
+### Fixed
+- Action bar da UIScene: ícones exibiam retângulo colorido em vez do sprite correto após migração para `Sprite`
+
+### Docs
+- Novos specs: `.kiro/specs/world.spec.md`, `.kiro/specs/loot.spec.md`, `.kiro/specs/sprites.spec.md`
+- Atualizados: `gameloop.spec.md`, `input.spec.md`, `game-steering.md`
+
 ---
 
 ## [0.3.0] — 2026-05-05
