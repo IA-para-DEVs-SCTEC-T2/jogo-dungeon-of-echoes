@@ -133,6 +133,8 @@ export const EVENTS = {
   ENEMY_DIED: 'enemy-died',
   ENEMY_ATTACKED: 'enemy-attacked',
   COMBAT_HIT: 'combat-hit',
+  DAMAGE_PLAYER: 'damage-player',
+  DAMAGE_ENEMY: 'damage-enemy',
   UI_LOG: 'ui-log',
   ITEM_PICKED_UP: 'item-picked-up',
   ITEM_USED: 'item-used',

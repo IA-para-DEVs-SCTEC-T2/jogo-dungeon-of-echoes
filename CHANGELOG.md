@@ -52,6 +52,18 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ### Added
 
+#### Feedback Visual de Dano (`visual-damage-feedback`)
+- Números flutuantes animados ao receber dano: vermelho (`-N`) sobre o player, amarelo sobre inimigos
+- Flash vermelho no sprite atingido (pisca uma vez em ~160ms) para reforçar o impacto do golpe
+- Dois novos eventos no `EventBus`: `DAMAGE_PLAYER` e `DAMAGE_ENEMY` — emitidos pelo `CombatSystem` com posição em pixels e valor do dano
+- `CombatSystem.resolve()` agora aceita `getPixelPos()` opcional nos objetos passados — sem quebrar testes existentes
+- `GameScene._flashSprite()`: método reutilizável de tween alpha + tint para qualquer sprite
+
+### Fixed
+- Script `test` no `package.json` ajustado para usar caminho direto ao `vitest.mjs` — corrige falha de resolução do executável no Windows com Node.js v21
+
+### Added
+
 #### Sistema de Mundo Persistente (`WorldSystem`)
 - `src/systems/WorldSystem.ts`: singleton que persiste o estado da dungeon (grid, itens no chão) entre transições de área dentro da sessão
 - `TownMap`: mapa fixo 24×20 implementado como subclasse de `DungeonGenerator` — compatível com `TurnManager` e `EnemySystem` sem alterações
