@@ -34,6 +34,9 @@ export class Item {
   /** Referência ao sprite Phaser (gerenciado pela GameScene) */
   sprite: Phaser.GameObjects.Sprite | null = null;
 
+  /** Descrição gerada por IA (opcional, apenas para itens raros/especiais) */
+  aiDescription: string | null = null;
+
   constructor(id: string, type: ItemType, gridX: number | null = null, gridY: number | null = null) {
     this.id         = id;
     this.type       = type;

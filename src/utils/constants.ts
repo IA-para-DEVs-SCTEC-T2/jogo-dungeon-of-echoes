@@ -158,3 +158,15 @@ export const LOOT = {
   CHANCE_POISON:   0.20,  // acumulado: 0.30–0.50
   CHANCE_GOLD:     0.10,  // acumulado: 0.50–0.60
 } as const;
+
+// --- IA Generativa ---
+export const AI = {
+  // Triggers para geração de conteúdo
+  ITEM_RARITY_THRESHOLD: 0.8,  // Apenas itens raros/épicos (>80% de raridade) ganham descrição IA
+  ENEMY_ELITE_CHANCE: 0.15,     // 15% de chance de spawnar inimigo elite com variante IA
+  EVENT_SPECIAL_TILE: 2,        // Tile especial que triggera evento narrativo (pode ser expandido)
+  
+  // Cache e performance
+  CACHE_MAX_SIZE: 100,          // Máximo de entradas no cache
+  REQUEST_TIMEOUT: 5000,        // Timeout de 5s para chamadas LLM
+} as const;
