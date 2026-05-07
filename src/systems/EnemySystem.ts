@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { ENEMY, EVENTS, TILE_SIZE } from '../utils/constants';
 import type { DungeonGenerator, GridPos } from '../generators/DungeonGenerator';
+import type { FloorDifficulty } from '../config/difficulty.config';
 
 export type EnemyState = 'IDLE' | 'CHASING' | 'ATTACKING';
 
@@ -134,9 +135,13 @@ export class EnemySystem {
 
 export function createEnemies(
   dungeon: DungeonGenerator,
-  count: number,
   playerPos: GridPos,
+  difficulty?: FloorDifficulty,
 ): EnemySystem[] {
+  const count    = difficulty?.enemyCount ?? ENEMY.COUNT;
+  const hpScale  = difficulty?.enemyHpMultiplier  ?? 1;
+  const atkScale = difficulty?.enemyAtkMultiplier ?? 1;
+
   const enemies: EnemySystem[] = [];
   const occupied = new Set<string>();
   occupied.add(`${playerPos.x},${playerPos.y}`);
@@ -151,7 +156,12 @@ export function createEnemies(
 
     if (!occupied.has(`${pos.x},${pos.y}`)) {
       occupied.add(`${pos.x},${pos.y}`);
-      enemies.push(new EnemySystem(pos.x, pos.y, i));
+      const enemy = new EnemySystem(pos.x, pos.y, i);
+      // Aplicar scaling no spawn — base stats das constants nunca mutadas
+      enemy.hp    = Math.round(ENEMY.HP     * hpScale);
+      enemy.maxHp = Math.round(ENEMY.HP     * hpScale);
+      enemy.attack = Math.round(ENEMY.ATTACK * atkScale);
+      enemies.push(enemy);
     }
   }
 

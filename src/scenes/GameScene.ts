@@ -8,7 +8,15 @@ import { XPSystem } from '../systems/XPSystem';
 import { TurnManager } from '../systems/TurnManager';
 import { LootSystem } from '../systems/LootSystem';
 import { EventBus } from '../utils/EventBus';
-import { worldSystem, TownMap } from '../systems/WorldSystem';
+import { TownMap } from '../systems/WorldSystem';
+import { InputModeManager } from '../systems/InputModeManager';
+import { MapTransitionSystem } from '../systems/MapTransitionSystem';
+import { DungeonFloorManager } from '../systems/DungeonFloorManager';
+import { DifficultyScalingSystem } from '../systems/DifficultyScalingSystem';
+import { DungeonFeatureGenerator, type DungeonFeature } from '../generators/DungeonFeatureGenerator';
+import { EquipmentSystem } from '../systems/EquipmentSystem';
+import type { TransitionResolution } from '../types/transitions';
+import type { GridPos } from '../generators/DungeonGenerator';
 import {
   TILE_SIZE,
   TILE,
@@ -29,16 +37,30 @@ export class GameScene extends Phaser.Scene {
   private combatSystem!: CombatSystem;
   private turnManager!: TurnManager;
   private lootSystem!: LootSystem;
+  private inputMode!: InputModeManager;
+  private mapTransitionSystem!: MapTransitionSystem;
+  private floorManager!: DungeonFloorManager;
+  private difficultySystem!: DifficultyScalingSystem;
+  private featureGenerator!: DungeonFeatureGenerator;
+  private _dungeonFeatures: DungeonFeature[] = [];
+  private equipmentSystem!: EquipmentSystem;
   private gameState!: string;
+
+  // Cache de andares visitados (runtime — não serializado ainda)
+  private _dungeonCache = new Map<number, {
+    dungeon:    DungeonGenerator;
+    items:      Item[];
+    floorFrame: number;
+    features:   DungeonFeature[];
+  }>();
 
   // ─── Estado da área atual ─────────────────────────────────────────────────
   private _currentArea: 'town' | 'dungeon' = 'town';
-  private _currentMap!: DungeonGenerator;   // TownMap ou DungeonGenerator real
+  private _currentMap!: DungeonGenerator;
   private _dungeon: DungeonGenerator | null = null;
   private _enemies: EnemySystem[] = [];
   private _items: Item[] = [];
   private _floorFrame = 0;
-  private _canExitDungeon = false;
 
   // ─── GameObjects rastreados por área (destruídos no cleanup) ─────────────
   private _tileObjects: Phaser.GameObjects.Image[] = [];
@@ -63,14 +85,22 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
-    worldSystem.clearDungeon(); // nova sessão = zero
     this.gameState = GAME_STATE.PLAYING;
+    this._dungeonCache.clear();
 
     // Sistemas criados uma vez — stats persistem entre áreas
     this.xpSystem     = new XPSystem(this.events);
     this.combatSystem = new CombatSystem(this.events, this.xpSystem);
     this.turnManager  = new TurnManager();
     this.lootSystem   = new LootSystem();
+    this.inputMode          = new InputModeManager();
+    this.mapTransitionSystem = new MapTransitionSystem();
+    this.floorManager       = new DungeonFloorManager();
+    this.difficultySystem   = new DifficultyScalingSystem();
+    this.featureGenerator   = new DungeonFeatureGenerator();
+    this.floorManager.reset();
+    this.equipmentSystem = new EquipmentSystem();
+    this._registerTransitions();
 
     // Player criado uma vez — moves between areas
     this.player = new Player(this, TOWN.START_X, TOWN.START_Y);
@@ -85,6 +115,7 @@ export class GameScene extends Phaser.Scene {
 
   shutdown(): void {
     EventBus.off(EVENTS.ITEM_DROPPED, this._handleItemDropped, this);
+    EventBus.off(EVENTS.INVENTORY_STATE_REQUESTED, undefined, this);
   }
 
   update(_time: number, _delta: number): void {
@@ -92,17 +123,52 @@ export class GameScene extends Phaser.Scene {
     this._handleInput(_time);
   }
 
+  // ─── Transições ──────────────────────────────────────────────────────────
+
+  private _registerTransitions(): void {
+    // SpawnPoints
+    this.mapTransitionSystem.registerSpawn({ id: 'town-main',          mapId: 'town',    gridX: TOWN.START_X, gridY: TOWN.START_Y });
+    this.mapTransitionSystem.registerSpawn({ id: 'town-near-exit',     mapId: 'town',    gridX: TOWN.EXIT_X,  gridY: TOWN.EXIT_Y - 1 });
+    this.mapTransitionSystem.registerSpawn({ id: 'dungeon-floor1-entry', mapId: 'dungeon', gridX: 0, gridY: 0 });
+
+    // TransitionPoints
+    this.mapTransitionSystem.registerTransition({
+      id: 'town-to-dungeon',
+      fromMapId: 'town', toMapId: 'dungeon',
+      fromGridX: TOWN.EXIT_X, fromGridY: TOWN.EXIT_Y,
+      targetSpawnId: 'dungeon-floor1-entry',
+    });
+    this.mapTransitionSystem.registerTransition({
+      id: 'dungeon-to-town',
+      fromMapId: 'dungeon', toMapId: 'town',
+      fromGridX: 0, fromGridY: 0,  // atualizado dinamicamente
+      targetSpawnId: 'town-near-exit',
+    });
+  }
+
+  private _executeTransition(resolution: TransitionResolution): void {
+    this._cleanup();
+    this.mapTransitionSystem.completeTransition(resolution);
+    if (resolution.targetMapId === 'town') {
+      this._currentArea = 'town';
+      this._loadTown(resolution.targetSpawn.gridX, resolution.targetSpawn.gridY);
+    } else {
+      this._currentArea = 'dungeon';
+      this._loadDungeonFloor(this.floorManager.currentFloor);
+    }
+    EventBus.emit(EVENTS.AREA_CHANGED, { area: this._currentArea, timestamp: Date.now() });
+  }
+
   // ─── Gestão de Áreas ─────────────────────────────────────────────────────
 
   private _loadArea(area: 'town' | 'dungeon'): void {
     this._cleanup();
-    this._currentArea    = area;
-    this._canExitDungeon = false;
+    this._currentArea = area;
 
     if (area === 'town') {
-      this._loadTown();
+      this._loadTown(TOWN.START_X, TOWN.START_Y);
     } else {
-      this._loadDungeon();
+      this._loadDungeonFloor(this.floorManager.currentFloor);
     }
 
     EventBus.emit(EVENTS.AREA_CHANGED, { area });
@@ -122,7 +188,7 @@ export class GameScene extends Phaser.Scene {
     this._enemies = [];
   }
 
-  private _loadTown(): void {
+  private _loadTown(spawnX = TOWN.START_X, spawnY = TOWN.START_Y): void {
     const townMap = new TownMap();
     this._currentMap = townMap;
 
@@ -148,25 +214,34 @@ export class GameScene extends Phaser.Scene {
       }).setOrigin(0.5, 1).setDepth(3),
     );
 
-    // Reposicionar player
-    this.player.gridX = TOWN.START_X;
-    this.player.gridY = TOWN.START_Y;
-    this.player.setPosition(TOWN.START_X * TILE_SIZE + TILE_SIZE / 2, TOWN.START_Y * TILE_SIZE + TILE_SIZE / 2);
+    // Reposicionar player na posição de spawn
+    this.player.gridX = spawnX;
+    this.player.gridY = spawnY;
+    this.player.setPosition(spawnX * TILE_SIZE + TILE_SIZE / 2, spawnY * TILE_SIZE + TILE_SIZE / 2);
 
     this.cameras.main.setBounds(0, 0, TOWN.WIDTH * TILE_SIZE, TOWN.HEIGHT * TILE_SIZE);
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.cameras.main.setZoom(2);
 
-    EventBus.emit(EVENTS.UI_LOG, 'Bem-vindo à cidade. Vá para o sul para entrar na dungeon.');
+    const isReturn = spawnX === TOWN.EXIT_X && spawnY === TOWN.EXIT_Y - 1;
+    EventBus.emit(EVENTS.UI_LOG, isReturn
+      ? 'Você retornou à cidade.'
+      : 'Bem-vindo à cidade. Vá para o sul para entrar na dungeon.',
+    );
   }
 
-  private _loadDungeon(): void {
-    const saved = worldSystem.loadDungeon();
+  /**
+   * Carrega (ou gera) um andar de dungeon.
+   * spawnPos: posição onde o player nasce; omitir = usar startPos da dungeon (entrada da cidade).
+   */
+  private _loadDungeonFloor(floor: number, spawnPos?: GridPos): void {
+    const cached = this._dungeonCache.get(floor);
 
-    if (saved) {
-      this._dungeon    = saved.dungeon;
-      this._floorFrame = saved.floorFrame;
-      this._items      = saved.items;
+    if (cached) {
+      this._dungeon    = cached.dungeon;
+      this._floorFrame = cached.floorFrame;
+      this._items      = cached.items;
+      this._dungeonFeatures = cached.features;
     } else {
       this._dungeon = new DungeonGenerator();
       this._dungeon.generate();
@@ -174,9 +249,14 @@ export class GameScene extends Phaser.Scene {
       this._floorFrame = variants[Math.floor(Math.random() * variants.length)];
       this._items      = [];
       this._generateInitialItems();
+      // Gerar features e salvar conexões apenas uma vez (Math.random implica não-determinismo)
+      this._dungeonFeatures = this.featureGenerator.generate(this._dungeon, floor);
+      const connections = this.featureGenerator.extractConnections(this._dungeonFeatures);
+      this.floorManager.saveFloorConnections(floor, connections);
     }
 
-    this._currentMap = this._dungeon;
+    this._currentMap  = this._dungeon;
+    this._currentArea = 'dungeon';
 
     // Renderizar tiles
     const { width: W, height: H, grid } = this._dungeon;
@@ -201,34 +281,36 @@ export class GameScene extends Phaser.Scene {
       item.sprite = this.add.sprite(px, py, texture, frame).setDepth(3);
     }
 
-    // Gerar inimigos (sempre fresh — respawn ao retornar)
-    this._enemies = createEnemies(this._dungeon, ENEMY.COUNT, this._dungeon.startPos);
+    this._renderDungeonFeatures(floor);
+
+    // Gerar inimigos com scaling de dificuldade
+    const difficulty = this.difficultySystem.getFloorDifficulty(floor);
+    this._enemies = createEnemies(this._dungeon, this._dungeon.startPos, difficulty);
     this._createEnemySprites();
 
     // Easter egg Platino
     this._spawnPlatino();
 
-    // Marcador de retorno à cidade no startPos
-    const sp  = this._dungeon.startPos;
-    const spx = sp.x * TILE_SIZE + TILE_SIZE / 2;
-    const spy = sp.y * TILE_SIZE + TILE_SIZE / 2;
-    this._decorObjects.push(
-      this.add.rectangle(spx, spy, TILE_SIZE, TILE_SIZE, 0x4488ff, 0.6).setDepth(1),
-      this.add.text(spx, spy - TILE_SIZE - 2, '[ CIDADE ]', {
-        fontSize: '6px', color: '#aaddff', fontFamily: 'monospace',
-      }).setOrigin(0.5, 1).setDepth(3),
-    );
+    // Persistir cache deste andar
+    this._dungeonCache.set(floor, {
+      dungeon:    this._dungeon,
+      items:      this._items,
+      floorFrame: this._floorFrame,
+      features:   this._dungeonFeatures,
+    });
 
-    // Posicionar player no startPos da dungeon
-    this.player.gridX = sp.x;
-    this.player.gridY = sp.y;
-    this.player.setPosition(sp.x * TILE_SIZE + TILE_SIZE / 2, sp.y * TILE_SIZE + TILE_SIZE / 2);
+    // Posicionar player
+    const finalSpawn = spawnPos ?? this._dungeon.startPos;
+    this.player.gridX = finalSpawn.x;
+    this.player.gridY = finalSpawn.y;
+    this.player.setPosition(finalSpawn.x * TILE_SIZE + TILE_SIZE / 2, finalSpawn.y * TILE_SIZE + TILE_SIZE / 2);
 
     this.cameras.main.setBounds(0, 0, W * TILE_SIZE, H * TILE_SIZE);
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.cameras.main.setZoom(2);
 
-    EventBus.emit(EVENTS.UI_LOG, saved ? 'Você retornou à dungeon.' : 'Você entrou na dungeon. Cuidado!');
+    EventBus.emit(EVENTS.AREA_CHANGED, { area: 'dungeon', floor, timestamp: Date.now() });
+    EventBus.emit(EVENTS.UI_LOG, cached ? `Você está no andar ${floor}.` : `Você desce para o andar ${floor}. Cuidado!`);
   }
 
   private _generateInitialItems(): void {
@@ -269,26 +351,71 @@ export class GameScene extends Phaser.Scene {
     this._items.push(item);
   }
 
+  private _renderDungeonFeatures(floor: number): void {
+    for (const feature of this._dungeonFeatures) {
+      const px = feature.gridX * TILE_SIZE + TILE_SIZE / 2;
+      const py = feature.gridY * TILE_SIZE + TILE_SIZE / 2;
+      if (feature.type === 'stairDown') {
+        this._decorObjects.push(
+          this.add.rectangle(px, py, TILE_SIZE, TILE_SIZE, 0xaa4400, 0.85).setDepth(2),
+          this.add.text(px, py - TILE_SIZE - 2, '▼ DESCER', {
+            fontSize: '5px', color: '#ffaa44', fontFamily: 'monospace',
+          }).setOrigin(0.5, 1).setDepth(3),
+        );
+      } else if (feature.type === 'stairUp') {
+        const label = floor === 1 ? '▲ CIDADE' : '▲ SUBIR';
+        this._decorObjects.push(
+          this.add.rectangle(px, py, TILE_SIZE, TILE_SIZE, 0x004488, 0.85).setDepth(2),
+          this.add.text(px, py - TILE_SIZE - 2, label, {
+            fontSize: '5px', color: '#44aaff', fontFamily: 'monospace',
+          }).setOrigin(0.5, 1).setDepth(3),
+        );
+      }
+    }
+  }
+
   private _checkAreaTransition(): void {
     if (this._currentArea === 'town') {
       if (this.player.gridX === TOWN.EXIT_X && this.player.gridY === TOWN.EXIT_Y) {
-        this._loadArea('dungeon');
+        const resolution = this.mapTransitionSystem.requestTransition('town-to-dungeon');
+        if (resolution) this._executeTransition(resolution);
       }
       return;
     }
 
-    // Dungeon: retornar à cidade quando chegar ao startPos após ter saído dele
-    const sp = this._dungeon!.startPos;
-    if (this.player.gridX === sp.x && this.player.gridY === sp.y) {
-      if (!this._canExitDungeon) return; // ainda no spawn, não sair
-      worldSystem.saveDungeon({
-        dungeon: this._dungeon!,
-        items:   this._items,
-        floorFrame: this._floorFrame,
-      });
-      this._loadArea('town');
-    } else {
-      this._canExitDungeon = true;
+    const px = this.player.gridX;
+    const py = this.player.gridY;
+
+    const stairDown = this._dungeonFeatures.find(f => f.type === 'stairDown' && f.gridX === px && f.gridY === py);
+    if (stairDown) {
+      this._cleanup();
+      this.floorManager.descend();
+      const nextFloor = this.floorManager.currentFloor;
+      this._loadDungeonFloor(nextFloor);
+      // Reposicionar no stairUp do novo andar (gerado por _loadDungeonFloor)
+      const conn = this.floorManager.getFloorConnections(nextFloor);
+      if (conn?.stairsUp) {
+        const s = conn.stairsUp.sourcePosition;
+        this.player.gridX = s.x;
+        this.player.gridY = s.y;
+        this.player.setPosition(s.x * TILE_SIZE + TILE_SIZE / 2, s.y * TILE_SIZE + TILE_SIZE / 2);
+      }
+      return;
+    }
+
+    const stairUp = this._dungeonFeatures.find(f => f.type === 'stairUp' && f.gridX === px && f.gridY === py);
+    if (stairUp?.connection) {
+      if (stairUp.connection.targetFloor === 'town') {
+        const resolution = this.mapTransitionSystem.requestTransition('dungeon-to-town');
+        if (resolution) this._executeTransition(resolution);
+      } else {
+        this._cleanup();
+        this.floorManager.ascend();
+        const prevFloor = this.floorManager.currentFloor;
+        const conn = this.floorManager.getFloorConnections(prevFloor);
+        const spawnPos = conn?.stairsDown?.sourcePosition;
+        this._loadDungeonFloor(prevFloor, spawnPos);
+      }
     }
   }
 
@@ -374,16 +501,24 @@ export class GameScene extends Phaser.Scene {
   }
 
   private _handleInput(_time: number): void {
-    if (!this.turnManager.isPlayerTurn()) return;
-
     const JD = Phaser.Input.Keyboard.JustDown;
 
-    // Tecla I: log do inventário (não consome turno)
+    // Tecla I: toggle inventário (não consome turno, funciona em qualquer modo)
     if (JD(this.iKey)) {
-      const lines = this.player.inventory.getInventoryLog(this.player.identifiedItems);
-      lines.forEach(l => { console.log(l); EventBus.emit(EVENTS.UI_LOG, l); });
+      if (this.inputMode.is('INVENTORY')) {
+        this.inputMode.set('GAMEPLAY');
+        EventBus.emit(EVENTS.INVENTORY_CLOSED, { timestamp: Date.now() });
+      } else {
+        this.inputMode.push('INVENTORY');
+        EventBus.emit(EVENTS.INVENTORY_OPENED, { timestamp: Date.now() });
+        EventBus.emit(EVENTS.INVENTORY_STATE_REQUESTED, { timestamp: Date.now() });
+      }
       return;
     }
+
+    // Bloqueia todo o resto quando fora do modo GAMEPLAY
+    if (!this.inputMode.is('GAMEPLAY')) return;
+    if (!this.turnManager.isPlayerTurn()) return;
 
     // Teclas 1–9: usar item do slot
     for (let i = 0; i < this.numKeys.length; i++) {
@@ -543,5 +678,15 @@ export class GameScene extends Phaser.Scene {
     });
 
     EventBus.on(EVENTS.ITEM_DROPPED, this._handleItemDropped, this);
+
+    // Responde com estado do inventário quando UIScene solicitar
+    EventBus.on(EVENTS.INVENTORY_STATE_REQUESTED, () => {
+      EventBus.emit(EVENTS.INVENTORY_STATE_RESPONSE, {
+        items:           this.player.inventory.items,
+        equipped:        this.equipmentSystem.getAllEquipped(),
+        identifiedItems: this.player.identifiedItems,
+        timestamp:       Date.now(),
+      });
+    }, this);
   }
 }

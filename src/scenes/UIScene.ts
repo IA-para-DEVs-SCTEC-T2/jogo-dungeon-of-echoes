@@ -1,30 +1,26 @@
 import * as Phaser from 'phaser';
-import { EVENTS, SPRITES, DAWNLIKE_FRAMES } from '../utils/constants';
+import { EVENTS, UI } from '../utils/constants';
 import { EventBus } from '../utils/EventBus';
-import { Item, ItemType } from '../entities/Item';
+import { Item } from '../entities/Item';
+import { LogSystem } from '../systems/LogSystem';
+import { LogPanel } from '../ui/LogPanel';
+import { InventoryPanel } from '../ui/InventoryPanel';
+import { ActionBarPanel } from '../ui/ActionBarPanel';
+import { EQUIPMENT_SLOT_ORDER, EQUIPMENT_SLOT_LABELS, type EquipmentSlotId } from '../types/equipment';
+import type { InventoryViewModel, InventoryItemViewModel, EquipmentSlotViewModel } from '../types/viewmodels';
 
-const BAR_W     = 120;
-const BAR_H     = 8;
-const PANEL_X   = 8;
-const PANEL_Y   = 8;
-const LOG_LINES = 5;
+const BAR_W    = 100;
+const BAR_H    = 8;
+const PANEL_X  = 8;
+const PANEL_Y  = 8;
+const DEPTH    = 200;
+
 const TEXT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
   fontSize: '9px',
   color: '#e2e8f0',
   fontFamily: 'monospace',
 };
 
-// Action bar
-const SLOT_COUNT = 9;
-const SLOT_SIZE  = 24;
-const SLOT_GAP   = 4;
-const SLOT_DEPTH = 200;
-
-type SlotGraphics = {
-  bg:   Phaser.GameObjects.Rectangle;
-  icon: Phaser.GameObjects.Sprite;
-  key:  Phaser.GameObjects.Text;
-};
 
 export class UIScene extends Phaser.Scene {
   // HP bar
@@ -41,41 +37,118 @@ export class UIScene extends Phaser.Scene {
   private _levelLabel!: Phaser.GameObjects.Text;
   private _xpLabel!: Phaser.GameObjects.Text;
 
-  // Message log
-  private _logLines: Phaser.GameObjects.Text[] = [];
-  private _logBuffer: string[] = [];
+  // Log
+  private _logSystem!: LogSystem;
+  private _logPanel!: LogPanel;
 
-  // Inventory action bar
-  private _slots: SlotGraphics[] = [];
+  // Inventory overlay
+  private _inventoryPanel!: InventoryPanel;
+  private _actionBar!: ActionBarPanel;
+  private _inventoryData: { items: unknown[]; equipped: Record<string, string | null>; identifiedItems: Record<string, boolean> } | null = null;
+  private _selectedInventoryIndex = 0;
+
+  // _slots removido — gerenciado por ActionBarPanel
 
   constructor() {
     super({ key: 'UIScene' });
   }
 
   create(): void {
-    this._createTopPanel();
-    this._createActionBar();
-    this._createMessageLog();
+    this._logSystem = new LogSystem();
+    this._logSystem.bindEventBus();
+
+    this._actionBar      = new ActionBarPanel(this);
+    this._logPanel       = new LogPanel(this);
+    this._inventoryPanel = new InventoryPanel(this);
+
+    // LogPanel deve parar antes da action bar
+    this._logPanel.layout(this.scale.width, this.scale.height, this._actionBar.getHeight());
+
+    this._createStatsPanel();
     this._registerEvents();
   }
 
-  shutdown(): void {
-    EventBus.off(EVENTS.PLAYER_HP_CHANGED,   this._onHPChanged,   this);
-    EventBus.off(EVENTS.PLAYER_MANA_CHANGED, this._onManaChanged, this);
-    EventBus.off(EVENTS.PLAYER_XP_CHANGED,   this._onXPChanged,   this);
-    EventBus.off(EVENTS.PLAYER_LEVELED_UP,   this._onLevelUp,     this);
-    EventBus.off(EVENTS.UI_LOG,              this._onLog,         this);
-    EventBus.off(EVENTS.ITEM_PICKED_UP,      this._onItemPickedUp, this);
-    EventBus.off(EVENTS.ITEM_USED,           this._onItemUsed,    this);
+  update(): void {
+    if (this._logPanel.isDirty()) {
+      const vm = this._logSystem.buildViewModel(UI.LOG_VISIBLE_LINES);
+      this._logPanel.render(vm);
+    }
+    if (this._inventoryPanel.isDirty() && this._inventoryData) {
+      const vm = this._buildInventoryViewModel();
+      this._inventoryPanel.render(vm);
+    }
   }
 
-  // ─── Criação ─────────────────────────────────────────────────────────────
+  shutdown(): void {
+    EventBus.off(EVENTS.PLAYER_HP_CHANGED,        this._onHPChanged,    this);
+    EventBus.off(EVENTS.PLAYER_MANA_CHANGED,      this._onManaChanged,  this);
+    EventBus.off(EVENTS.PLAYER_XP_CHANGED,        this._onXPChanged,    this);
+    EventBus.off(EVENTS.PLAYER_LEVELED_UP,        this._onLevelUp,      this);
+    EventBus.off(EVENTS.ITEM_PICKED_UP,           this._onItemPickedUp, this);
+    EventBus.off(EVENTS.ITEM_USED,                this._onItemUsed,     this);
+    EventBus.off(EVENTS.INVENTORY_OPENED,         undefined,            this);
+    EventBus.off(EVENTS.INVENTORY_STATE_RESPONSE, undefined,            this);
+    EventBus.off(EVENTS.INVENTORY_CLOSED,         undefined,            this);
+    EventBus.off(EVENTS.ITEM_EQUIPPED,            undefined,            this);
+    EventBus.off(EVENTS.ITEM_UNEQUIPPED,          undefined,            this);
+  }
 
-  private _createTopPanel(): void {
-    const d = SLOT_DEPTH;
+  // ─── InventoryViewModel builder ──────────────────────────────────────────
 
+  private _buildInventoryViewModel(): InventoryViewModel {
+    const data     = this._inventoryData!;
+    const selIdx   = this._selectedInventoryIndex;
+    const equipped = data.equipped;
+    const equippedIds = new Set(Object.values(equipped).filter(Boolean));
+
+    const items: InventoryItemViewModel[] = (data.items as Array<{ id: string; type: string; getDisplayName: (m: Record<string, boolean>) => string } | null>).map((item, index) => {
+      if (!item) return { index, id: null, displayName: '—', type: '', isEquipped: false, isSelected: false };
+      const isEquipped = equippedIds.has(item.id);
+      return {
+        index,
+        id:          item.id,
+        displayName: item.getDisplayName(data.identifiedItems),
+        type:        item.type,
+        isEquipped,
+        isSelected:  index === selIdx,
+      };
+    });
+
+    const slots: EquipmentSlotViewModel[] = EQUIPMENT_SLOT_ORDER.map(slotId => {
+      const equippedId = equipped[slotId] ?? null;
+      const equippedItem = equippedId
+        ? (data.items as Array<{ id: string; getDisplayName: (m: Record<string, boolean>) => string } | null>).find(i => i?.id === equippedId)
+        : null;
+      return {
+        id:              slotId as EquipmentSlotId,
+        label:           EQUIPMENT_SLOT_LABELS[slotId as EquipmentSlotId],
+        equippedItemId:  equippedId,
+        equippedItemName: equippedItem ? equippedItem.getDisplayName(data.identifiedItems) : '',
+        isSelected:      false,
+      };
+    });
+
+    const selectedItem = items[selIdx];
+    const selectedItemDetail = selectedItem?.id
+      ? {
+          name:        selectedItem.displayName,
+          description: `Tipo: ${selectedItem.type}`,
+          actions:     (['use', 'drop'] as Array<'equip' | 'use' | 'drop'>),
+        }
+      : null;
+
+    return { items, slots, selectedItemDetail };
+  }
+
+  // ─── Stats Panel (dentro do painel esquerdo 33%) ─────────────────────────
+
+  private _createStatsPanel(): void {
+    const panelW = Math.floor(this.scale.width * UI.LOG_PANEL_WIDTH_FRACTION);
+    const d = DEPTH;
+
+    // Fundo do painel de stats (topo do painel esquerdo)
     this.add
-      .rectangle(PANEL_X - 4, PANEL_Y - 4, BAR_W + 70, 56, 0x000000, 0.65)
+      .rectangle(0, 0, panelW, 56, 0x000000, 0.55)
       .setOrigin(0, 0).setScrollFactor(0).setDepth(d);
 
     const hpY = PANEL_Y + 4;
@@ -113,59 +186,6 @@ export class UIScene extends Phaser.Scene {
       .setScrollFactor(0).setDepth(d + 1);
   }
 
-  private _createActionBar(): void {
-    const { width, height } = this.scale;
-    const totalW = SLOT_COUNT * (SLOT_SIZE + SLOT_GAP) - SLOT_GAP;
-    const startX = Math.floor((width - totalW) / 2);
-    const barY   = height - SLOT_SIZE - 10;
-
-    // Fundo da barra
-    this.add
-      .rectangle(startX - 6, barY - 4, totalW + 12, SLOT_SIZE + 8, 0x000000, 0.7)
-      .setOrigin(0, 0).setScrollFactor(0).setDepth(SLOT_DEPTH);
-
-    for (let i = 0; i < SLOT_COUNT; i++) {
-      const x = startX + i * (SLOT_SIZE + SLOT_GAP);
-
-      const bg = this.add
-        .rectangle(x, barY, SLOT_SIZE, SLOT_SIZE, 0x222244)
-        .setOrigin(0, 0).setScrollFactor(0).setDepth(SLOT_DEPTH + 1)
-        .setStrokeStyle(1, 0x4455aa);
-
-      // Ícone: sprite real do item (invisível até ter item no slot)
-      const icon = this.add
-        .sprite(x + SLOT_SIZE / 2, barY + SLOT_SIZE / 2, SPRITES.POTION, 0)
-        .setScrollFactor(0).setDepth(SLOT_DEPTH + 2)
-        .setVisible(false);
-
-      // Tecla de atalho (1–9)
-      const key = this.add
-        .text(x + 2, barY + 2, String(i + 1), { fontSize: '7px', color: '#667799', fontFamily: 'monospace' })
-        .setScrollFactor(0).setDepth(SLOT_DEPTH + 3);
-
-      this._slots.push({ bg, icon, key });
-    }
-  }
-
-  private _createMessageLog(): void {
-    const { width, height } = this.scale;
-    const logH = LOG_LINES * 13 + 10;
-    // Posiciona acima da action bar
-    const logY = height - logH - SLOT_SIZE - 20;
-
-    this.add
-      .rectangle(4, logY, width - 8, logH, 0x000000, 0.55)
-      .setOrigin(0, 0).setScrollFactor(0).setDepth(SLOT_DEPTH);
-
-    for (let i = 0; i < LOG_LINES; i++) {
-      this._logLines.push(
-        this.add
-          .text(10, logY + 5 + i * 13, '', { ...TEXT_STYLE, color: '#94a3b8' })
-          .setScrollFactor(0).setDepth(SLOT_DEPTH + 1),
-      );
-    }
-  }
-
   // ─── Registro de Eventos ──────────────────────────────────────────────────
 
   private _registerEvents(): void {
@@ -173,9 +193,33 @@ export class UIScene extends Phaser.Scene {
     EventBus.on(EVENTS.PLAYER_MANA_CHANGED, this._onManaChanged,  this);
     EventBus.on(EVENTS.PLAYER_XP_CHANGED,   this._onXPChanged,    this);
     EventBus.on(EVENTS.PLAYER_LEVELED_UP,   this._onLevelUp,      this);
-    EventBus.on(EVENTS.UI_LOG,              this._onLog,          this);
     EventBus.on(EVENTS.ITEM_PICKED_UP,      this._onItemPickedUp, this);
     EventBus.on(EVENTS.ITEM_USED,           this._onItemUsed,     this);
+
+    EventBus.on(EVENTS.INVENTORY_OPENED, () => {
+      if (!this.sys.isActive()) return;
+      EventBus.emit(EVENTS.INVENTORY_STATE_REQUESTED, { timestamp: Date.now() });
+    }, this);
+
+    EventBus.on(EVENTS.INVENTORY_STATE_RESPONSE, (data: {
+      items: unknown[];
+      equipped: Record<string, string | null>;
+      identifiedItems: Record<string, boolean>;
+    }) => {
+      if (!this.sys.isActive()) return;
+      this._inventoryData = data;
+      this._selectedInventoryIndex = 0;
+      this._inventoryPanel.show();
+      this._inventoryPanel.markDirty();
+    }, this);
+
+    EventBus.on(EVENTS.INVENTORY_CLOSED, () => {
+      if (!this.sys.isActive()) return;
+      this._inventoryPanel.hide();
+    }, this);
+
+    EventBus.on(EVENTS.ITEM_EQUIPPED,   () => { this._inventoryPanel.markDirty(); }, this);
+    EventBus.on(EVENTS.ITEM_UNEQUIPPED, () => { this._inventoryPanel.markDirty(); }, this);
   }
 
   // ─── Handlers ────────────────────────────────────────────────────────────
@@ -205,35 +249,13 @@ export class UIScene extends Phaser.Scene {
     this._levelLabel.setText(`Nv ${data.level}  ATK ${data.attack}`);
   }
 
-  private _onLog(message: string): void {
-    if (!this.sys.isActive()) return;
-    this._logBuffer.push(`> ${message}`);
-    if (this._logBuffer.length > LOG_LINES) this._logBuffer.shift();
-    this._logLines.forEach((line, i) => line.setText(this._logBuffer[i] ?? ''));
-  }
-
-  private _getItemVisual(type: ItemType): { texture: string; frame: number } {
-    switch (type) {
-      case 'potion_heal':   return { texture: SPRITES.POTION, frame: DAWNLIKE_FRAMES.POTION_HEAL };
-      case 'potion_poison': return { texture: SPRITES.POTION, frame: DAWNLIKE_FRAMES.POTION_POISON };
-      case 'gold':          return { texture: SPRITES.MONEY,  frame: DAWNLIKE_FRAMES.GOLD };
-    }
-  }
-
   private _onItemPickedUp(data: { item: Item; slotIndex: number }): void {
     if (!this.sys.isActive()) return;
-    const slot = this._slots[data.slotIndex];
-    if (!slot) return;
-    const { texture, frame } = this._getItemVisual(data.item.type);
-    slot.icon.setTexture(texture, frame).setVisible(true);
-    slot.bg.setStrokeStyle(1, 0xffd700);
+    this._actionBar.setItem(data.slotIndex, data.item.type);
   }
 
   private _onItemUsed(data: { itemIndex: number }): void {
     if (!this.sys.isActive()) return;
-    const slot = this._slots[data.itemIndex];
-    if (!slot) return;
-    slot.icon.setVisible(false);
-    slot.bg.setStrokeStyle(1, 0x4455aa);
+    this._actionBar.clearItem(data.itemIndex);
   }
 }

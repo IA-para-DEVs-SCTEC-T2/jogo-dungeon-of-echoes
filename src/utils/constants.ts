@@ -140,6 +140,22 @@ export const EVENTS = {
   ITEM_USED: 'item-used',
   ITEM_DROPPED: 'item-dropped',
   AREA_CHANGED: 'area-changed',
+  // Transições de mapa
+  MAP_TRANSITION_STARTED:    'map-transition-started',
+  MAP_TRANSITION_COMPLETED:  'map-transition-completed',
+  // Andares de dungeon
+  FLOOR_CHANGED:  'floor-changed',
+  FLOOR_DESCEND:  'floor-descend',
+  FLOOR_ASCEND:   'floor-ascend',
+  // Inventário e equipamentos
+  INVENTORY_OPENED:           'inventory-opened',
+  INVENTORY_CLOSED:           'inventory-closed',
+  INVENTORY_STATE_REQUESTED:  'inventory-state-requested',
+  INVENTORY_STATE_RESPONSE:   'inventory-state-response',
+  ITEM_EQUIPPED:    'item-equipped',
+  ITEM_UNEQUIPPED:  'item-unequipped',
+  // Input
+  INPUT_MODE_CHANGED: 'input-mode-changed',
 } as const;
 
 // --- Cidade (hub) ---
@@ -159,6 +175,16 @@ export const LOOT = {
   CHANCE_HEAL:     0.30,  // acumulado: 0–0.30
   CHANCE_POISON:   0.20,  // acumulado: 0.30–0.50
   CHANCE_GOLD:     0.10,  // acumulado: 0.50–0.60
+} as const;
+
+// --- UI ---
+export const UI = {
+  LOG_PANEL_WIDTH_FRACTION: 0.33,
+  LOG_VISIBLE_LINES: 12,
+  LOG_MAX_HISTORY: 50,
+  LOG_BG_COLOR: 0x0a0a1a,
+  LOG_BORDER_COLOR: 0x4444aa,
+  LOG_ALPHA: 0.75,
 } as const;
 
 // --- IA Generativa ---

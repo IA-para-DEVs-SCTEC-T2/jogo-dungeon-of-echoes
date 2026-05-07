@@ -52,6 +52,40 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ### Added
 
+#### Múltiplos Andares de Dungeon (`DungeonFloorManager`)
+- `DungeonFloorManager`: cache de andares por sessão — andares já visitados preservam inimigos mortos e itens coletados
+- `DungeonFeatureGenerator`: gera `stairUp` e `stairDown` em salas diferentes, com distância mínima de 5 tiles entre elas
+- `DifficultyScalingSystem`: scaling de inimigos data-driven via `FLOOR_DIFFICULTY_TABLE` — HP e ATK aumentam por andar, base stats nunca mutados
+- Descida: player nasce no `stairUp` do andar destino; subida: player nasce no `stairDown` do andar de origem
+- Retorno à cidade via `stairUp` com `targetFloor = 'town'` — sem heurística de `startPos`
+- Labels visuais nas escadas: `▲ CIDADE` (floor 1), `▲ SUBIR` (demais floors), `▼ DESCER`
+
+#### Tela de Inventário Visual (`InventoryPanel` + `EquipmentSystem`)
+- `InventoryPanel`: grid de itens com 6 slots de equipamento (capacete, escudo, espada, calça, botas, amuleto)
+- `EquipmentSystem`: armazena IDs de itens equipados — `InventorySystem` permanece o dono dos objetos
+- Tecla `I` abre/fecha o painel de inventário; `InputModeManager` bloqueia movimento enquanto aberto
+- Comunicação UIScene ↔ GameScene via protocolo EventBus request/response (`INVENTORY_STATE_REQUESTED → INVENTORY_STATE_RESPONSE`)
+
+#### Log Panel dedicado (`LogPanel` + `LogSystem`)
+- `LogSystem`: buffer de até 50 mensagens, desacoplado do painel — comunica via `LogViewModel`
+- `LogPanel`: Container Phaser próprio ocupando 1/3 esquerdo da tela, pool fixo de textos com dirty flag
+- `LogPanel.layout()` aceita `reservedBottomHeight` — log não cobre a action bar
+
+#### Action Bar separada (`ActionBarPanel`)
+- `ActionBarPanel`: componente independente com Container próprio, 36px de altura, fundo visualmente distinto do log
+- Delegação de `setItem()` / `clearItem()` a partir de eventos `ITEM_PICKED_UP` e `ITEM_USED`
+
+#### Sistemas de suporte
+- `MapTransitionSystem`: SpawnPoints e TransitionPoints registráveis — GameScene executa, sistema resolve lógica
+- `InputModeManager`: máquina de estados (GAMEPLAY | INVENTORY | MODAL | DEBUG) com push/pop de modo
+
+### Fixed
+- Spawn de retorno à cidade: player nasce próximo à saída da dungeon (`EXIT_Y - 1`), não no centro
+- `createEnemies` refatorada para `(dungeon, playerPos, difficulty?)` — scaling aplicado no spawn, constantes base preservadas
+- `tests/enemy.test.js` atualizado para nova assinatura de `createEnemies`
+
+---
+
 #### Feedback Visual de Dano (`visual-damage-feedback`)
 - Números flutuantes animados ao receber dano: vermelho (`-N`) sobre o player, amarelo sobre inimigos
 - Flash vermelho no sprite atingido (pisca uma vez em ~160ms) para reforçar o impacto do golpe

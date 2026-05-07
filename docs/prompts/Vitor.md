@@ -498,3 +498,66 @@ Arquitetura de transição:
 Arquivos gerados/modificados: `src/systems/WorldSystem.ts` (novo), `src/scenes/GameScene.ts`,
 `src/scenes/UIScene.ts`, `src/utils/constants.ts`, `.kiro/specs/world.spec.md` (novo),
 `.kiro/specs/gameloop.spec.md`, `.kiro/specs/input.spec.md`, `.kiro/steering/game-steering.md`
+
+---
+
+## Prompt 15 — feat: melhorias gerais e adaptação roguelike (múltiplos andares, inventário visual, log panel, correção de escadas)
+Autor: Vitor
+Data: 2026-05-07
+
+Contexto:
+O jogo possuía transição de área funcional (cidade ↔ dungeon) mas apenas um único andar de dungeon,
+sem sistema de escadas funcional, sem painel de log dedicado e com a action bar fundida visualmente
+ao fundo do log.
+
+Objetivo:
+Implementar quatro melhorias estruturais de acordo com restrições arquiteturais definidas (R1–R15):
+
+1. **Correção do spawn de retorno à cidade** — player nasce próximo à saída da dungeon, não no centro da cidade
+2. **Log panel dedicado** — LogPanel em Container próprio, ocupando 1/3 esquerdo da tela estilo console RPG
+3. **Múltiplos andares de dungeon** — DungeonFloorManager com cache por andar, DifficultyScalingSystem com tabela de dados, DungeonFeatureGenerator com escadas (stairUp/stairDown) em salas diferentes
+4. **Tela de inventário visual** — InventoryPanel com 6 slots de equipamento (capacete, escudo, espada, calça, botas, amuleto) via EquipmentSystem
+
+Restrições arquiteturais aplicadas:
+- GameScene só executa — MapTransitionSystem resolve lógica de transição
+- Sem singletons excessivos — sistemas instanciados como campos da cena
+- DungeonFloorState apenas serializado — sem lógica
+- Dificuldade data-driven via FLOOR_DIFFICULTY_TABLE
+- UIScene recebe apenas ViewModels (nunca sistemas diretamente)
+- EquipmentSystem armazena IDs, não itens
+- Container raiz único com dirty flags por painel
+- InputModeManager centralizado (GAMEPLAY | INVENTORY | MODAL | DEBUG)
+- LogSystem desacoplado do LogPanel via ViewModel
+- Payloads padronizados no EventBus com timestamp
+- Scaling de inimigos apenas no spawn
+
+Problemas adicionais corrigidos (UX):
+- Action bar visualmente separada do log: novo ActionBarPanel com Container próprio, 36px de altura, fundo distinto
+- LogPanel.layout() recebe reservedBottomHeight para não cobrir a hotbar
+- Sistema de escadas corrigido: stairUp e stairDown sempre em salas diferentes, distância mínima de 5 tiles
+- Spawn ao descer: player nasce no stairUp do andar destino (não em startPos)
+- Spawn ao subir: player nasce no stairDown do andar anterior
+- Retorno à cidade via stairUp explícito (targetFloor = 'town') — sem heurística de startPos
+- tests/enemy.test.js atualizado para nova assinatura de createEnemies(dungeon, playerPos, difficulty?)
+
+Arquivos gerados/modificados:
+- `src/types/dungeon.ts` — StairConnection, FloorConnectionData
+- `src/types/equipment.ts` — EquipmentSlotId, EQUIPMENT_SLOT_ORDER, EQUIPMENT_SLOT_LABELS
+- `src/types/input.ts` — InputMode
+- `src/types/transitions.ts` — SpawnPoint, TransitionPoint, TransitionResolution
+- `src/types/viewmodels.ts` — LogViewModel, InventoryViewModel
+- `src/config/difficulty.config.ts` — FLOOR_DIFFICULTY_TABLE, getFloorDifficulty()
+- `src/generators/DungeonFeatureGenerator.ts` — geração de stairUp/stairDown com distância mínima
+- `src/systems/InputModeManager.ts` — máquina de estados de input
+- `src/systems/LogSystem.ts` — buffer de log desacoplado do painel
+- `src/systems/MapTransitionSystem.ts` — SpawnPoints e TransitionPoints registráveis
+- `src/systems/DungeonFloorManager.ts` — cache de andares, saveFloorConnections/getFloorConnections
+- `src/systems/DifficultyScalingSystem.ts` — scaling data-driven
+- `src/systems/EquipmentSystem.ts` — equipamento por ID de item
+- `src/ui/LogPanel.ts` — Container próprio, dirty flag, pool de texto, reservedBottomHeight
+- `src/ui/InventoryPanel.ts` — grid de inventário + slots de equipamento
+- `src/ui/ActionBarPanel.ts` (novo) — hotbar compacta visualmente separada
+- `src/scenes/UIScene.ts` — refatorado para ViewModels, compõe ActionBarPanel + LogPanel
+- `src/scenes/GameScene.ts` — _loadDungeonFloor com spawn posicional, _checkAreaTransition via features
+- `src/systems/EnemySystem.ts` — createEnemies com nova assinatura (playerPos, difficulty?)
+- `tests/enemy.test.js` — atualizado para nova API de createEnemies
