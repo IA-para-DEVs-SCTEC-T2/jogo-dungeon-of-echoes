@@ -9,6 +9,12 @@ export class Enemy {
   attack: number;
   alive: boolean;
 
+  /** Campos de variante IA (opcional, apenas para inimigos elite) */
+  isElite: boolean = false;
+  aiName: string | null = null;
+  aiDescription: string | null = null;
+  aiSpecialAbility: string | null = null;
+
   constructor(id: string, gridX: number, gridY: number, hp = 10, attack = 3) {
     this.id     = id;
     this.gridX  = gridX;
@@ -17,6 +23,14 @@ export class Enemy {
     this.maxHp  = hp;
     this.attack = attack;
     this.alive  = true;
+  }
+
+  /**
+   * Retorna o nome de exibição do inimigo.
+   * Se for elite com nome IA, usa o nome gerado. Caso contrário, usa nome base.
+   */
+  getDisplayName(baseName: string = 'Inimigo'): string {
+    return this.aiName || baseName;
   }
 
   takeDamage(amount: number): void {
