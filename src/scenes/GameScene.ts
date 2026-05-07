@@ -485,6 +485,20 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  /** Flash vermelho no sprite atingido (pisca uma vez). */
+  private _flashSprite(sprite: Phaser.GameObjects.Sprite): void {
+    this.tweens.add({
+      targets: sprite,
+      alpha: 0.2,
+      duration: 80,
+      yoyo: true,
+      repeat: 1,
+      onComplete: () => { sprite.setAlpha(1); },
+    });
+    sprite.setTint(0xff4444);
+    this.time.delayedCall(160, () => { if (sprite.active) sprite.clearTint(); });
+  }
+
   // ─── Eventos ─────────────────────────────────────────────────────────────
 
   private _emitInitialUIState(): void {
@@ -509,6 +523,23 @@ export class GameScene extends Phaser.Scene {
     this.events.on(EVENTS.PLAYER_LEVELED_UP, (data: { level: number; maxHp: number; attack: number }) => {
       this._showDamageText(this.player.getPixelPos(), `NÍVEL ${data.level}!`, COLORS.LEVEL_UP_TEXT);
       EventBus.emit(EVENTS.UI_LOG, `Subiu para o Nível ${data.level}!`);
+    });
+
+    // Feedback visual: dano no inimigo (número amarelo + flash)
+    this.events.on(EVENTS.DAMAGE_ENEMY, (data: { pos: { x: number; y: number }; damage: number }) => {
+      this._showDamageText(data.pos, data.damage, COLORS.XP_TEXT);
+      const enemy = this._enemies.find(
+        e => e.alive && e.sprite?.active &&
+          Math.abs(e.getPixelPos().x - data.pos.x) < 1 &&
+          Math.abs(e.getPixelPos().y - data.pos.y) < 1,
+      );
+      if (enemy?.sprite) this._flashSprite(enemy.sprite);
+    });
+
+    // Feedback visual: dano no player (número vermelho + flash)
+    this.events.on(EVENTS.DAMAGE_PLAYER, (data: { pos: { x: number; y: number }; damage: number }) => {
+      this._showDamageText(data.pos, data.damage, COLORS.DAMAGE_TEXT);
+      this._flashSprite(this.player);
     });
 
     EventBus.on(EVENTS.ITEM_DROPPED, this._handleItemDropped, this);
