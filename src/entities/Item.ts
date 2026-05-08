@@ -1,22 +1,17 @@
-/**
- * Item.ts — Entidade de item do jogo
- * Fase 3: Sistema de Inventário, Itens e Identificação
- *
- * Itens podem ser desconhecidos até serem usados (roguelike clássico).
- * O nome exibido depende do estado de identificação do player.
- */
+import type { EquipmentSlotId, StatBonuses, ItemRarity, EquippableItemType } from '../types/equipment';
 
-export type ItemType = 'potion_heal' | 'potion_poison' | 'gold';
+export type ConsumableItemType = 'potion_heal' | 'potion_poison' | 'gold';
+export type ItemType = ConsumableItemType | EquippableItemType;
 
-/** Mapa de nomes genéricos (desconhecidos) por tipo */
-export const UNKNOWN_NAMES: Record<ItemType, string> = {
+/** Mapa de nomes genéricos (desconhecidos) por tipo consumível */
+export const UNKNOWN_NAMES: Record<ConsumableItemType, string> = {
   potion_heal:   'Poção Vermelha',
   potion_poison: 'Poção Azul',
   gold:          'Moeda de Ouro',
 };
 
-/** Mapa de nomes reais (após identificação) */
-export const REAL_NAMES: Record<ItemType, string> = {
+/** Mapa de nomes reais (após identificação) por tipo consumível */
+export const REAL_NAMES: Record<ConsumableItemType, string> = {
   potion_heal:   'Poção de Cura',
   potion_poison: 'Poção de Veneno',
   gold:          'Moeda de Ouro',
@@ -37,6 +32,13 @@ export class Item {
   /** Descrição gerada por IA (opcional, apenas para itens raros/especiais) */
   aiDescription: string | null = null;
 
+  // Campos opcionais para equipamentos
+  name?: string;
+  slotId?: EquipmentSlotId;
+  bonuses?: StatBonuses;
+  price?: number;
+  rarity?: ItemRarity;
+
   constructor(id: string, type: ItemType, gridX: number | null = null, gridY: number | null = null) {
     this.id         = id;
     this.type       = type;
@@ -47,13 +49,16 @@ export class Item {
 
   /**
    * Retorna o nome exibido ao jogador.
-   * Se identificado (ou tipo já identificado na partida), retorna nome real.
-   * Caso contrário, retorna nome genérico.
+   * Equipamentos retornam `name` diretamente.
+   * Consumíveis usam sistema de identificação.
    */
   getDisplayName(identifiedItems: Record<string, boolean>): string {
-    if (this.identified || identifiedItems[this.type]) {
-      return REAL_NAMES[this.type];
+    if (this.name) return this.name;
+    const type = this.type as ConsumableItemType;
+    if (!(type in UNKNOWN_NAMES)) return this.type;
+    if (this.identified || identifiedItems[type]) {
+      return REAL_NAMES[type];
     }
-    return UNKNOWN_NAMES[this.type];
+    return UNKNOWN_NAMES[type];
   }
 }

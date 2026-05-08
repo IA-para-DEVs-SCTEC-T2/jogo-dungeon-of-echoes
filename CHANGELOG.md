@@ -52,6 +52,87 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ### Added
 
+#### Sistema de Comércio e Equipamentos
+
+- **`ShopSystem`**: lógica de compra e venda catalog-driven; `buyItem()` e `sellItem()` retornam resultado tipado; `buildViewModel()` e `buildSellItems()` constroem ViewModel sem acoplamento à UI
+- **`EquipmentSystem`**: 6 slots (capacete, escudo, espada, calça, botas, amuleto); `equip()`, `unequip()`, `getEquippedId()`, `getAllEquipped()` — armazena IDs, `InventorySystem` permanece dono dos objetos
+- **`Player.applyEquipmentBonuses()` / `removeEquipmentBonuses()`**: bônus de equipamento acumulados em `_equipmentBonuses`; `recalcStats()` recalcula `maxHp` e `attack` a partir dos bônus — 100% reversível ao desequipar
+- **`shop.catalog.ts`**: 18 itens (3 por slot + poções); `createItemFromCatalogEntry()` instancia `Item` com `slotId`, `bonuses`, `price`, `rarity`; `buildBonusText()` formata texto de atributo
+- **`ShopPanel`**: painel de 2 abas (Comprar / Vender); mouse hover + click selecionam item; pool de 20 linhas reutilizáveis; detalhes de raridade, bônus e preço
+- **Loja do Mercador**: interagir com o Mercador na cidade abre `ShopPanel`; aba Comprar navega catálogo (`↑↓`), compra com `E`/`Enter`; aba Vender mostra inventário (`←→` troca aba), venda com `V`
+- **Gold no HUD**: `player.gold = 500` inicial; label `Ouro: N` atualizado em tempo real via `PLAYER_GOLD_CHANGED`
+
+#### Sistema de Diálogo (`DialogPanel`)
+
+- **`DialogPanel`**: painel genérico de menu com lista de opções à esquerda e área de conteúdo à direita; mouse `pointerdown` seleciona opção; hint `[↑↓] Navegar  [Enter/E] Selecionar  [ESC] Fechar`
+- **Guarda** (cidade): interação abre menu com 4 opções informativas (Objetivos, Como jogar, Controles, Dicas)
+- **Taberneiro** (renomeado de Estalajadeiro): interação abre menu; opção "Repousar (20 ouros)" deduz 20 moedas e restaura HP e Mana ao máximo; opção "Até mais" fecha
+
+#### NPCs — Gato Vagante
+
+- `NPCController.update()` reativado: FSM `idle → wander` percorre tiles FLOOR dentro de `wanderBounds`; paredes e edifícios respeitados automaticamente
+- Gato movido para posição (3, 9) (tile FLOOR) com `customWanderBounds` dedicado — elimina posicionamento anterior em tile de parede
+
+#### Correções de Log e Foco
+
+- **`LogPanel`** reescrito para renderização bottom-up: `text.height` real após `setText()` determina posição — mensagens com quebra de linha não se sobrepõem mais
+- **Foco de teclado**: `BLUR`/`FOCUS` do jogo chamam `keyboard.resetKeys()` — previne teclas "presas" ao voltar da aba/janela após alt+tab
+
+### Fixed
+
+#### Crash `vm.items is undefined` após compra
+
+- `ShopSystem.buyItem()` e `sellItem()` emitiam `EVENTS.SHOP_UPDATED` com `{}` vazio; `ShopPanel.render()` acessava `vm.items[i]` → crash
+- Removidos os emits vazios; `GameScene._emitShopState()` sempre constrói `ShopViewModel` completo após qualquer operação
+
+#### Inventário fantasma / input travado após compra
+
+- `UIScene`: handler `INVENTORY_STATE_RESPONSE` chamava `_inventoryPanel.show()` incondicionalmente — inventário abria em modo SHOP quando `_emitInventoryState()` era chamado durante compra
+- **Fix**: `INVENTORY_OPENED` é o único evento autorizado a chamar `show()`; `INVENTORY_STATE_RESPONSE` só atualiza dados e marca dirty se o painel já estiver visível
+- Removidas chamadas `_emitInventoryState()` das operações de compra/venda na loja
+- `set('GAMEPLAY')` trocado por `pop()` no fechamento de INVENTORY e SHOP — stack do `InputModeManager` limpa corretamente
+
+#### Desequipar itens
+
+- Pressionar `E` em item já equipado agora o desequipa; novo método `_unequipSelectedItem()` reverte bônus via `player.removeEquipmentBonuses()` e emite `PLAYER_HP_CHANGED`
+- Painel de detalhes do inventário exibe `[E] Desequipar` para itens equipados, `[E] Equipar` para os demais
+
+---
+
+#### Múltiplos Andares de Dungeon (`DungeonFloorManager`)
+- `DungeonFloorManager`: cache de andares por sessão — andares já visitados preservam inimigos mortos e itens coletados
+- `DungeonFeatureGenerator`: gera `stairUp` e `stairDown` em salas diferentes, com distância mínima de 5 tiles entre elas
+- `DifficultyScalingSystem`: scaling de inimigos data-driven via `FLOOR_DIFFICULTY_TABLE` — HP e ATK aumentam por andar, base stats nunca mutados
+- Descida: player nasce no `stairUp` do andar destino; subida: player nasce no `stairDown` do andar de origem
+- Retorno à cidade via `stairUp` com `targetFloor = 'town'` — sem heurística de `startPos`
+- Labels visuais nas escadas: `▲ CIDADE` (floor 1), `▲ SUBIR` (demais floors), `▼ DESCER`
+
+#### Tela de Inventário Visual (`InventoryPanel` + `EquipmentSystem`)
+- `InventoryPanel`: grid de itens com 6 slots de equipamento (capacete, escudo, espada, calça, botas, amuleto)
+- `EquipmentSystem`: armazena IDs de itens equipados — `InventorySystem` permanece o dono dos objetos
+- Tecla `I` abre/fecha o painel de inventário; `InputModeManager` bloqueia movimento enquanto aberto
+- Comunicação UIScene ↔ GameScene via protocolo EventBus request/response (`INVENTORY_STATE_REQUESTED → INVENTORY_STATE_RESPONSE`)
+
+#### Log Panel dedicado (`LogPanel` + `LogSystem`)
+- `LogSystem`: buffer de até 50 mensagens, desacoplado do painel — comunica via `LogViewModel`
+- `LogPanel`: Container Phaser próprio ocupando 1/3 esquerdo da tela, pool fixo de textos com dirty flag
+- `LogPanel.layout()` aceita `reservedBottomHeight` — log não cobre a action bar
+
+#### Action Bar separada (`ActionBarPanel`)
+- `ActionBarPanel`: componente independente com Container próprio, 36px de altura, fundo visualmente distinto do log
+- Delegação de `setItem()` / `clearItem()` a partir de eventos `ITEM_PICKED_UP` e `ITEM_USED`
+
+#### Sistemas de suporte
+- `MapTransitionSystem`: SpawnPoints e TransitionPoints registráveis — GameScene executa, sistema resolve lógica
+- `InputModeManager`: máquina de estados (GAMEPLAY | INVENTORY | MODAL | DEBUG) com push/pop de modo
+
+### Fixed
+- Spawn de retorno à cidade: player nasce próximo à saída da dungeon (`EXIT_Y - 1`), não no centro
+- `createEnemies` refatorada para `(dungeon, playerPos, difficulty?)` — scaling aplicado no spawn, constantes base preservadas
+- `tests/enemy.test.js` atualizado para nova assinatura de `createEnemies`
+
+---
+
 #### Feedback Visual de Dano (`visual-damage-feedback`)
 - Números flutuantes animados ao receber dano: vermelho (`-N`) sobre o player, amarelo sobre inimigos
 - Flash vermelho no sprite atingido (pisca uma vez em ~160ms) para reforçar o impacto do golpe

@@ -87,13 +87,13 @@ describe('createEnemies', () => {
 
   it('cria o número correto de inimigos', () => {
     const dungeon = makeDungeon();
-    const enemies = createEnemies(dungeon, 3, dungeon.startPos);
+    const enemies = createEnemies(dungeon, dungeon.startPos, { enemyCount: 3, enemyHpMultiplier: 1, enemyAtkMultiplier: 1, lootQualityBonus: 0 });
     expect(enemies.length).toBe(3);
   });
 
   it('todos os inimigos iniciam vivos', () => {
     const dungeon = makeDungeon();
-    const enemies = createEnemies(dungeon, 4, dungeon.startPos);
+    const enemies = createEnemies(dungeon, dungeon.startPos, { enemyCount: 4, enemyHpMultiplier: 1, enemyAtkMultiplier: 1, lootQualityBonus: 0 });
     enemies.forEach((e) => expect(e.alive).toBe(true));
   });
 });

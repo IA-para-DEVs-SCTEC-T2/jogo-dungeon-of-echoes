@@ -3,6 +3,7 @@ import { PLAYER, TILE_SIZE, SPRITES, DAWNLIKE_FRAMES, EVENTS, BASE_STATS } from 
 import { EventBus } from '../utils/EventBus';
 import { InventorySystem } from '../systems/InventorySystem';
 import type { DungeonGenerator } from '../generators/DungeonGenerator';
+import type { StatBonuses } from '../types/equipment';
 
 export class Player extends Phaser.GameObjects.Sprite {
   // Posição no grid (tile-based)
@@ -30,8 +31,12 @@ export class Player extends Phaser.GameObjects.Sprite {
   inventory: InventorySystem;
   identifiedItems: Record<string, boolean>;
 
+  // Moedas
+  gold: number;
+
   private _lastMoveTime: number;
   private _emitter: Phaser.Events.EventEmitter;
+  private _equipmentBonuses: StatBonuses;
 
   constructor(scene: Phaser.Scene, gridX: number, gridY: number) {
     const px = gridX * TILE_SIZE + TILE_SIZE / 2;
@@ -63,18 +68,39 @@ export class Player extends Phaser.GameObjects.Sprite {
     this.maxMana = this.wis * 4 + this.intel * 2;
     this.mana    = this.maxMana;
 
-    this._lastMoveTime = 0;
-    this._emitter = scene.events;
+    this._lastMoveTime    = 0;
+    this._emitter         = scene.events;
+    this._equipmentBonuses = {};
 
     // Inventário e identificação
     this.inventory       = new InventorySystem();
     this.identifiedItems = {};
+
+    this.gold = 500;
   }
 
-  /** Recalcula maxHp e maxMana a partir dos atributos base e nível atual. */
+  /** Recalcula maxHp, maxMana e attack a partir dos atributos base, nível e bônus de equipamento. */
   recalcStats(): void {
-    this.maxHp   = this.con * 5 + this.level * 3;
+    this.maxHp   = this.con * 5 + this.level * 3 + (this._equipmentBonuses.maxHp ?? 0);
     this.maxMana = this.wis * 4 + this.intel * 2;
+    this.attack  = PLAYER.ATTACK + (this._equipmentBonuses.attack ?? 0);
+    // hp e mana nunca ultrapassam o máximo
+    this.hp   = Math.min(this.hp,   this.maxHp);
+    this.mana = Math.min(this.mana, this.maxMana);
+  }
+
+  applyEquipmentBonuses(bonuses: StatBonuses): void {
+    for (const key of Object.keys(bonuses) as Array<keyof StatBonuses>) {
+      this._equipmentBonuses[key] = (this._equipmentBonuses[key] ?? 0) + (bonuses[key] ?? 0);
+    }
+    this.recalcStats();
+  }
+
+  removeEquipmentBonuses(bonuses: StatBonuses): void {
+    for (const key of Object.keys(bonuses) as Array<keyof StatBonuses>) {
+      this._equipmentBonuses[key] = (this._equipmentBonuses[key] ?? 0) - (bonuses[key] ?? 0);
+    }
+    this.recalcStats();
   }
 
   tryMove(
@@ -148,9 +174,11 @@ export class Player extends Phaser.GameObjects.Sprite {
 
     this._lastMoveTime = 0;
 
-    // Resetar inventário e identificação para nova partida
+    // Resetar inventário, identificação e bônus de equipamento
     this.inventory.reset();
-    this.identifiedItems = {};
+    this.identifiedItems   = {};
+    this._equipmentBonuses = {};
+    this.gold = 500;
 
     this.setPosition(
       gridX * TILE_SIZE + TILE_SIZE / 2,

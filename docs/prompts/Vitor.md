@@ -498,3 +498,206 @@ Arquitetura de transição:
 Arquivos gerados/modificados: `src/systems/WorldSystem.ts` (novo), `src/scenes/GameScene.ts`,
 `src/scenes/UIScene.ts`, `src/utils/constants.ts`, `.kiro/specs/world.spec.md` (novo),
 `.kiro/specs/gameloop.spec.md`, `.kiro/specs/input.spec.md`, `.kiro/steering/game-steering.md`
+
+---
+
+## Prompt 15 — feat: melhorias gerais e adaptação roguelike (múltiplos andares, inventário visual, log panel, correção de escadas)
+Autor: Vitor
+Data: 2026-05-07
+
+Contexto:
+O jogo possuía transição de área funcional (cidade ↔ dungeon) mas apenas um único andar de dungeon,
+sem sistema de escadas funcional, sem painel de log dedicado e com a action bar fundida visualmente
+ao fundo do log.
+
+Objetivo:
+Implementar quatro melhorias estruturais de acordo com restrições arquiteturais definidas (R1–R15):
+
+1. **Correção do spawn de retorno à cidade** — player nasce próximo à saída da dungeon, não no centro da cidade
+2. **Log panel dedicado** — LogPanel em Container próprio, ocupando 1/3 esquerdo da tela estilo console RPG
+3. **Múltiplos andares de dungeon** — DungeonFloorManager com cache por andar, DifficultyScalingSystem com tabela de dados, DungeonFeatureGenerator com escadas (stairUp/stairDown) em salas diferentes
+4. **Tela de inventário visual** — InventoryPanel com 6 slots de equipamento (capacete, escudo, espada, calça, botas, amuleto) via EquipmentSystem
+
+Restrições arquiteturais aplicadas:
+- GameScene só executa — MapTransitionSystem resolve lógica de transição
+- Sem singletons excessivos — sistemas instanciados como campos da cena
+- DungeonFloorState apenas serializado — sem lógica
+- Dificuldade data-driven via FLOOR_DIFFICULTY_TABLE
+- UIScene recebe apenas ViewModels (nunca sistemas diretamente)
+- EquipmentSystem armazena IDs, não itens
+- Container raiz único com dirty flags por painel
+- InputModeManager centralizado (GAMEPLAY | INVENTORY | MODAL | DEBUG)
+- LogSystem desacoplado do LogPanel via ViewModel
+- Payloads padronizados no EventBus com timestamp
+- Scaling de inimigos apenas no spawn
+
+Problemas adicionais corrigidos (UX):
+- Action bar visualmente separada do log: novo ActionBarPanel com Container próprio, 36px de altura, fundo distinto
+- LogPanel.layout() recebe reservedBottomHeight para não cobrir a hotbar
+- Sistema de escadas corrigido: stairUp e stairDown sempre em salas diferentes, distância mínima de 5 tiles
+- Spawn ao descer: player nasce no stairUp do andar destino (não em startPos)
+- Spawn ao subir: player nasce no stairDown do andar anterior
+- Retorno à cidade via stairUp explícito (targetFloor = 'town') — sem heurística de startPos
+- tests/enemy.test.js atualizado para nova assinatura de createEnemies(dungeon, playerPos, difficulty?)
+
+Arquivos gerados/modificados:
+- `src/types/dungeon.ts` — StairConnection, FloorConnectionData
+- `src/types/equipment.ts` — EquipmentSlotId, EQUIPMENT_SLOT_ORDER, EQUIPMENT_SLOT_LABELS
+- `src/types/input.ts` — InputMode
+- `src/types/transitions.ts` — SpawnPoint, TransitionPoint, TransitionResolution
+- `src/types/viewmodels.ts` — LogViewModel, InventoryViewModel
+- `src/config/difficulty.config.ts` — FLOOR_DIFFICULTY_TABLE, getFloorDifficulty()
+- `src/generators/DungeonFeatureGenerator.ts` — geração de stairUp/stairDown com distância mínima
+- `src/systems/InputModeManager.ts` — máquina de estados de input
+- `src/systems/LogSystem.ts` — buffer de log desacoplado do painel
+- `src/systems/MapTransitionSystem.ts` — SpawnPoints e TransitionPoints registráveis
+- `src/systems/DungeonFloorManager.ts` — cache de andares, saveFloorConnections/getFloorConnections
+- `src/systems/DifficultyScalingSystem.ts` — scaling data-driven
+- `src/systems/EquipmentSystem.ts` — equipamento por ID de item
+- `src/ui/LogPanel.ts` — Container próprio, dirty flag, pool de texto, reservedBottomHeight
+- `src/ui/InventoryPanel.ts` — grid de inventário + slots de equipamento
+- `src/ui/ActionBarPanel.ts` (novo) — hotbar compacta visualmente separada
+- `src/scenes/UIScene.ts` — refatorado para ViewModels, compõe ActionBarPanel + LogPanel
+- `src/scenes/GameScene.ts` — _loadDungeonFloor com spawn posicional, _checkAreaTransition via features
+- `src/systems/EnemySystem.ts` — createEnemies com nova assinatura (playerPos, difficulty?)
+- `tests/enemy.test.js` — atualizado para nova API de createEnemies
+
+---
+
+## Prompt 16 — feat(commerce): sistema de comércio, equipamentos com bônus e loja do mercador
+Autor: Vitor
+Data: 2026-05-08
+
+Contexto:
+O jogo possuía inventário visual e slots de equipamento, mas sem lógica de comércio, sem itens
+equipáveis com stats e sem interação funcional com o Mercador da cidade.
+
+Objetivo:
+Implementar o sistema completo de comércio e equipamentos seguindo arquitetura EventBus/UIScene/GameScene:
+
+1. Itens equipáveis com bônus de stat (`StatBonuses`: attack, maxHp, con, str, dex)
+2. `Player.applyEquipmentBonuses()` / `removeEquipmentBonuses()` — bônus reversíveis acumulados em `_equipmentBonuses`; `recalcStats()` como fonte de verdade (nunca muta stats base)
+3. `shop.catalog.ts` — 18 itens (3 por slot + poções); `createItemFromCatalogEntry()` e `buildBonusText()`
+4. `ShopSystem` — `buyItem()`, `sellItem()`, `buildViewModel()`, `buildSellItems()` sem acoplamento à UI
+5. `ShopPanel` — 2 abas (Comprar / Vender); mouse hover + click; pool de 20 linhas; detalhes de raridade/bônus/preço
+6. `EquipmentSystem` integrado ao inventário: `E` equipa item selecionado, stats atualizados em tempo real
+7. Gold no HUD (começa com 500); `PLAYER_GOLD_CHANGED` atualiza label em tempo real
+8. Loja do Mercador: `InteractiveObjectSystem` emite `SHOP_OPENED` ao interagir (dentro de `houseBounds`); `GameScene` empilha modo SHOP via `InputModeManager`
+9. `InputModeManager` estendido com modo SHOP
+
+Restrições arquiteturais aplicadas:
+- `ShopSystem` nunca emite `SHOP_UPDATED` — `GameScene._emitShopState()` constrói ViewModel completo
+- Bônus reversíveis: `removeEquipmentBonuses()` subtrai; `recalcStats()` recalcula do zero
+- `EquipmentSystem` armazena IDs; `InventorySystem` é dono dos objetos
+- Comunicação UIScene ↔ GameScene exclusivamente via EventBus
+
+Testes gerados:
+- `tests/shop.test.js` — 17 testes: `createItemFromCatalogEntry`, `buildBonusText`, `ShopSystem.buyItem()` (3 cenários), `ShopSystem.sellItem()` (3 cenários), bônus de equipamento (5 cenários), `buildViewModel` (2 cenários)
+
+Arquivos gerados/modificados:
+- `src/config/shop.catalog.ts` (novo)
+- `src/types/equipment.ts` — StatBonuses, novos EquippableItemTypes
+- `src/types/viewmodels.ts` — ShopItemViewModel, ShopViewModel
+- `src/types/town.ts` — houseBounds, interaction type 'shop'
+- `src/types/input.ts` — adicionado 'SHOP' ao InputMode
+- `src/entities/Item.ts` — slotId?, bonuses?, price?, rarity?, name?
+- `src/entities/Player.ts` — gold, _equipmentBonuses, recalcStats(), applyEquipmentBonuses(), removeEquipmentBonuses()
+- `src/systems/ShopSystem.ts` (novo)
+- `src/systems/InteractiveObjectSystem.ts` — houseBounds, SHOP_OPENED
+- `src/systems/NPCController.ts` — getAllNPCs()
+- `src/config/town.config.ts` — Mercador com shop interaction e houseBounds
+- `src/generators/CityLayoutProcessor.ts` — pass-through de houseBounds/interaction
+- `src/scenes/GameScene.ts` — _handleShopInput(), _equipSelectedItem(), _emitShopState(), SHOP_OPENED listener
+- `src/scenes/UIScene.ts` — ShopPanel, _goldLabel, SHOP_OPENED/UPDATED/CLOSED handlers
+- `src/ui/ShopPanel.ts` (novo)
+- `src/utils/constants.ts` — SHOP_OPENED, SHOP_CLOSED, SHOP_UPDATED, PLAYER_GOLD_CHANGED, INVENTORY_SELECTION_CHANGED, SHOP constant
+- `tests/shop.test.js` (novo)
+
+---
+
+## Prompt 17 — feat(city): evolução cidade/NPCs/comércio — abas loja, diálogos, gato vagante, fix log
+Autor: Vitor
+Data: 2026-05-08
+
+Contexto:
+Após o sistema de comércio básico, necessidade de evoluir a cidade com mais interatividade:
+loja com abas de compra e venda, sistema de diálogo genérico para NPCs, gato vagante
+pela cidade e correção de sobreposição de mensagens longas no log.
+
+Objetivo:
+1. **Fix crash `vm.items undefined`**: `ShopSystem.buyItem/sellItem` emitiam `SHOP_UPDATED: {}` vazio — removidos; `GameScene._emitShopState()` sempre constrói ViewModel completo
+2. **Enter key compra** na loja (além de E); **V key vende** (separado de U para uso de item)
+3. **Duas abas na loja** — Comprar (catálogo) / Vender (inventário filtrado); `←→` troca aba; `ShopViewModel` estendido com `tab`, `buyItems`, `sellItems`, `SellItemViewModel`
+4. **Mouse na loja** — `setInteractive()` em cada item, `SHOP_ITEM_HOVERED` / `SHOP_ITEM_SELECTED` via EventBus; `GameScene` ouve e atualiza seleção
+5. **Fix foco de teclado** — `BLUR`/`FOCUS` do jogo chamam `keyboard.resetKeys()` — previne teclas "presas" após alt+tab
+6. **Gato vagante** — posição corrigida de (4,13) para (3,9); `customWanderBounds` em `TownNPCDef`; `NPCController.update()` FSM reativado
+7. **`DialogPanel`** (novo) — painel genérico com lista de opções e área de conteúdo; mouse `pointerdown` seleciona; `[↑↓ Enter/E ESC]`
+8. **Guarda** — `interaction.type: 'menu'` com 4 opções informativas (objetivos, como jogar, controles, dicas)
+9. **Taberneiro** (renomeado de Estalajadeiro) — `type: 'menu'`; "Repousar (20 ouros)" restaura HP+Mana; `TAVERN.REST_COST = 20`
+10. **Fix log multiline** — `LogPanel.render()` reescrito bottom-up usando `text.height` real após `setText()`
+
+Arquivos gerados/modificados:
+- `src/utils/constants.ts` — SHOP_ITEM_HOVERED, SHOP_ITEM_SELECTED, DIALOG_OPENED, DIALOG_CLOSED, DIALOG_OPTION_SELECTED, TAVERN
+- `src/types/viewmodels.ts` — SellItemViewModel, ShopViewModel com tab/buyItems/sellItems
+- `src/types/town.ts` — interaction type 'menu', menuOptions, DialogMenuOption
+- `src/types/input.ts` — adicionado 'DIALOG'
+- `src/config/town.config.ts` — cat fix (3,9), Taberneiro rename, Guard menu, Taberneiro menu, customWanderBounds
+- `src/systems/ShopSystem.ts` — removidos emits vazios, buildSellItems()
+- `src/generators/CityLayoutProcessor.ts` — customWanderBounds support
+- `src/systems/InteractiveObjectSystem.ts` — type 'menu' → DIALOG_OPENED
+- `src/systems/NPCController.ts` — wander FSM reativado
+- `src/scenes/GameScene.ts` — enterKey, vKey, _shopTab, _handleDialogInput(), _emitShopState() atualizado, DIALOG_OPENED/SHOP_ITEM_SELECTED listeners, focus fix
+- `src/ui/LogPanel.ts` — renderização bottom-up dinâmica
+- `src/ui/ShopPanel.ts` — abas buy/sell, mouse interativo
+- `src/ui/DialogPanel.ts` (novo)
+- `src/scenes/UIScene.ts` — DialogPanel integrado, novos listeners
+
+---
+
+## Prompt 18 — fix(ui): inventário fantasma, input travado, desequipar e ações corretas por item
+Autor: Vitor
+Data: 2026-05-08
+
+Contexto:
+Após as implementações de comércio, o inventário abria automaticamente ao comprar um item
+na loja. Com o inventário visível e o GameScene em modo GAMEPLAY, os direcionais moviam o
+personagem em vez de navegar o inventário, tornando-o inutilizável.
+
+Causa raiz identificada:
+`UIScene.INVENTORY_STATE_RESPONSE` chamava `_inventoryPanel.show()` incondicionalmente.
+`GameScene._handleShopInput()` chamava `_emitInventoryState()` após compra/venda, disparando
+o evento acima enquanto o modo ainda era SHOP. Resultado: inventário aberto + modo GAMEPLAY
+após ESC fechar a loja.
+
+Correções implementadas:
+
+1. **Fix crítico — separar show de update (UIScene)**:
+   - `INVENTORY_OPENED` é o único evento autorizado a chamar `_inventoryPanel.show()`
+   - `INVENTORY_STATE_RESPONSE` apenas atualiza dados e chama `markDirty()` se o painel já estiver visível
+
+2. **Fix crítico — remover `_emitInventoryState()` das operações de loja (GameScene)**:
+   - `_handleShopInput()` não emite mais estado de inventário após compra/venda
+   - Inventário sempre atualizado quando aberto via `I` (que chama `_emitInventoryState()` diretamente)
+
+3. **Fix de stack — usar `pop()` no fechamento de modos (GameScene)**:
+   - ESC em INVENTORY e SHOP agora usa `inputMode.pop()` em vez de `inputMode.set('GAMEPLAY')`
+   - Stack do `InputModeManager` limpa corretamente
+
+4. **Desequipar (GameScene)**:
+   - `E` em item já equipado agora o desequipa (toggle)
+   - Novo método `_unequipSelectedItem()`: chama `equipmentSystem.unequip()`, `player.removeEquipmentBonuses()`, emite `PLAYER_HP_CHANGED`
+
+5. **Ações corretas por tipo de item (UIScene + InventoryPanel)**:
+   - `_buildInventoryViewModel()` detecta `item.slotId` e passa `hasSlot` para o ViewModel
+   - Painel de detalhes exibe `[E] Equipar` para não equipados, `[E] Desequipar` para equipados, `[U] Usar` / `[D] Dropar` para consumíveis
+   - `InventoryDetailViewModel.actions` estendido com `'unequip'`
+
+Fluxo correto pós-fix:
+Comprar item → inventário NÃO abre → ESC fecha loja → GAMEPLAY → I abre inventário →
+E equipa/desequipa → ESC fecha inventário → player pode mover
+
+Arquivos gerados/modificados:
+- `src/scenes/UIScene.ts` — Fix 1 e Fix 5
+- `src/scenes/GameScene.ts` — Fix 2, Fix 3, Fix 4
+- `src/types/viewmodels.ts` — InventoryDetailViewModel com 'unequip'
+- `src/ui/InventoryPanel.ts` — actionMap com '[E] Desequipar'

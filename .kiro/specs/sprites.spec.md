@@ -40,10 +40,23 @@ Todos carregados com `frameWidth: 16, frameHeight: 16`.
 
 ### Tiles de Floor (`Ground0.png`)
 
-| Uso             | Frame | Descrição                    |
-|-----------------|-------|------------------------------|
+| Uso             | Resolução de Frame | Descrição |
+|-----------------|-------------------|-----------|
 | Floor dungeon   | variante aleatória por sala | Frame sorteado em `_floorFrame` |
-| Floor cidade    | `TOWN.FLOOR_FRAME` = 16     | Frame fixo para TownMap       |
+| Floor cidade    | `TileVariantResolver` | Frame determinístico por posição + bioma (não mais frame fixo) |
+
+#### Biome Atlas — `FLOOR_ATLAS` (`src/config/sprites-config.ts`)
+
+Cada bioma mapeia para uma lista de variantes com peso relativo. `TileVariantResolver` usa hash xorshift por `(x, y, sessionSeed)` para selecionar o frame de forma determinística:
+
+| BiomeType     | Variantes (frame + weight) |
+|---------------|---------------------------|
+| `urban`       | calçada, paralelepípedo (pesos definidos em `FLOOR_ATLAS`) |
+| `natural`     | grama, terra, flores (pesos definidos em `FLOOR_ATLAS`) |
+| `interior`    | madeira, pedra polida (pesos definidos em `FLOOR_ATLAS`) |
+| `transition`  | mistura urban/natural (pesos definidos em `FLOOR_ATLAS`) |
+
+> Para os frame numbers exatos, consultar `src/config/sprites-config.ts` — a spec não repete magic numbers que vivem no config.
 
 ### Tiles de Wall (`Wall.png`)
 
@@ -78,7 +91,9 @@ Itens no chão usam `this.add.sprite()` (não retângulos):
 | `potion_poison` | `SPRITES.POTION`| `DAWNLIKE_FRAMES.POTION_POISON` (7) |
 | `gold`          | `SPRITES.MONEY` | `DAWNLIKE_FRAMES.GOLD`         (0) |
 
-Profundidade dos sprites de item: `depth = 3`.
+Itens equipáveis (espadas, capacetes, etc.) do catálogo da loja são representados no inventário pelo `item.type` e não necessitam de sprite no mapa (não têm loot drop no chão).
+
+Profundidade dos sprites de item no mapa: `depth = 3`.
 
 ---
 
@@ -89,10 +104,23 @@ não retângulos coloridos. Lógica de mapeamento em `UIScene._getItemVisual(typ
 
 ---
 
+## Constantes de Layer (`src/config/sprites-config.ts`)
+
+| Constante | Valor (depth) | Uso |
+|-----------|---------------|-----|
+| `LAYER_GROUND` | — | Tiles de chão (groundTiles[y][x]) |
+| `LAYER_WORLD_BASE` | 100 | Base para objetos do mundo (árvores, barris, etc.) |
+| `LAYER_OVERHEAD` | — | Elementos que cobrem o player |
+| `LAYER_UI_LABELS` | — | Labels de nome de NPC e prompts de interação |
+
+Objetos do mundo usam depth = `LAYER_WORLD_BASE + gridY * 10` para Y-sort correto (entidades mais ao sul aparecem à frente).
+
 ## Regras
 
 - R1: Sprites são **estáticos** — sem animação de frame swap entre turnos
 - R2: `pixelArt: true` e `roundPixels: true` configurados em `main.ts` para nitidez
-- R3: Nenhuma cena calcula frames diretamente — sempre via `DAWNLIKE_FRAMES.*`
+- R3: Nenhuma cena calcula frames diretamente — cenas usam `DAWNLIKE_FRAMES.*` ou `TileVariantResolver`
 - R4: `BootScene` carrega todos os assets antes de iniciar `GameScene` (loading screen)
 - R5: Easter egg Platino usa `SPRITES.PLAYER` com frame diferente (verificar `_spawnPlatino()`)
+- R6: Tiles de chão da cidade não têm frame fixo — `CityLayoutProcessor` resolve via `TileVariantResolver` usando o bioma do tile e a seed da sessão
+- R7: Magic numbers de frame pertencem a `sprites-config.ts` — não espalhar frame literals no código de cenas ou sistemas
