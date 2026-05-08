@@ -1,1 +1,1 @@
-export type InputMode = 'GAMEPLAY' | 'INVENTORY' | 'MODAL' | 'DEBUG';
+export type InputMode = 'GAMEPLAY' | 'INVENTORY' | 'SHOP' | 'DIALOG' | 'MODAL' | 'DEBUG';

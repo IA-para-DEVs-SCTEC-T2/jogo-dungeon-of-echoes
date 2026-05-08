@@ -1,23 +1,19 @@
-import { Item } from '../entities/Item';
+import type { Item } from '../entities/Item';
 import { DungeonGenerator } from '../generators/DungeonGenerator';
-import { TILE, TOWN } from '../utils/constants';
+import { TOWN_CONFIG } from '../config/town.config';
 
 /**
  * TownMap — mapa fixo da cidade. Estende DungeonGenerator para compatibilidade
  * com TurnManager e EnemySystem sem alterar suas assinaturas.
+ * Grid e spawn lidos do TOWN_CONFIG (data-driven).
  */
 export class TownMap extends DungeonGenerator {
   constructor() {
-    const { WIDTH: W, HEIGHT: H } = TOWN;
-    super(W, H);
-    this.grid = Array.from({ length: H }, (_, y) =>
-      Array.from({ length: W }, (_, x) => {
-        if (x === 0 || x === W - 1 || y === 0 || y === H - 1) return TILE.WALL;
-        return TILE.FLOOR;
-      })
-    );
+    super(TOWN_CONFIG.width, TOWN_CONFIG.height);
+    // Cópia profunda para evitar mutação do config
+    this.grid = TOWN_CONFIG.grid.map(row => [...row]);
     this.rooms = [];
-    this.startPos = { x: TOWN.START_X, y: TOWN.START_Y };
+    this.startPos = { x: TOWN_CONFIG.startX, y: TOWN_CONFIG.startY };
   }
 }
 

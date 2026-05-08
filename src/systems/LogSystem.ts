@@ -13,16 +13,20 @@ export interface LogEntry {
 export class LogSystem {
   private _buffer: LogEntry[] = [];
   private readonly _maxEntries: number;
+  private _dirty = false;
 
   constructor(maxEntries = UI.LOG_MAX_HISTORY) {
     this._maxEntries = maxEntries;
   }
+
+  isDirty(): boolean { return this._dirty; }
 
   add(message: string, category?: LogCategory): void {
     this._buffer.push({ message, timestamp: Date.now(), category });
     if (this._buffer.length > this._maxEntries) {
       this._buffer.shift();
     }
+    this._dirty = true;
   }
 
   getVisible(count: number): LogEntry[] {
@@ -30,6 +34,7 @@ export class LogSystem {
   }
 
   buildViewModel(visibleCount: number): LogViewModel {
+    this._dirty = false;
     const entries = this.getVisible(visibleCount);
     const total = entries.length;
     const result: LogEntryViewModel[] = entries.map((entry, i) => {

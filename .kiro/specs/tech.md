@@ -7,7 +7,7 @@
 | Engine de jogo | Phaser 4 | ^4.x |
 | Linguagem | JavaScript (ES Modules) | ES2022+ |
 | Build / Dev server | Vite | ^5.x |
-| Testes unitários | Vitest | ^1.x (futuro) |
+| Testes unitários | Vitest | ^1.x |
 | Qualidade de commits | Husky + Commitlint | — |
 | Runtime | Navegador moderno (Chrome, Firefox, Edge) | — |
 
@@ -35,11 +35,13 @@ Para um RPG tile-based, Phaser 4 elimina a necessidade de implementar loop de jo
 - `roundPixels` agora é `false` por padrão — definir explicitamente no config se necessário para pixel art
 - FX e Masks foram unificados no sistema de Filters (não afeta o MVP)
 
-### JavaScript com ES Modules
-- Sem transpilação obrigatória para o MVP (Vite serve ESM nativamente)
-- Sintaxe de `import/export` nativa mantém o código modular e rastreável
-- Sem overhead de TypeScript no estágio inicial — legibilidade e velocidade de iteração são prioridade
-- Compatível com todos os ambientes-alvo (navegador moderno)
+### TypeScript
+O projeto migrou para TypeScript. Novos sistemas (`NPCController.ts`, `InteractiveObjectSystem.ts`, `CityLayoutProcessor.ts`, `TileVariantResolver.ts`) e tipos (`src/types/town.ts`) são escritos em `.ts`. Arquivos `.js` legados permanecem enquanto não forem refatorados.
+
+Benefícios diretos para este projeto:
+- Interfaces tipadas para `ProcessedTownLayout`, `WorldObjectDef`, `NPCInstanceDef`, `InteractiveObjectDef`, `BiomeType`
+- Verificação estática de contratos entre `CityLayoutProcessor` e `GameScene`
+- Configuração Vite suporta TypeScript nativamente sem etapa extra de build
 
 ### Vite
 - Dev server com HMR (Hot Module Replacement) instantâneo
@@ -47,11 +49,12 @@ Para um RPG tile-based, Phaser 4 elimina a necessidade de implementar loop de jo
 - Configuração mínima para projetos Phaser (sem webpack boilerplate)
 - Suporte nativo a ES Modules sem configuração adicional
 
-### Vitest (futuro)
+### Vitest
 - API compatível com Jest — curva de aprendizado mínima
 - Integração nativa com Vite (mesmo pipeline de transformação)
 - Suporte a ES Modules sem configuração extra
 - Execução rápida por aproveitar o cache do Vite
+- Suíte atual: `combat`, `dungeon`, `xp`, `shop` — 17+ testes passando
 
 ### Husky + Commitlint
 - Husky: executa hooks de git (pre-commit, commit-msg) sem configuração manual
@@ -63,27 +66,51 @@ Para um RPG tile-based, Phaser 4 elimina a necessidade de implementar loop de jo
 ### Arquitetura em Camadas
 
 ```
-┌─────────────────────────────────────┐
-│         PRESENTATION LAYER          │
-│   Phaser Scenes (Boot, Game, Over)  │
-│   Responsável por: render, input    │
-└──────────────┬──────────────────────┘
-               │ chama funções / passa dados
-┌──────────────▼──────────────────────┐
-│          GAME LOGIC LAYER           │
-│   Systems: Player, Dungeon, Enemy,  │
-│            Combat, XP               │
-│   Responsável por: regras do jogo   │
-└──────────────┬──────────────────────┘
-               │ lê/escreve
-┌──────────────▼──────────────────────┐
-│           CONFIG LAYER              │
-│   constants.js                      │
-│   Responsável por: valores globais  │
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│                 PRESENTATION LAYER                  │
+│   GameScene (orquestra), UIScene (painéis/HUD)      │
+│   BootScene, GameOverScene                          │
+│   Responsável por: render, input, orquestração      │
+└──────────────┬──────────────────────────────────────┘
+               │ EventBus (EVENTS.*) + parâmetros
+┌──────────────▼──────────────────────────────────────┐
+│               GAME LOGIC LAYER                      │
+│   TurnManager, CombatSystem, EnemySystem, XPSystem  │
+│   InventorySystem, EquipmentSystem, ShopSystem      │
+│   InputModeManager, LootSystem, WorldSystem         │
+│   NPCController, InteractiveObjectSystem            │
+│   CityDecorationSystem, LogSystem                   │
+│   Responsável por: regras do jogo                   │
+└──────────────┬──────────────────────────────────────┘
+               │ lê / passa dados
+┌──────────────▼──────────────────────────────────────┐
+│              GENERATORS LAYER                       │
+│   DungeonGenerator, CityLayoutProcessor,            │
+│   TileVariantResolver, DungeonFloorManager          │
+└──────────────┬──────────────────────────────────────┘
+               │ lê
+┌──────────────▼──────────────────────────────────────┐
+│                CONFIG / TYPES LAYER                 │
+│   constants.ts (EVENTS, SHOP, TAVERN…)              │
+│   town.config.ts, sprites-config.ts, shop.catalog.ts│
+│   types/town.ts, types/equipment.ts                 │
+│   types/viewmodels.ts, types/input.ts               │
+└─────────────────────────────────────────────────────┘
 ```
 
-**Regra fundamental:** Dependências fluem de cima para baixo. Sistemas não conhecem cenas; cenas orquestram sistemas.
+**Regra fundamental:** Dependências fluem de cima para baixo. Sistemas não conhecem cenas; cenas orquestram sistemas.  
+**Comunicação entre camadas:** via `EventBus` (`src/utils/EventBus.ts`) — sistemas emitem, cenas ouvem. Nunca o contrário.
+
+### InputModeManager — Controle de Input
+`InputModeManager` implementa uma stack de modos:
+- `push(mode)`: salva modo atual e troca para novo
+- `pop()`: restaura modo anterior
+- `is(mode)`: verifica modo atual
+
+Modos: `GAMEPLAY | INVENTORY | SHOP | DIALOG | MODAL | DEBUG`
+
+**Regra de UI:** Enquanto qualquer modo ativo ≠ GAMEPLAY, o personagem não se move. Cada painel registra/fecha seu modo ao ser aberto/fechado.  
+**Regra de show/hide de painel:** `INVENTORY_OPENED` é o único evento que autoriza `_inventoryPanel.show()`. `INVENTORY_STATE_RESPONSE` apenas atualiza dados — nunca abre o painel.
 
 ### Sistemas como Módulos Funcionais
 No MVP, sistemas são coleções de funções exportadas (não classes), mantendo o código simples e testável:
@@ -116,6 +143,8 @@ Para eventos que precisam cruzar múltiplos sistemas de forma desacoplada, usar 
 
 ### Geração Procedural com Seed
 O `DungeonSystem` usa um RNG seedable (baseado em timestamp ou semente explícita) para garantir que dungeons sejam reproduzíveis durante debug, mas únicos em cada partida normal.
+
+`TileVariantResolver` usa o mesmo princípio para tiles da cidade: um hash xorshift por `(x, y, sessionSeed)` produz seleção ponderada de frame determinística — a mesma sessão gera sempre o mesmo visual de cidade, mas sessões diferentes têm variação.
 
 ### Estruturas de Dados Nativas
 Phaser 4 removeu `Phaser.Struct.Set` e `Phaser.Struct.Map`. Usar diretamente `Set` e `Map` nativos do JavaScript — mais simples, sem dependência de API proprietária:
@@ -168,9 +197,8 @@ O MVP não usa:
 
 O código deve ser estruturado para suportar, sem reescrita, as seguintes adições:
 
-- **IA generativa**: `AIService.js` em `/src/ai/` com fallback obrigatório — o jogo funciona 100% sem conectividade com LLM
-- **Inventário**: `InventorySystem.js` em `/src/systems/` seguindo o mesmo padrão modular
-- **Magia**: `MagicSystem.js` com lista de spells em `/src/data/spells.json`
-- **Múltiplos andares**: `DungeonSystem` já deve suportar parâmetro `floor` e `seed`; considerar `TilemapGPULayer` do Phaser 4 para performance em andares maiores
-- **Pathfinding A\***: `/src/utils/pathfinding.js` isolado, chamado pelo `EnemySystem`
+- **IA generativa**: `AIService.ts` em `/src/ai/` com fallback obrigatório — o jogo funciona 100% sem conectividade com LLM
+- **Magia**: `MagicSystem.ts` com lista de spells em `/src/data/spells.json`
+- **Múltiplos andares**: `DungeonFloorManager` já implementado; considerar `TilemapGPULayer` para andares maiores
+- **Pathfinding A\***: `/src/utils/pathfinding.ts` isolado, chamado pelo `EnemySystem`
 - **Testes**: estrutura de `/tests/` já existe; adicionar casos conforme sistemas amadurecem

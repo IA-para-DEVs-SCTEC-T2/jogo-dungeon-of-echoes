@@ -31,9 +31,9 @@ Dungeon of Echoes é um RPG 2D tile-based jogado no navegador. O jogador explora
 | Camada | Tecnologia |
 |--------|-----------|
 | Engine | Phaser 4 |
-| Linguagem | TypeScript (ES Modules) |
+| Linguagem | TypeScript (novos sistemas) + JavaScript legado |
 | Build | Vite |
-| Testes | Vitest (108 testes) |
+| Testes | Vitest (17+ testes) |
 | Qualidade | Husky + Commitlint |
 | Assets | Dawnlike 16×16 tileset (CC-BY) |
 
@@ -44,23 +44,36 @@ Dungeon of Echoes é um RPG 2D tile-based jogado no navegador. O jogador explora
 - **Sem servidor backend** — jogo 100% client-side
 - **Sem animações complexas** — sprites estáticos (frame fixo por entidade)
 - **Sem save persistente** — cada sessão começa do zero; estado da dungeon persiste *dentro* da sessão via `WorldSystem`
-- **Sistemas nunca importam Scenes** — comunicação via EventBus
+- **Sistemas nunca importam Scenes** — comunicação via EventBus (`EVENTS.*`)
 - **Scenes nunca calculam lógica de domínio** — delegam a Systems
+- **Magic frame numbers pertencem a `sprites-config.ts`** — não espalhar literais de frame em cenas ou sistemas
+- **Biomas e variantes de tile resolvidos por `CityLayoutProcessor` + `TileVariantResolver`** — `GameScene` apenas consome `ProcessedTownLayout`, não decide frames
+- **NPCs com `wanderBounds` undefined são estáticos** (Guard); com bounds wandam (`customWanderBounds` para o Gato)
+- **InputModeManager** controla qual painel recebe input — `push()` ao abrir, `pop()` ao fechar; em modo ≠ GAMEPLAY o personagem não se move
+- **`INVENTORY_OPENED` é o único evento que autoriza `_inventoryPanel.show()`** — `INVENTORY_STATE_RESPONSE` apenas atualiza dados; nunca abre o painel
+- **Bônus de equipamento são reversíveis** — `Player.applyEquipmentBonuses()` / `removeEquipmentBonuses()` acumulam em `_equipmentBonuses`; `recalcStats()` é a fonte de verdade dos stats derivados
 
 ## Estrutura de Pastas
 
 ```
 /src
   /scenes       → Cenas Phaser (Boot, Game, GameOver, UI)
-  /systems      → Lógica de jogo (TurnManager, CombatSystem, EnemySystem,
-                   XPSystem, InventorySystem, LootSystem, WorldSystem)
-  /entities     → Entidades puras (Player, Item)
-  /generators   → Geração procedural (DungeonGenerator)
-  /utils        → Constantes, EventBus
+  /systems      → Lógica de jogo:
+                   TurnManager, CombatSystem, EnemySystem, XPSystem
+                   InventorySystem, EquipmentSystem, ShopSystem
+                   InputModeManager, LootSystem, WorldSystem, LogSystem
+                   NPCController, InteractiveObjectSystem, CityDecorationSystem
+                   MapTransitionSystem, DungeonFloorManager, DifficultyScalingSystem
+  /entities     → Entidades puras (Player — gold, equipmentBonuses; Item — slotId, bonuses)
+  /generators   → DungeonGenerator, CityLayoutProcessor, TileVariantResolver
+  /config       → constants.ts, town.config.ts, sprites-config.ts, shop.catalog.ts
+  /types        → town.ts, equipment.ts, viewmodels.ts, input.ts
+  /utils        → EventBus
+  /ui           → InventoryPanel, ShopPanel, DialogPanel, LogPanel, ActionBarPanel
 .kiro/
   /steering     → Diretrizes do projeto (este arquivo)
   /specs        → Especificações de cada sistema
-/tests          → Testes unitários (Vitest)
+/tests          → Testes unitários (Vitest): combat, dungeon, xp, shop
 /public/assets/dawnlike → Tileset Dawnlike 16×16 (CC-BY)
 ```
 
@@ -78,7 +91,6 @@ Estes sistemas NÃO fazem parte do MVP atual mas o código deve ser estruturado 
 
 - **Fog of War**: visibilidade por tile (spec pronta em `.kiro/specs/fog-of-war.spec.md`)
 - **Minimap**: overlay com estado de exploração (spec em `.kiro/specs/minimap.spec.md`)
-- **Múltiplos andares**: escadas, progressão vertical de dungeon
 - **Habilidades**: árvore de habilidades por classe
 - **IA de Inimigos**: pathfinding A*, comportamentos variados por tipo
-- **Narrativa por IA**: lores geradas por LLM — Claude Haiku (preparar hooks)
+- **Narrativa por IA**: lores geradas por LLM — Claude Haiku (hooks preparados em `AIService.ts`)

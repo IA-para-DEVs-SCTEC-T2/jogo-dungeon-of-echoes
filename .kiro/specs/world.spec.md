@@ -23,6 +23,44 @@ O WorldSystem gerencia o estado do mundo entre transições de área dentro de u
 - Saída para dungeon: tile `(12, 18)` — marcado com retângulo laranja `[ DUNGEON ]`
 - Implementado como subclasse de `DungeonGenerator` para compatibilidade com `TurnManager` e `EnemySystem` sem alterar suas assinaturas
 
+### Pipeline de Geração da Cidade
+
+O layout da cidade segue um pipeline de dados antes de ser renderizado:
+
+```
+TOWN_CONFIG (town.config.ts)
+  → CityLayoutProcessor.process()
+      - Lê biomeOverrides do config (opcional)
+      - Atribui biomas por região: urban / natural / interior / transition
+      - Resolve visuais via TileVariantResolver (frame determinístico por posição)
+      - Produz ProcessedTownLayout { groundTiles[][], worldObjects[], npcs[], interactive[] }
+  → GameScene._loadTown()
+      - Renderiza groundTiles[y][x] com frame resolvido (sem magic numbers)
+      - Instancia NPCController para cada NPC do layout
+      - Instancia InteractiveObjectSystem com objetos interativos
+```
+
+`TownConfig` aceita `biomeOverrides?: Record<string, BiomeType>` para sobrescrever o bioma de regiões específicas por tile key (`"x,y"`).
+
+### Sistemas da Cidade
+
+| Sistema | Arquivo | Responsabilidade |
+|---------|---------|-----------------|
+| `CityLayoutProcessor` | `src/generators/CityLayoutProcessor.ts` | Lê TOWN_CONFIG, atribui biomas, resolve tiles, produz `ProcessedTownLayout` |
+| `TileVariantResolver` | `src/generators/TileVariantResolver.ts` | Hash xorshift por posição + seleção ponderada de frame (determinístico por sessão) |
+| `NPCController` | `src/systems/NPCController.ts` | FSM Idle → Wander; move NPCs 1 tile/step dentro de `wanderBounds` |
+| `InteractiveObjectSystem` | `src/systems/InteractiveObjectSystem.ts` | Detecta adjacência do player a portas/signs; exibe/oculta prompt "[E] Interagir" |
+| `CityDecorationSystem` | `src/systems/CityDecorationSystem.ts` | Renderiza `WorldObjectDef[]` e `TownLabelDef[]`; depth = `LAYER_WORLD_BASE + gridY * 10` |
+
+### NPCs e Objetos
+
+- **Guarda**: sem `wanderBounds` → estático; `interaction.type = 'menu'` → abre `DialogPanel` com 4 opções de ajuda (objetivos, como jogar, controles, dicas)
+- **Mercador**: `wanderBounds` ±2 tiles; `interaction.type = 'shop'` → abre loja com 2 abas (Comprar/Vender); requer player dentro de `houseBounds` da taverna
+- **Taberneiro** (ex-Estalajadeiro): `wanderBounds`; `interaction.type = 'menu'` → menu de descanso; "Repousar (20 ouros)" restaura HP+Mana ao máximo se player tiver ouro suficiente
+- **Gato**: `customWanderBounds` dedicado (tile (3,9), área sul da praça); FSM wander livre; não atravessa paredes
+- `NPCController.update(delta, grid)` é chamado em `GameScene.update()` a cada frame
+- `InteractiveObjectSystem._canInteract()`: NPCs com `houseBounds` exigem player dentro dos bounds; demais usam adjacência ortogonal (4 direções)
+
 ---
 
 ## WorldSystem (singleton)
@@ -72,7 +110,7 @@ Dungeon → Cidade:
 - R1: `WorldSystem.clearDungeon()` é chamado em `GameScene.create()` — garante fresh start
 - R2: Inimigos NÃO são salvos no `DungeonState` — sempre respawnam ao entrar na dungeon
 - R3: Itens coletados (no inventário) têm `gridX === null` — não são salvos no estado do chão
-- R4: Sprites de tiles e entidades são destruídos/recriados a cada troca de área (`_cleanup()`)
+- R4: Sprites de tiles e entidades são destruídos/recriados a cada troca de área (`_cleanup()`); `NPCController` e `InteractiveObjectSystem` também são destruídos em `_cleanup()`
 - R5: Player (stats, inventário, HP) persiste entre áreas pois `GameScene` não reinicia
 - R6: `_canExitDungeon` começa `false` ao entrar na dungeon; torna-se `true` após o player mover-se para fora do `startPos`
 

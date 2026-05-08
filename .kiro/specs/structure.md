@@ -4,52 +4,79 @@
 
 ```
 dungeon-of-echoes/
-├── index.html                  ← Entry point HTML (Vite)
-├── vite.config.js              ← Configuração do build
+├── index.html
+├── vite.config.js
 ├── package.json
-├── commitlint.config.js        ← Regras de commit semântico
+├── commitlint.config.js
 │
 ├── .kiro/
-│   ├── product.md              ← Visão de produto e funcionalidades
-│   ├── structure.md            ← Este arquivo
-│   ├── tech.md                 ← Stack e decisões técnicas
-│   ├── steering/
-│   │   └── game-steering.md    ← Diretrizes estratégicas do projeto
-│   └── specs/                  ← Especificações funcionais por sistema
-│       ├── player.spec.md
-│       ├── dungeon.spec.md
-│       ├── enemy.spec.md
-│       ├── combat.spec.md
-│       ├── xp.spec.md
-│       ├── input.spec.md
-│       └── gameloop.spec.md
+│   ├── product.md, structure.md, tech.md
+│   ├── steering/game-steering.md
+│   └── specs/                  ← Uma spec por sistema
 │
 ├── src/
-│   ├── main.js                 ← Bootstrap do Phaser + configuração global
+│   ├── main.ts
 │   │
 │   ├── config/
-│   │   └── constants.js        ← TILE_SIZE, GRID_W, GRID_H, cores, etc.
+│   │   ├── constants.ts        ← EVENTS, SHOP, TAVERN, TILE, COLORS, UI, INVENTORY…
+│   │   ├── town.config.ts      ← TownNPCDef[], TownBuildingDef[], TownConfig
+│   │   ├── sprites-config.ts   ← FLOOR_ATLAS, LAYER_*, DAWNLIKE_FRAMES
+│   │   └── shop.catalog.ts     ← SHOP_CATALOG[], createItemFromCatalogEntry(), buildBonusText()
 │   │
-│   ├── scenes/                 ← Cenas Phaser (apresentação)
-│   │   ├── BootScene.js        ← Carrega assets, inicializa RNG
-│   │   ├── GameScene.js        ← Cena principal do jogo
-│   │   └── GameOverScene.js    ← Resumo de partida / permadeath
+│   ├── types/
+│   │   ├── town.ts             ← NPCInstanceDef, ProcessedTownLayout, DialogMenuOption
+│   │   ├── equipment.ts        ← EquipmentSlotId, StatBonuses, EQUIPMENT_SLOT_ORDER/LABELS
+│   │   ├── viewmodels.ts       ← InventoryViewModel, ShopViewModel, SellItemViewModel…
+│   │   └── input.ts            ← InputMode ('GAMEPLAY'|'INVENTORY'|'SHOP'|'DIALOG'|…)
 │   │
-│   └── systems/                ← Lógica de jogo (domínio)
-│       ├── PlayerSystem.js     ← Atributos, HP/Mana, movimento
-│       ├── DungeonSystem.js    ← Geração BSP, tiles, FOG of War
-│       ├── EnemySystem.js      ← Spawn, IA de inimigos, turno
-│       ├── CombatSystem.js     ← Resolução de ataque e dano
-│       └── XPSystem.js         ← Ganho de XP, level up
+│   ├── generators/
+│   │   ├── DungeonGenerator.ts
+│   │   ├── TileVariantResolver.ts
+│   │   └── CityLayoutProcessor.ts
+│   │
+│   ├── scenes/
+│   │   ├── BootScene.ts        ← Pré-carregamento de assets
+│   │   ├── GameScene.ts        ← Orquestra sistemas; sem lógica de domínio
+│   │   ├── UIScene.ts          ← HUD e painéis via dirty flag; sem lógica de domínio
+│   │   └── GameOverScene.ts
+│   │
+│   ├── entities/
+│   │   ├── Player.ts           ← gold, _equipmentBonuses, recalcStats(), applyEquipmentBonuses()
+│   │   └── Item.ts             ← ItemType, slotId?, bonuses?, price?, rarity?
+│   │
+│   ├── systems/
+│   │   ├── TurnManager.ts
+│   │   ├── CombatSystem.ts
+│   │   ├── EnemySystem.ts
+│   │   ├── XPSystem.ts
+│   │   ├── LootSystem.ts
+│   │   ├── WorldSystem.ts
+│   │   ├── InventorySystem.ts
+│   │   ├── EquipmentSystem.ts  ← equip/unequip, 6 slots, emite ITEM_EQUIPPED/UNEQUIPPED
+│   │   ├── ShopSystem.ts       ← buyItem(), sellItem(), buildViewModel(), buildSellItems()
+│   │   ├── InputModeManager.ts ← stack: push()/pop()/is(); emite INPUT_MODE_CHANGED
+│   │   ├── LogSystem.ts
+│   │   ├── NPCController.ts    ← spawn, wander FSM, customWanderBounds, isTileOccupied()
+│   │   ├── InteractiveObjectSystem.ts
+│   │   ├── CityDecorationSystem.ts
+│   │   ├── MapTransitionSystem.ts
+│   │   ├── DungeonFloorManager.ts
+│   │   └── DifficultyScalingSystem.ts
+│   │
+│   └── ui/
+│       ├── InventoryPanel.ts   ← 3 colunas: slots / itens / detalhes; dirty flag
+│       ├── ShopPanel.ts        ← 2 abas buy/sell, mouse interativo, pool de linhas
+│       ├── DialogPanel.ts      ← menu de opções genérico (Guard, Taberneiro)
+│       ├── LogPanel.ts         ← renderização bottom-up por text.height real
+│       └── ActionBarPanel.ts
 │
-├── tests/                      ← Testes unitários (Vitest)
+├── tests/
 │   ├── combat.test.js
 │   ├── dungeon.test.js
-│   └── xp.test.js
+│   ├── xp.test.js
+│   └── shop.test.js            ← 17 testes: catalog, buy, sell, bonuses, viewmodel
 │
-└── docs/                       ← Documentação auxiliar
-    ├── spec.md
-    └── steering.md
+└── docs/
 ```
 
 ## Separação de Responsabilidades
@@ -59,24 +86,49 @@ Cenas Phaser que gerenciam o ciclo de vida visual do jogo. Não contêm lógica 
 
 | Arquivo | Responsabilidade |
 |---------|-----------------|
-| `BootScene.js` | Pré-carregamento de assets, inicialização do RNG, transição para GameScene |
-| `GameScene.js` | Loop principal: captura input, chama sistemas, renderiza estado |
-| `GameOverScene.js` | Exibe resumo da partida (andar, inimigos, causa da morte) |
+| `BootScene.ts` | Pré-carregamento de assets, inicialização do RNG, transição para GameScene |
+| `GameScene.ts` | Loop principal; captura input via `InputModeManager`; delega para sistemas; sem lógica de domínio |
+| `UIScene.ts` | HUD persistente + painéis (inventory, shop, dialog, log, action bar); dirty flag por painel |
+| `GameOverScene.ts` | Exibe resumo da partida (andar, XP, nível) |
 
-**Regra:** Cenas orquestram, sistemas executam. Uma cena nunca calcula dano ou gera dungeon diretamente.
+**Regra:** Cenas orquestram, sistemas executam. Uma cena nunca calcula dano ou gera dungeon.  
+**Regra de estado:** `INVENTORY_OPENED` é o único evento que mostra o painel de inventário — nunca `INVENTORY_STATE_RESPONSE` diretamente.
 
 ### Camada de Domínio — `/src/systems/`
-Módulos de lógica pura. Cada sistema é responsável por um único domínio do jogo.
 
 | Arquivo | Responsabilidade |
 |---------|-----------------|
-| `PlayerSystem.js` | Estado do jogador: atributos, HP, Mana, posição, movimento no grid |
-| `DungeonSystem.js` | Geração procedural (BSP), mapa de tiles, FOG of War, escadas |
-| `EnemySystem.js` | Criação de inimigos, máquina de estados de IA, execução de turno |
-| `CombatSystem.js` | Fórmula de ataque, cálculo de dano, aplicação de dano, morte |
-| `XPSystem.js` | Acúmulo de XP, cálculo de nível, distribuição de atributos no level up |
+| `TurnManager.ts` | Controle de turno; processa ações MOVE/ATTACK/WAIT/USE_ITEM |
+| `CombatSystem.ts` | Fórmula de ataque (80% hit), cálculo de dano, morte |
+| `EnemySystem.ts` | Criação de inimigos, IA (IDLE/CHASING/ATTACKING), turno |
+| `XPSystem.ts` | Acúmulo de XP, fórmula de nível, level up |
+| `InventorySystem.ts` | 20 slots, roguelike identification, `useItem()`, `addItem()`, `removeItem()` |
+| `EquipmentSystem.ts` | 6 slots; `equip()`, `unequip()`, `getEquippedId()`, `isEquipped()` |
+| `ShopSystem.ts` | `buyItem()`, `sellItem()`, `buildViewModel()`, `buildSellItems()` — sem acoplamento à UI |
+| `InputModeManager.ts` | Stack-based mode: `push()` / `pop()` / `is()` / `set()`; emite `INPUT_MODE_CHANGED` |
+| `LootSystem.ts` | Drop de itens na morte de inimigos |
+| `WorldSystem.ts` | Persiste estado da dungeon entre transições na sessão |
+| `NPCController.ts` | Spawn, FSM idle→wander, `customWanderBounds`, `isTileOccupied()` |
+| `InteractiveObjectSystem.ts` | Adjacência player↔NPC; `houseBounds` para check de posição; emite SHOP_OPENED ou DIALOG_OPENED |
+| `CityDecorationSystem.ts` | Renderiza `WorldObjectDef[]` com Y-sort (`LAYER_WORLD_BASE + gridY*10`) |
 
-**Regra:** Sistemas não importam uns aos outros diretamente. Comunicação via parâmetros explícitos ou eventos Phaser 4 emitidos pela cena (`this.events.emit` / `this.events.on`).
+**Regra:** Sistemas comunicam via EventBus (`src/utils/EventBus.ts`) — nunca importam cenas. Cenas passam dados como parâmetros ou ouvem eventos.
+
+### Geração e Processamento — `/src/generators/`
+
+| Arquivo | Responsabilidade |
+|---------|-----------------|
+| `DungeonGenerator.ts` | Geração BSP de dungeon; base para `TownMap` |
+| `TileVariantResolver.ts` | Hash xorshift determinístico por posição (seed de sessão); seleciona frame ponderado por bioma |
+| `CityLayoutProcessor.ts` | Lê `TOWN_CONFIG`, atribui biomas, resolve visuais, produz `ProcessedTownLayout` |
+
+### Configuração — `/src/config/`
+
+| Arquivo | Conteúdo |
+|---------|---------|
+| `constants.js` | `TILE_SIZE`, `GRID_W`, `GRID_H`, `VISION_RADIUS`, `XP_BASE`, etc. |
+| `town.config.ts` | `TownConfig` com layout fixo da cidade e `biomeOverrides?` por tile key |
+| `sprites-config.ts` | `FLOOR_ATLAS` (bioma→frames+pesos), `OBJECT_ATLAS`, `NPC_ATLAS`; constantes `LAYER_GROUND`, `LAYER_WORLD_BASE`, `LAYER_OVERHEAD`, `LAYER_UI_LABELS` |
 
 ### Configuração — `/src/config/`
 Constantes globais que evitam magic numbers espalhados pelo código.

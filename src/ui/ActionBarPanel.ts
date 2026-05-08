@@ -18,20 +18,20 @@ export class ActionBarPanel {
   private _slots: SlotGraphics[] = [];
 
   constructor(scene: Phaser.Scene) {
-    const panelW  = Math.floor(scene.scale.width * UI.LOG_PANEL_WIDTH_FRACTION);
+    const screenW = scene.scale.width;
     const screenH = scene.scale.height;
     const totalW  = SLOT_COUNT * (SLOT_SIZE + SLOT_GAP) - SLOT_GAP;
-    const startX  = Math.floor((panelW - totalW) / 2);
+    const startX  = Math.floor((screenW - totalW) / 2);
     const barY    = screenH - PANEL_H;
 
     this._root = scene.add.container(0, 0).setScrollFactor(0).setDepth(DEPTH);
 
-    // Fundo compacto apenas para a barra
+    // Fundo compacto apenas para a barra (largura total da tela)
     const bg = scene.add
-      .rectangle(0, barY, panelW, PANEL_H, 0x111122, 0.90)
+      .rectangle(0, barY, screenW, PANEL_H, 0x111122, 0.90)
       .setOrigin(0, 0);
     const border = scene.add
-      .rectangle(0, barY, panelW, 1, 0x334466, 1.0)
+      .rectangle(0, barY, screenW, 1, 0x334466, 1.0)
       .setOrigin(0, 0);
 
     this._root.add([bg, border]);

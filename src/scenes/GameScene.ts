@@ -9,12 +9,20 @@ import { TurnManager } from '../systems/TurnManager';
 import { LootSystem } from '../systems/LootSystem';
 import { EventBus } from '../utils/EventBus';
 import { TownMap } from '../systems/WorldSystem';
+import { CityDecorationSystem } from '../systems/CityDecorationSystem';
+import { NPCController } from '../systems/NPCController';
+import { InteractiveObjectSystem } from '../systems/InteractiveObjectSystem';
+import { CityLayoutProcessor } from '../generators/CityLayoutProcessor';
+import { TileVariantResolver } from '../generators/TileVariantResolver';
+import { TOWN_CONFIG } from '../config/town.config';
 import { InputModeManager } from '../systems/InputModeManager';
 import { MapTransitionSystem } from '../systems/MapTransitionSystem';
 import { DungeonFloorManager } from '../systems/DungeonFloorManager';
 import { DifficultyScalingSystem } from '../systems/DifficultyScalingSystem';
 import { DungeonFeatureGenerator, type DungeonFeature } from '../generators/DungeonFeatureGenerator';
 import { EquipmentSystem } from '../systems/EquipmentSystem';
+import { ShopSystem } from '../systems/ShopSystem';
+import { SHOP_CATALOG } from '../config/shop.catalog';
 import type { TransitionResolution } from '../types/transitions';
 import type { GridPos } from '../generators/DungeonGenerator';
 import {
@@ -28,7 +36,10 @@ import {
   GAME_STATE,
   INVENTORY,
   TOWN,
+  TAVERN,
 } from '../utils/constants';
+import type { DialogMenuOption } from '../types/town';
+import type { EquipmentSlotId } from '../types/equipment';
 
 export class GameScene extends Phaser.Scene {
   // ─── Sistemas persistentes (vivem durante toda a sessão) ─────────────────
@@ -44,6 +55,7 @@ export class GameScene extends Phaser.Scene {
   private featureGenerator!: DungeonFeatureGenerator;
   private _dungeonFeatures: DungeonFeature[] = [];
   private equipmentSystem!: EquipmentSystem;
+  private _shopSystem!: ShopSystem;
   private gameState!: string;
 
   // Cache de andares visitados (runtime — não serializado ainda)
@@ -66,12 +78,36 @@ export class GameScene extends Phaser.Scene {
   private _tileObjects: Phaser.GameObjects.Image[] = [];
   private _decorObjects: Phaser.GameObjects.GameObject[] = [];
 
+  // ─── Sistemas de cidade (recriados em cada _loadTown) ────────────────────
+  private _npcController: NPCController | null = null;
+  private _interactiveSystem: InteractiveObjectSystem | null = null;
+
   // ─── Input ────────────────────────────────────────────────────────────────
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: Record<string, Phaser.Input.Keyboard.Key>;
   private spaceKey!: Phaser.Input.Keyboard.Key;
   private iKey!: Phaser.Input.Keyboard.Key;
+  private escKey!: Phaser.Input.Keyboard.Key;
+  private eKey!: Phaser.Input.Keyboard.Key;
+  private uKey!: Phaser.Input.Keyboard.Key;
+  private dKey!: Phaser.Input.Keyboard.Key;
+  private vKey!: Phaser.Input.Keyboard.Key;
+  private enterKey!: Phaser.Input.Keyboard.Key;
   private numKeys!: Phaser.Input.Keyboard.Key[];
+
+  // ─── Keyboard focus reset handler ────────────────────────────────────────
+  private _onWindowFocusReset!: () => void;
+
+  // ─── Estado de seleção de inventário / loja ───────────────────────────────
+  private _inventorySelectedIndex = 0;
+  private _shopSelectedIndex = 0;
+  private _shopTab: 'buy' | 'sell' = 'buy';
+
+  // ─── Estado de diálogo ────────────────────────────────────────────────────
+  private _dialogOptions: DialogMenuOption[] = [];
+  private _dialogSelectedIndex = 0;
+  private _dialogNpcId = '';
+  private _dialogTitle = '';
 
   // Handler estável para off() no shutdown
   private readonly _handleItemDropped = (data: { item: Item }) => {
@@ -100,6 +136,7 @@ export class GameScene extends Phaser.Scene {
     this.featureGenerator   = new DungeonFeatureGenerator();
     this.floorManager.reset();
     this.equipmentSystem = new EquipmentSystem();
+    this._shopSystem     = new ShopSystem(SHOP_CATALOG);
     this._registerTransitions();
 
     // Player criado uma vez — moves between areas
@@ -116,11 +153,25 @@ export class GameScene extends Phaser.Scene {
   shutdown(): void {
     EventBus.off(EVENTS.ITEM_DROPPED, this._handleItemDropped, this);
     EventBus.off(EVENTS.INVENTORY_STATE_REQUESTED, undefined, this);
+    EventBus.off(EVENTS.SHOP_OPENED, undefined, this);
+    EventBus.off(EVENTS.DIALOG_OPENED, undefined, this);
+    this.game.events.off(Phaser.Core.Events.BLUR,  this._onWindowFocusReset, this);
+    this.game.events.off(Phaser.Core.Events.FOCUS, this._onWindowFocusReset, this);
   }
 
-  update(_time: number, _delta: number): void {
+  update(_time: number, delta: number): void {
     if (this.gameState !== GAME_STATE.PLAYING) return;
     this._handleInput(_time);
+
+    // Atualizar NPCs com wandering (apenas na cidade)
+    if (this._currentArea === 'town' && this._npcController) {
+      this._npcController.update(delta, this._currentMap.grid);
+    }
+
+    // Atualizar prompt de interação baseado na posição do player
+    if (this._currentArea === 'town' && this._interactiveSystem) {
+      this._interactiveSystem.update(this.player.gridX, this.player.gridY);
+    }
   }
 
   // ─── Transições ──────────────────────────────────────────────────────────
@@ -181,6 +232,12 @@ export class GameScene extends Phaser.Scene {
     this._decorObjects.forEach(o => o.destroy());
     this._decorObjects = [];
 
+    this._npcController?.destroy();
+    this._npcController = null;
+
+    this._interactiveSystem?.destroy();
+    this._interactiveSystem = null;
+
     this._items.forEach(i => { i.sprite?.destroy(); i.sprite = null; });
     this._items = [];
 
@@ -188,45 +245,66 @@ export class GameScene extends Phaser.Scene {
     this._enemies = [];
   }
 
-  private _loadTown(spawnX = TOWN.START_X, spawnY = TOWN.START_Y): void {
+  private _loadTown(spawnX = TOWN_CONFIG.startX, spawnY = TOWN_CONFIG.startY): void {
+    // 1. Processar layout com biomas e variantes de tile
+    const resolver  = new TileVariantResolver();
+    const processor = new CityLayoutProcessor(resolver);
+    const layout    = processor.process(TOWN_CONFIG);
+
     const townMap = new TownMap();
     this._currentMap = townMap;
 
-    for (let y = 0; y < TOWN.HEIGHT; y++) {
-      for (let x = 0; x < TOWN.WIDTH; x++) {
-        const isFloor = townMap.grid[y][x] === TILE.FLOOR;
+    const W = layout.width;
+    const H = layout.height;
+
+    // 2. Tiles de chão usando groundTiles resolvidos por bioma
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
         const px = x * TILE_SIZE + TILE_SIZE / 2;
         const py = y * TILE_SIZE + TILE_SIZE / 2;
-        this._tileObjects.push(
-          this.add.image(px, py, isFloor ? SPRITES.FLOOR : SPRITES.WALL,
-            isFloor ? TOWN.FLOOR_FRAME : DAWNLIKE_FRAMES.WALL).setDepth(0),
-        );
+        const resolved = layout.groundTiles[y][x];
+        // Tiles WALL que não têm override visual são renderizados com sprite de parede
+        if (townMap.grid[y][x] === TILE.WALL && !TOWN_CONFIG.tileVisuals[`${x},${y}`]) {
+          this._tileObjects.push(
+            this.add.image(px, py, SPRITES.WALL, DAWNLIKE_FRAMES.WALL).setDepth(0),
+          );
+        } else {
+          this._tileObjects.push(
+            this.add.image(px, py, resolved.sprite, resolved.frame).setDepth(0),
+          );
+        }
       }
     }
 
-    // Marcador de saída para dungeon
-    const ex = TOWN.EXIT_X * TILE_SIZE + TILE_SIZE / 2;
-    const ey = TOWN.EXIT_Y * TILE_SIZE + TILE_SIZE / 2;
-    this._decorObjects.push(
-      this.add.rectangle(ex, ey, TILE_SIZE, TILE_SIZE, 0xff8800, 0.85).setDepth(2),
-      this.add.text(ex, ey - TILE_SIZE - 2, '[ DUNGEON ]', {
-        fontSize: '6px', color: '#ffdd00', fontFamily: 'monospace',
-      }).setOrigin(0.5, 1).setDepth(3),
-    );
+    // 3. Decorações (árvores, barris, labels de edifícios, marcador dungeon)
+    const deco = new CityDecorationSystem();
+    this._decorObjects.push(...deco.render(this, layout.worldObjects, TOWN_CONFIG.labels));
 
-    // Reposicionar player na posição de spawn
+    // 4. NPCs com wandering via NPCController
+    this._npcController = new NPCController();
+    const npcSprites = this._npcController.spawn(this, layout.npcs);
+    // Registrar sprites no _decorObjects apenas para limpeza de emergência (NPCController.destroy já lida)
+    // não adicionamos aqui para evitar double-destroy — cleanup chama _npcController.destroy()
+
+    // 5. Objetos interativos (detecção de portas)
+    this._interactiveSystem = new InteractiveObjectSystem();
+    this._interactiveSystem.load(this, layout.interactive, this._npcController!);
+
+    void npcSprites; // used by NPCController internally
+
+    // 6. Reposicionar player
     this.player.gridX = spawnX;
     this.player.gridY = spawnY;
     this.player.setPosition(spawnX * TILE_SIZE + TILE_SIZE / 2, spawnY * TILE_SIZE + TILE_SIZE / 2);
 
-    this.cameras.main.setBounds(0, 0, TOWN.WIDTH * TILE_SIZE, TOWN.HEIGHT * TILE_SIZE);
+    this.cameras.main.setBounds(0, 0, W * TILE_SIZE, H * TILE_SIZE);
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.cameras.main.setZoom(2);
 
-    const isReturn = spawnX === TOWN.EXIT_X && spawnY === TOWN.EXIT_Y - 1;
+    const isReturn = spawnX === TOWN_CONFIG.exitX && spawnY === TOWN_CONFIG.exitY - 1;
     EventBus.emit(EVENTS.UI_LOG, isReturn
       ? 'Você retornou à cidade.'
-      : 'Bem-vindo à cidade. Vá para o sul para entrar na dungeon.',
+      : 'Bem-vindo à cidade. Siga o caminho ao sul para entrar na dungeon.',
     );
   }
 
@@ -485,8 +563,18 @@ export class GameScene extends Phaser.Scene {
       left:  Phaser.Input.Keyboard.KeyCodes.A,
       right: Phaser.Input.Keyboard.KeyCodes.D,
     }) as Record<string, Phaser.Input.Keyboard.Key>;
-    this.spaceKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-    this.iKey     = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.I);
+    this.spaceKey  = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.iKey      = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.I);
+    this.escKey    = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+    this.eKey      = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+    this.uKey      = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.U);
+    this.dKey      = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D);
+    this.vKey      = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.V);
+    this.enterKey  = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
+
+    this._onWindowFocusReset = () => { this.input.keyboard?.resetKeys(); };
+    this.game.events.on(Phaser.Core.Events.BLUR,  this._onWindowFocusReset, this);
+    this.game.events.on(Phaser.Core.Events.FOCUS, this._onWindowFocusReset, this);
     this.numKeys  = [
       Phaser.Input.Keyboard.KeyCodes.ONE,
       Phaser.Input.Keyboard.KeyCodes.TWO,
@@ -503,20 +591,54 @@ export class GameScene extends Phaser.Scene {
   private _handleInput(_time: number): void {
     const JD = Phaser.Input.Keyboard.JustDown;
 
-    // Tecla I: toggle inventário (não consome turno, funciona em qualquer modo)
-    if (JD(this.iKey)) {
-      if (this.inputMode.is('INVENTORY')) {
-        this.inputMode.set('GAMEPLAY');
+    // 1. ESC — maior prioridade: fecha qualquer overlay
+    if (JD(this.escKey)) {
+      if (this.inputMode.is('DIALOG')) {
+        this.inputMode.pop();
+        EventBus.emit(EVENTS.DIALOG_CLOSED, {});
+      } else if (this.inputMode.is('INVENTORY')) {
+        this.inputMode.pop();
         EventBus.emit(EVENTS.INVENTORY_CLOSED, { timestamp: Date.now() });
-      } else {
-        this.inputMode.push('INVENTORY');
-        EventBus.emit(EVENTS.INVENTORY_OPENED, { timestamp: Date.now() });
-        EventBus.emit(EVENTS.INVENTORY_STATE_REQUESTED, { timestamp: Date.now() });
+      } else if (this.inputMode.is('SHOP')) {
+        this.inputMode.pop();
+        EventBus.emit(EVENTS.SHOP_CLOSED, { timestamp: Date.now() });
       }
       return;
     }
 
-    // Bloqueia todo o resto quando fora do modo GAMEPLAY
+    // 1b. Modo DIALOG
+    if (this.inputMode.is('DIALOG')) {
+      this._handleDialogInput();
+      return;
+    }
+
+    // 2. I — toggle inventário (não consome turno)
+    if (JD(this.iKey)) {
+      if (this.inputMode.is('INVENTORY')) {
+        this.inputMode.pop();
+        EventBus.emit(EVENTS.INVENTORY_CLOSED, { timestamp: Date.now() });
+      } else if (this.inputMode.is('GAMEPLAY')) {
+        this.inputMode.push('INVENTORY');
+        this._inventorySelectedIndex = 0;
+        EventBus.emit(EVENTS.INVENTORY_OPENED, { timestamp: Date.now() });
+        this._emitInventoryState();
+      }
+      return;
+    }
+
+    // 3. Modo SHOP
+    if (this.inputMode.is('SHOP')) {
+      this._handleShopInput();
+      return;
+    }
+
+    // 4. Modo INVENTORY
+    if (this.inputMode.is('INVENTORY')) {
+      this._handleInventoryInput();
+      return;
+    }
+
+    // 5. GAMEPLAY
     if (!this.inputMode.is('GAMEPLAY')) return;
     if (!this.turnManager.isPlayerTurn()) return;
 
@@ -550,6 +672,9 @@ export class GameScene extends Phaser.Scene {
     const ty = this.player.gridY + dy;
     const targetEnemy = !isWait && this._enemies.find(e => e.alive && e.gridX === tx && e.gridY === ty);
 
+    // Bloqueia movimento quando o tile de destino está ocupado por um NPC
+    if (!isWait && !targetEnemy && this._npcController?.isTileOccupied(tx, ty)) return;
+
     const action = isWait
       ? { type: 'WAIT' as const }
       : targetEnemy
@@ -582,6 +707,245 @@ export class GameScene extends Phaser.Scene {
     if (result.playerDied) {
       this.events.emit(EVENTS.PLAYER_DIED);
     }
+  }
+
+  private _handleInventoryInput(): void {
+    const JD = Phaser.Input.Keyboard.JustDown;
+    const inv = this.player.inventory;
+    const total = inv.items.filter(i => i !== null).length;
+
+    if (JD(this.cursors.up) || JD(this.wasd.up)) {
+      this._inventorySelectedIndex = Math.max(0, this._inventorySelectedIndex - 1);
+      this._emitInventorySelectionChanged();
+      return;
+    }
+    if (JD(this.cursors.down) || JD(this.wasd.down)) {
+      this._inventorySelectedIndex = Math.min(total - 1, this._inventorySelectedIndex + 1);
+      this._emitInventorySelectionChanged();
+      return;
+    }
+
+    const item = inv.getItem(this._inventorySelectedIndex);
+
+    if (JD(this.eKey)) {
+      if (!item) { EventBus.emit(EVENTS.UI_LOG, 'Nenhum item selecionado.'); return; }
+      if (!item.slotId) { EventBus.emit(EVENTS.UI_LOG, 'Este item não pode ser equipado.'); return; }
+      if (this.equipmentSystem.getEquippedId(item.slotId as EquipmentSlotId) === item.id) {
+        this._unequipSelectedItem();
+      } else {
+        this._equipSelectedItem();
+      }
+      return;
+    }
+
+    if (JD(this.uKey)) {
+      if (!item) { EventBus.emit(EVENTS.UI_LOG, 'Nenhum item selecionado.'); return; }
+      this._useSelectedItem();
+      return;
+    }
+
+    if (JD(this.dKey)) {
+      if (!item) { EventBus.emit(EVENTS.UI_LOG, 'Nenhum item selecionado.'); return; }
+      this._dropSelectedItem();
+      return;
+    }
+  }
+
+  private _handleShopInput(): void {
+    const JD = Phaser.Input.Keyboard.JustDown;
+
+    // Tab switch: left/right arrows
+    if (JD(this.cursors.left) || JD(this.wasd.left)) {
+      this._shopTab = 'buy';
+      this._shopSelectedIndex = 0;
+      this._clampShopSelection();
+      this._emitShopState();
+      return;
+    }
+    if (JD(this.cursors.right) || JD(this.wasd.right)) {
+      this._shopTab = 'sell';
+      this._shopSelectedIndex = 0;
+      this._emitShopState();
+      return;
+    }
+
+    if (this._shopTab === 'buy') {
+      const total = this._shopSystem.catalog.length;
+
+      if (JD(this.cursors.up) || JD(this.wasd.up)) {
+        this._shopSelectedIndex = Math.max(0, this._shopSelectedIndex - 1);
+        this._emitShopState();
+        return;
+      }
+      if (JD(this.cursors.down) || JD(this.wasd.down)) {
+        this._shopSelectedIndex = Math.min(total - 1, this._shopSelectedIndex + 1);
+        this._emitShopState();
+        return;
+      }
+
+      if (JD(this.eKey) || JD(this.enterKey)) {
+        const result = this._shopSystem.buyItem(this.player, this._shopSelectedIndex, this.player.inventory);
+        EventBus.emit(EVENTS.UI_LOG, result.message);
+        if (result.success) {
+          this._emitShopState();
+        }
+        return;
+      }
+    } else {
+      // sell tab
+      const equippedIds = new Set(Object.values(this.equipmentSystem.getAllEquipped()).filter(Boolean) as string[]);
+      const sellItems = this._shopSystem.buildSellItems({ inventory: this.player.inventory }, equippedIds, this._shopSelectedIndex);
+      const total = sellItems.length;
+
+      if (JD(this.cursors.up) || JD(this.wasd.up)) {
+        this._shopSelectedIndex = Math.max(0, this._shopSelectedIndex - 1);
+        this._emitShopState();
+        return;
+      }
+      if (JD(this.cursors.down) || JD(this.wasd.down)) {
+        this._shopSelectedIndex = Math.min(Math.max(0, total - 1), this._shopSelectedIndex + 1);
+        this._emitShopState();
+        return;
+      }
+
+      if (JD(this.vKey)) {
+        const entry = sellItems[this._shopSelectedIndex];
+        if (entry && entry.canSell) {
+          const result = this._shopSystem.sellItem(this.player, entry.inventoryIndex, this.player.inventory);
+          EventBus.emit(EVENTS.UI_LOG, result.message);
+          if (result.success) {
+            this._shopSelectedIndex = Math.max(0, this._shopSelectedIndex - 1);
+            this._emitShopState();
+          }
+        }
+        return;
+      }
+    }
+  }
+
+  private _equipSelectedItem(): void {
+    const item = this.player.inventory.getItem(this._inventorySelectedIndex);
+    if (!item?.slotId) return;
+
+    // Remover bônus do item anterior no mesmo slot
+    const prevId = this.equipmentSystem.getEquippedId(item.slotId);
+    if (prevId) {
+      const prevItem = this.player.inventory.items.find(i => i?.id === prevId);
+      if (prevItem?.bonuses) this.player.removeEquipmentBonuses(prevItem.bonuses);
+    }
+
+    this.equipmentSystem.equip(item.id, item.slotId);
+    if (item.bonuses) this.player.applyEquipmentBonuses(item.bonuses);
+
+    EventBus.emit(EVENTS.PLAYER_HP_CHANGED, { hp: this.player.hp, maxHp: this.player.maxHp });
+    EventBus.emit(EVENTS.UI_LOG, `Equipou ${item.name ?? item.type}.`);
+    this._emitInventoryState();
+  }
+
+  private _unequipSelectedItem(): void {
+    const item = this.player.inventory.getItem(this._inventorySelectedIndex);
+    if (!item?.slotId) return;
+    this.equipmentSystem.unequip(item.slotId as EquipmentSlotId);
+    if (item.bonuses) this.player.removeEquipmentBonuses(item.bonuses);
+    EventBus.emit(EVENTS.PLAYER_HP_CHANGED, { hp: this.player.hp, maxHp: this.player.maxHp });
+    EventBus.emit(EVENTS.UI_LOG, `Desequipou ${item.name ?? item.type}.`);
+    this._emitInventoryState();
+  }
+
+  private _useSelectedItem(): void {
+    const result = this.player.inventory.useItem(
+      this._inventorySelectedIndex,
+      this.player.identifiedItems,
+      this.player.hp,
+      this.player.maxHp,
+    );
+    result.messages.forEach(msg => EventBus.emit(EVENTS.UI_LOG, msg));
+
+    if (result.success && result.hpDelta !== 0) {
+      this.player.hp = Math.min(this.player.maxHp, this.player.hp + result.hpDelta);
+      EventBus.emit(EVENTS.PLAYER_HP_CHANGED, { hp: this.player.hp, maxHp: this.player.maxHp });
+    }
+
+    EventBus.emit(EVENTS.ITEM_USED, { itemIndex: this._inventorySelectedIndex });
+    this._clampInventorySelection();
+    this._emitInventoryState();
+  }
+
+  private _dropSelectedItem(): void {
+    if (this._currentArea !== 'dungeon') {
+      EventBus.emit(EVENTS.UI_LOG, 'Não é possível dropar itens na cidade.');
+      return;
+    }
+    const item = this.player.inventory.removeItem(this._inventorySelectedIndex);
+    if (!item) return;
+
+    const pos = this._findNearestFreeTile(this.player.gridX, this.player.gridY);
+    item.gridX = pos.x;
+    item.gridY = pos.y;
+
+    EventBus.emit(EVENTS.ITEM_DROPPED, { item });
+    EventBus.emit(EVENTS.UI_LOG, `Dropou ${item.name ?? item.getDisplayName(this.player.identifiedItems)}.`);
+    this._clampInventorySelection();
+    this._emitInventoryState();
+  }
+
+  private _findNearestFreeTile(fromX: number, fromY: number): { x: number; y: number } {
+    const dirs = [
+      { dx: 0, dy: 0 }, { dx: 1, dy: 0 }, { dx: -1, dy: 0 },
+      { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
+      { dx: 1, dy: 1 }, { dx: -1, dy: 1 }, { dx: 1, dy: -1 }, { dx: -1, dy: -1 },
+    ];
+    for (const d of dirs) {
+      const tx = fromX + d.dx;
+      const ty = fromY + d.dy;
+      if (!this._currentMap.isWalkable(tx, ty)) continue;
+      if (this._enemies.some(e => e.alive && e.gridX === tx && e.gridY === ty)) continue;
+      if (this._items.some(i => i.gridX === tx && i.gridY === ty)) continue;
+      return { x: tx, y: ty };
+    }
+    return { x: fromX, y: fromY };
+  }
+
+  private _clampInventorySelection(): void {
+    const total = this.player.inventory.items.filter(i => i !== null).length;
+    this._inventorySelectedIndex = total > 0
+      ? Math.min(this._inventorySelectedIndex, total - 1)
+      : 0;
+  }
+
+  private _clampShopSelection(): void {
+    const total = this._shopSystem.catalog.length;
+    this._shopSelectedIndex = Math.min(this._shopSelectedIndex, Math.max(0, total - 1));
+  }
+
+  private _emitInventoryState(): void {
+    EventBus.emit(EVENTS.INVENTORY_STATE_RESPONSE, {
+      items:           this.player.inventory.items,
+      equipped:        this.equipmentSystem.getAllEquipped(),
+      identifiedItems: this.player.identifiedItems,
+      selectedIndex:   this._inventorySelectedIndex,
+      timestamp:       Date.now(),
+    });
+  }
+
+  private _emitInventorySelectionChanged(): void {
+    const item = this.player.inventory.getItem(this._inventorySelectedIndex);
+    EventBus.emit(EVENTS.INVENTORY_SELECTION_CHANGED, {
+      selectedIndex: this._inventorySelectedIndex,
+      item,
+    });
+  }
+
+  private _emitShopState(): void {
+    const equippedIds = new Set(Object.values(this.equipmentSystem.getAllEquipped()).filter(Boolean) as string[]);
+    const vm = this._shopSystem.buildViewModel(
+      this.player,
+      this._shopSelectedIndex,
+      this._shopTab,
+      this.player.inventory,
+      equippedIds,
+    );
+    EventBus.emit(EVENTS.SHOP_UPDATED, vm);
   }
 
   private _removeEnemySprite(enemy: EnemySystem): void {
@@ -642,6 +1006,7 @@ export class GameScene extends Phaser.Scene {
     EventBus.emit(EVENTS.PLAYER_MANA_CHANGED, { mana: p.mana, maxMana: p.maxMana });
     EventBus.emit(EVENTS.PLAYER_XP_CHANGED,   { xp: p.xp, xpNext: this.xpSystem.getXPToNextLevel(p.level) });
     EventBus.emit(EVENTS.PLAYER_LEVELED_UP,   { level: p.level, maxHp: p.maxHp, attack: p.attack });
+    EventBus.emit(EVENTS.PLAYER_GOLD_CHANGED, { gold: p.gold });
   }
 
   private _registerEvents(): void {
@@ -681,12 +1046,85 @@ export class GameScene extends Phaser.Scene {
 
     // Responde com estado do inventário quando UIScene solicitar
     EventBus.on(EVENTS.INVENTORY_STATE_REQUESTED, () => {
-      EventBus.emit(EVENTS.INVENTORY_STATE_RESPONSE, {
-        items:           this.player.inventory.items,
-        equipped:        this.equipmentSystem.getAllEquipped(),
-        identifiedItems: this.player.identifiedItems,
-        timestamp:       Date.now(),
-      });
+      this._emitInventoryState();
     }, this);
+
+    // Abre a loja quando o mercador é interagido
+    EventBus.on(EVENTS.SHOP_OPENED, () => {
+      if (!this.inputMode.is('GAMEPLAY')) return;
+      this.inputMode.push('SHOP');
+      this._shopTab = 'buy';
+      this._shopSelectedIndex = 0;
+      this._emitShopState();
+    }, this);
+
+    // Abre diálogo com NPC de menu
+    EventBus.on(EVENTS.DIALOG_OPENED, (data: { npcId: string; title: string; options: DialogMenuOption[] }) => {
+      if (!this.inputMode.is('GAMEPLAY')) return;
+      this._dialogNpcId = data.npcId;
+      this._dialogTitle = data.title;
+      this._dialogOptions = data.options;
+      this._dialogSelectedIndex = 0;
+      this.inputMode.push('DIALOG');
+      if (data.options.length > 0) {
+        EventBus.emit(EVENTS.DIALOG_OPTION_SELECTED, { index: 0, option: data.options[0] });
+      }
+    }, this);
+
+    // Mouse: selecionar item na loja
+    EventBus.on(EVENTS.SHOP_ITEM_SELECTED, (data: { index: number }) => {
+      if (!this.inputMode.is('SHOP')) return;
+      this._shopSelectedIndex = data.index;
+      this._emitShopState();
+    }, this);
+  }
+
+  private _handleDialogInput(): void {
+    const JD = Phaser.Input.Keyboard.JustDown;
+    const total = this._dialogOptions.length;
+
+    if (JD(this.cursors.up) || JD(this.wasd.up)) {
+      this._dialogSelectedIndex = Math.max(0, this._dialogSelectedIndex - 1);
+      EventBus.emit(EVENTS.DIALOG_OPTION_SELECTED, {
+        index: this._dialogSelectedIndex,
+        option: this._dialogOptions[this._dialogSelectedIndex],
+      });
+      return;
+    }
+    if (JD(this.cursors.down) || JD(this.wasd.down)) {
+      this._dialogSelectedIndex = Math.min(total - 1, this._dialogSelectedIndex + 1);
+      EventBus.emit(EVENTS.DIALOG_OPTION_SELECTED, {
+        index: this._dialogSelectedIndex,
+        option: this._dialogOptions[this._dialogSelectedIndex],
+      });
+      return;
+    }
+
+    if (JD(this.enterKey) || JD(this.eKey)) {
+      const option = this._dialogOptions[this._dialogSelectedIndex];
+      if (!option) return;
+
+      if (option.action === 'rest') {
+        const cost = option.goldCost ?? TAVERN.REST_COST;
+        if (this.player.gold < cost) {
+          EventBus.emit(EVENTS.UI_LOG, `Ouro insuficiente. Precisa de ${cost} moedas para descansar.`);
+        } else {
+          this.player.gold -= cost;
+          this.player.hp   = this.player.maxHp;
+          this.player.mana = this.player.maxMana;
+          EventBus.emit(EVENTS.PLAYER_GOLD_CHANGED, { gold: this.player.gold });
+          EventBus.emit(EVENTS.PLAYER_HP_CHANGED,   { hp: this.player.hp, maxHp: this.player.maxHp });
+          EventBus.emit(EVENTS.PLAYER_MANA_CHANGED, { mana: this.player.mana, maxMana: this.player.maxMana });
+          EventBus.emit(EVENTS.UI_LOG, `Descansou e recuperou toda a vida e mana por ${cost} ouros.`);
+          this.inputMode.pop();
+          EventBus.emit(EVENTS.DIALOG_CLOSED, {});
+        }
+      } else {
+        // No special action — just close
+        this.inputMode.pop();
+        EventBus.emit(EVENTS.DIALOG_CLOSED, {});
+      }
+      return;
+    }
   }
 }

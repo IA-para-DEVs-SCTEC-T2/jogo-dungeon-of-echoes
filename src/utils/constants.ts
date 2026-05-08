@@ -81,6 +81,11 @@ export const SPRITES = {
   PLATINO: 'reptiles',
   POTION: 'potion',
   MONEY: 'money',
+  // Cidade
+  TREE0:      'tree0',
+  DECOR0:     'decor0',
+  HUMANOID0:  'humanoid0',
+  CAT0:       'cat0',
 } as const;
 
 // --- Cores de fallback (usadas se assets não carregarem) ---
@@ -156,17 +161,40 @@ export const EVENTS = {
   ITEM_UNEQUIPPED:  'item-unequipped',
   // Input
   INPUT_MODE_CHANGED: 'input-mode-changed',
+  // Seleção de inventário
+  INVENTORY_SELECTION_CHANGED: 'inventory-selection-changed',
+  // Moedas
+  PLAYER_GOLD_CHANGED: 'player-gold-changed',
+  // Loja
+  SHOP_OPENED:  'shop-opened',
+  SHOP_CLOSED:  'shop-closed',
+  SHOP_UPDATED: 'shop-updated',
+  SHOP_ITEM_HOVERED:      'shop-item-hovered',
+  SHOP_ITEM_SELECTED:     'shop-item-selected',
+  // Diálogo
+  DIALOG_OPENED:          'dialog-opened',
+  DIALOG_CLOSED:          'dialog-closed',
+  DIALOG_OPTION_SELECTED: 'dialog-option-selected',
 } as const;
+
+// --- Loja ---
+export const SHOP = {
+  SELL_RATIO: 0.4,
+} as const;
+
+// --- Taverna ---
+export const TAVERN = { REST_COST: 20 } as const;
 
 // --- Cidade (hub) ---
 export const TOWN = {
-  WIDTH:       24,
-  HEIGHT:      20,
-  START_X:     12,
-  START_Y:     8,
-  EXIT_X:      12,
-  EXIT_Y:      18,
-  FLOOR_FRAME: 16,  // grama verde do Ground0.png
+  WIDTH:            24,
+  HEIGHT:           20,
+  START_X:          12,
+  START_Y:          8,
+  EXIT_X:           12,
+  EXIT_Y:           18,
+  FLOOR_FRAME:      16,  // grama verde do Ground0.png
+  STONE_PATH_FRAME: 1,   // pedra cinza do Ground0.png (caminho central)
 } as const;
 
 // --- Loot ---

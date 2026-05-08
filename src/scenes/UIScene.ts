@@ -5,7 +5,10 @@ import { Item } from '../entities/Item';
 import { LogSystem } from '../systems/LogSystem';
 import { LogPanel } from '../ui/LogPanel';
 import { InventoryPanel } from '../ui/InventoryPanel';
+import { ShopPanel } from '../ui/ShopPanel';
+import { DialogPanel } from '../ui/DialogPanel';
 import { ActionBarPanel } from '../ui/ActionBarPanel';
+import type { ShopViewModel } from '../types/viewmodels';
 import { EQUIPMENT_SLOT_ORDER, EQUIPMENT_SLOT_LABELS, type EquipmentSlotId } from '../types/equipment';
 import type { InventoryViewModel, InventoryItemViewModel, EquipmentSlotViewModel } from '../types/viewmodels';
 
@@ -36,6 +39,7 @@ export class UIScene extends Phaser.Scene {
   // Status labels
   private _levelLabel!: Phaser.GameObjects.Text;
   private _xpLabel!: Phaser.GameObjects.Text;
+  private _goldLabel!: Phaser.GameObjects.Text;
 
   // Log
   private _logSystem!: LogSystem;
@@ -43,9 +47,12 @@ export class UIScene extends Phaser.Scene {
 
   // Inventory overlay
   private _inventoryPanel!: InventoryPanel;
+  private _shopPanel!: ShopPanel;
+  private _dialogPanel!: DialogPanel;
   private _actionBar!: ActionBarPanel;
-  private _inventoryData: { items: unknown[]; equipped: Record<string, string | null>; identifiedItems: Record<string, boolean> } | null = null;
+  private _inventoryData: { items: unknown[]; equipped: Record<string, string | null>; identifiedItems: Record<string, boolean>; selectedIndex?: number } | null = null;
   private _selectedInventoryIndex = 0;
+  private _shopData: ShopViewModel | null = null;
 
   // _slots removido — gerenciado por ActionBarPanel
 
@@ -60,6 +67,8 @@ export class UIScene extends Phaser.Scene {
     this._actionBar      = new ActionBarPanel(this);
     this._logPanel       = new LogPanel(this);
     this._inventoryPanel = new InventoryPanel(this);
+    this._shopPanel      = new ShopPanel(this);
+    this._dialogPanel    = new DialogPanel(this);
 
     // LogPanel deve parar antes da action bar
     this._logPanel.layout(this.scale.width, this.scale.height, this._actionBar.getHeight());
@@ -69,13 +78,19 @@ export class UIScene extends Phaser.Scene {
   }
 
   update(): void {
-    if (this._logPanel.isDirty()) {
+    if (this._logSystem.isDirty()) {
       const vm = this._logSystem.buildViewModel(UI.LOG_VISIBLE_LINES);
       this._logPanel.render(vm);
     }
     if (this._inventoryPanel.isDirty() && this._inventoryData) {
       const vm = this._buildInventoryViewModel();
       this._inventoryPanel.render(vm);
+    }
+    if (this._shopPanel.isDirty() && this._shopData) {
+      this._shopPanel.render(this._shopData);
+    }
+    if (this._dialogPanel.isDirty()) {
+      this._dialogPanel.render();
     }
   }
 
@@ -89,8 +104,15 @@ export class UIScene extends Phaser.Scene {
     EventBus.off(EVENTS.INVENTORY_OPENED,         undefined,            this);
     EventBus.off(EVENTS.INVENTORY_STATE_RESPONSE, undefined,            this);
     EventBus.off(EVENTS.INVENTORY_CLOSED,         undefined,            this);
-    EventBus.off(EVENTS.ITEM_EQUIPPED,            undefined,            this);
-    EventBus.off(EVENTS.ITEM_UNEQUIPPED,          undefined,            this);
+    EventBus.off(EVENTS.ITEM_EQUIPPED,              undefined,            this);
+    EventBus.off(EVENTS.ITEM_UNEQUIPPED,            undefined,            this);
+    EventBus.off(EVENTS.PLAYER_GOLD_CHANGED,        undefined,            this);
+    EventBus.off(EVENTS.INVENTORY_SELECTION_CHANGED,undefined,            this);
+    EventBus.off(EVENTS.SHOP_OPENED,                undefined,            this);
+    EventBus.off(EVENTS.SHOP_UPDATED,               undefined,            this);
+    EventBus.off(EVENTS.SHOP_CLOSED,                undefined,            this);
+    EventBus.off(EVENTS.DIALOG_OPENED,              undefined,            this);
+    EventBus.off(EVENTS.DIALOG_CLOSED,              undefined,            this);
   }
 
   // ─── InventoryViewModel builder ──────────────────────────────────────────
@@ -101,7 +123,8 @@ export class UIScene extends Phaser.Scene {
     const equipped = data.equipped;
     const equippedIds = new Set(Object.values(equipped).filter(Boolean));
 
-    const items: InventoryItemViewModel[] = (data.items as Array<{ id: string; type: string; getDisplayName: (m: Record<string, boolean>) => string } | null>).map((item, index) => {
+    const rawItems = data.items as Array<{ id: string; type: string; slotId?: string; getDisplayName: (m: Record<string, boolean>) => string } | null>;
+    const items: InventoryItemViewModel[] = rawItems.map((item, index) => {
       if (!item) return { index, id: null, displayName: '—', type: '', isEquipped: false, isSelected: false };
       const isEquipped = equippedIds.has(item.id);
       return {
@@ -111,6 +134,7 @@ export class UIScene extends Phaser.Scene {
         type:        item.type,
         isEquipped,
         isSelected:  index === selIdx,
+        slotId:      item.slotId as EquipmentSlotId | undefined,
       };
     });
 
@@ -130,11 +154,18 @@ export class UIScene extends Phaser.Scene {
 
     const selectedItem = items[selIdx];
     const selectedItemDetail = selectedItem?.id
-      ? {
-          name:        selectedItem.displayName,
-          description: `Tipo: ${selectedItem.type}`,
-          actions:     (['use', 'drop'] as Array<'equip' | 'use' | 'drop'>),
-        }
+      ? (() => {
+          const isEquipped = equippedIds.has(selectedItem.id!);
+          const hasSlot = !!selectedItem.slotId;
+          const actions: Array<'equip' | 'unequip' | 'use' | 'drop'> = hasSlot
+            ? (isEquipped ? ['unequip', 'drop'] : ['equip', 'drop'])
+            : ['use', 'drop'];
+          return {
+            name:        selectedItem.displayName,
+            description: `Tipo: ${selectedItem.type}`,
+            actions:     actions as Array<'equip' | 'use' | 'drop'>,
+          };
+        })()
       : null;
 
     return { items, slots, selectedItemDetail };
@@ -184,6 +215,14 @@ export class UIScene extends Phaser.Scene {
     this._xpLabel = this.add
       .text(PANEL_X, xpY + 12, 'XP: 0 / 100', TEXT_STYLE)
       .setScrollFactor(0).setDepth(d + 1);
+    this._goldLabel = this.add
+      .text(PANEL_X, xpY + 24, 'Ouro: 500', { ...TEXT_STYLE, color: '#ffd700' })
+      .setScrollFactor(0).setDepth(d + 1);
+
+    // Ajustar altura do fundo do painel de stats para acomodar nova linha
+    this.add
+      .rectangle(0, 0, panelW, 70, 0x000000, 0.55)
+      .setOrigin(0, 0).setScrollFactor(0).setDepth(d - 1);
   }
 
   // ─── Registro de Eventos ──────────────────────────────────────────────────
@@ -198,6 +237,7 @@ export class UIScene extends Phaser.Scene {
 
     EventBus.on(EVENTS.INVENTORY_OPENED, () => {
       if (!this.sys.isActive()) return;
+      this._inventoryPanel.show();
       EventBus.emit(EVENTS.INVENTORY_STATE_REQUESTED, { timestamp: Date.now() });
     }, this);
 
@@ -205,12 +245,16 @@ export class UIScene extends Phaser.Scene {
       items: unknown[];
       equipped: Record<string, string | null>;
       identifiedItems: Record<string, boolean>;
+      selectedIndex?: number;
     }) => {
       if (!this.sys.isActive()) return;
       this._inventoryData = data;
-      this._selectedInventoryIndex = 0;
-      this._inventoryPanel.show();
-      this._inventoryPanel.markDirty();
+      if (data.selectedIndex !== undefined) {
+        this._selectedInventoryIndex = data.selectedIndex;
+      }
+      if (this._inventoryPanel.isVisible()) {
+        this._inventoryPanel.markDirty();
+      }
     }, this);
 
     EventBus.on(EVENTS.INVENTORY_CLOSED, () => {
@@ -220,6 +264,43 @@ export class UIScene extends Phaser.Scene {
 
     EventBus.on(EVENTS.ITEM_EQUIPPED,   () => { this._inventoryPanel.markDirty(); }, this);
     EventBus.on(EVENTS.ITEM_UNEQUIPPED, () => { this._inventoryPanel.markDirty(); }, this);
+
+    EventBus.on(EVENTS.PLAYER_GOLD_CHANGED, (data: { gold: number }) => {
+      if (!this.sys.isActive() || !this._goldLabel?.active) return;
+      this._goldLabel.setText(`Ouro: ${data.gold}`);
+    }, this);
+
+    EventBus.on(EVENTS.INVENTORY_SELECTION_CHANGED, (data: { selectedIndex: number }) => {
+      if (!this.sys.isActive()) return;
+      this._selectedInventoryIndex = data.selectedIndex;
+      this._inventoryPanel.markDirty();
+    }, this);
+
+    EventBus.on(EVENTS.SHOP_OPENED, () => {
+      if (!this.sys.isActive()) return;
+      this._shopPanel.show();
+    }, this);
+
+    EventBus.on(EVENTS.SHOP_UPDATED, (data: ShopViewModel) => {
+      if (!this.sys.isActive()) return;
+      this._shopData = data;
+      this._shopPanel.markDirty();
+    }, this);
+
+    EventBus.on(EVENTS.SHOP_CLOSED, () => {
+      if (!this.sys.isActive()) return;
+      this._shopPanel.hide();
+    }, this);
+
+    EventBus.on(EVENTS.DIALOG_OPENED, (data: { title: string; options: Array<{ id: string; label: string; content: string; action?: string; goldCost?: number }> }) => {
+      if (!this.sys.isActive()) return;
+      this._dialogPanel.show(data.title, data.options);
+    }, this);
+
+    EventBus.on(EVENTS.DIALOG_CLOSED, () => {
+      if (!this.sys.isActive()) return;
+      this._dialogPanel.hide();
+    }, this);
   }
 
   // ─── Handlers ────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import type { EquipmentSlotId } from './equipment';
+import type { EquipmentSlotId, ItemRarity } from './equipment';
 
 export interface LogEntryViewModel {
   text: string;
@@ -30,11 +30,41 @@ export interface EquipmentSlotViewModel {
 export interface InventoryDetailViewModel {
   name: string;
   description: string;
-  actions: Array<'equip' | 'use' | 'drop'>;
+  actions: Array<'equip' | 'unequip' | 'use' | 'drop'>;
 }
 
 export interface InventoryViewModel {
   items: InventoryItemViewModel[];
   slots: EquipmentSlotViewModel[];
   selectedItemDetail: InventoryDetailViewModel | null;
+}
+
+export interface ShopItemViewModel {
+  index: number;
+  id: string;
+  name: string;
+  price: number;
+  rarity: ItemRarity;
+  bonusText: string;
+  canAfford: boolean;
+  isSelected: boolean;
+}
+
+export interface SellItemViewModel {
+  inventoryIndex: number;
+  id: string;
+  name: string;
+  sellPrice: number;
+  isSelected: boolean;
+  canSell: boolean;
+}
+
+export interface ShopViewModel {
+  /** @deprecated use buyItems */
+  items: ShopItemViewModel[];
+  buyItems: ShopItemViewModel[];
+  sellItems: SellItemViewModel[];
+  tab: 'buy' | 'sell';
+  playerGold: number;
+  selectedIndex: number;
 }

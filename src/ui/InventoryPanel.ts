@@ -213,9 +213,10 @@ export class InventoryPanel {
     this._detailDesc.setText(d.description || '(Sem descrição)');
 
     const actionMap: Record<string, string> = {
-      equip: '[E] Equipar',
-      use:   '[U] Usar',
-      drop:  '[D] Dropar',
+      equip:   '[E] Equipar',
+      unequip: '[E] Desequipar',
+      use:     '[U] Usar',
+      drop:    '[D] Dropar',
     };
     this._detailActions.setText(d.actions.map(a => actionMap[a]).join('\n'));
   }
