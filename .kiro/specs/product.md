@@ -33,23 +33,52 @@ Input do jogador → Resolve ação → Atualiza visão (FOG) → Turno dos inim
 ### Sistemas Implementados
 | Sistema | Responsabilidade |
 |---------|-----------------|
-| PlayerSystem | Atributos, HP/Mana, posição, movimento |
+| PlayerSystem | Atributos, HP/Mana, gold, bônus de equipamento acumulados em `_equipmentBonuses`; `recalcStats()` como fonte de verdade |
 | DungeonSystem | Geração procedural BSP, tiles, FOG of War |
 | EnemySystem | Spawn, estados de IA (IDLE/CHASING/ATTACKING) |
 | CombatSystem | Resolução de ataque, dano, morte |
 | XPSystem | Ganho de XP, cálculo de nível, level up |
+| InventorySystem | 20 slots, roguelike identification, `useItem()`, `addItem()`, `removeItem()` |
+| EquipmentSystem | 6 slots (helmet/shield/sword/pants/boots/amulet); equip/unequip com eventos; armazena IDs |
+| ShopSystem | Compra/venda catalog-driven; `buildViewModel()` + `buildSellItems()` para UI; sem lógica de cena |
+| InputModeManager | Stack-based: GAMEPLAY / INVENTORY / SHOP / DIALOG — `push()` / `pop()` / `is()` |
+| CityLayoutProcessor | Pipeline TOWN_CONFIG → ProcessedTownLayout; atribui biomas e resolve tile visuals |
+| TileVariantResolver | Seleção determinística de frame por posição + bioma (hash xorshift + peso) |
+| NPCController | FSM Idle → Wander para NPCs da cidade; `customWanderBounds` por NPC |
+| InteractiveObjectSystem | Detecta proximidade player↔NPC; respeita `houseBounds`; dispara SHOP_OPENED ou DIALOG_OPENED |
+| CityDecorationSystem | Renderização de objetos do mundo com Y-sort automático |
 
 ### Funcionalidades do Jogador
 - 3 classes: Warrior, Mage, Rogue
 - 6 atributos: STR, INT, DEX, CON, WIS, CHA
-- HP e Mana derivados dos atributos
+- HP e Mana derivados dos atributos; stats recalculados ao equipar/desequipar
 - Movimento por teclado (setas ou WASD) no grid
+- Gold (começa com 500) exibido no HUD; atualizado em tempo real
+
+### Comércio e Equipamentos
+- **Loja do Mercador**: 2 abas (Comprar / Vender); navegação por teclado e mouse
+- **Catálogo**: 18 itens (espadas, capacetes, escudos, calças, botas, amuletos + poções)
+- **Bônus de stat**: itens equipáveis adicionam `attack`, `maxHp`, `con` etc. de forma reversível
+- **Inventário visual** (`I`): 3 colunas (slots de equipamento / lista de itens / detalhes); `E` equipa ou desequipa, `U` usa, `D` dropa
+
+### NPCs e Diálogos
+- **Mercador**: abre loja ao interagir (dentro do edifício)
+- **Guarda**: menu de ajuda com objetivos, controles e dicas
+- **Taberneiro**: menu de descanso — 20 ouros restauram HP e Mana ao máximo
+- **Gato**: vaga livremente pela cidade respeitando paredes
 
 ### Dungeon
 - Geração por BSP (Binary Space Partitioning) com corredores L-shaped
 - FOG of War: tiles não visitados escuros, visitados em cinza, visíveis em destaque
 - Escadas de entrada e saída em cada andar
 - Temas visuais por faixa de andares (caverna, ruínas, cripta)
+
+### Cidade (Town)
+- Layout fixo processado por `CityLayoutProcessor`: biomas por região (urban, natural, interior, transition)
+- Tiles de chão com variantes visuais determinísticas por posição (sem magic frame numbers no código)
+- NPCs com comportamento de wander configurável (`wanderBounds`); Guard é estático
+- Objetos interativos (portas, signs) com prompt de interação por proximidade
+- Objetos do mundo (árvores, barris) com Y-sort automático para profundidade correta
 
 ### Inimigos
 - Inimigos com estados de IA: IDLE → ALERTED → CHASING → ATTACKING → FLEEING
@@ -66,11 +95,9 @@ Input do jogador → Resolve ação → Atualiza visão (FOG) → Turno dos inim
 
 Estas features **não estão no escopo atual** mas o código deve ser estruturado para suportá-las:
 
-- Inventário com slots de equipamento e itens no chão
 - Sistema de magia com slots e custo de mana
-- Identificação de itens (poções, pergaminhos, anéis)
+- Identificação de itens (pergaminhos, anéis)
 - IA generativa para descrições de itens épicos e variantes de inimigos elite
-- Múltiplos andares com progressão de dificuldade
 - Árvore de habilidades por classe
 - Sistema de save / placar local
 

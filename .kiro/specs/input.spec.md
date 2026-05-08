@@ -7,15 +7,17 @@ O sistema de input captura e interpreta as teclas pressionadas pelo jogador, tra
 
 ## Teclas Mapeadas
 
-| Tecla(s)         | Ação              | Direção / Efeito         |
-|------------------|-------------------|--------------------------|
-| W ou ↑           | Mover / Atacar    | Norte (gridY - 1)        |
-| S ou ↓           | Mover / Atacar    | Sul (gridY + 1)          |
-| A ou ←           | Mover / Atacar    | Oeste (gridX - 1)        |
-| D ou →           | Mover / Atacar    | Leste (gridX + 1)        |
-| Espaço           | Esperar           | Passa o turno sem mover  |
+| Tecla(s)         | Ação              | Direção / Efeito                        | Consome turno? |
+|------------------|-------------------|-----------------------------------------|----------------|
+| W ou ↑           | Mover / Atacar    | Norte (gridY - 1)                       | Sim            |
+| S ou ↓           | Mover / Atacar    | Sul (gridY + 1)                         | Sim            |
+| A ou ←           | Mover / Atacar    | Oeste (gridX - 1)                       | Sim            |
+| D ou →           | Mover / Atacar    | Leste (gridX + 1)                       | Sim            |
+| Espaço           | Esperar           | Passa o turno sem mover                 | Sim            |
+| I                | Log inventário    | Lista itens no console e no log de UI   | Não            |
+| 1–9              | Usar item         | Usa item do slot correspondente (0–8)   | Sim            |
 
-> Diagonais não são suportadas no MVP.
+> Diagonais não são suportadas. Tecla `I` e as numéricas 1–9 são verificadas antes do movimento.
 
 ---
 

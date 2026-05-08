@@ -15,13 +15,25 @@ O Game Loop coordena o estado geral do jogo: inicialização, atualização por 
 
 ---
 
+## Áreas de Jogo
+
+| Área    | Descrição                                                          |
+|---------|--------------------------------------------------------------------|
+| `town`  | Hub seguro. Sem inimigos. Mapa fixo 24×20. Entrada para dungeon.  |
+| `dungeon` | Dungeon BSP procedural. Inimigos, itens, loot. Volta para town. |
+
+Transições gerenciadas por `WorldSystem` (singleton). GameScene não reinicia — troca de área via `_loadArea()`.
+
+---
+
 ## Cenas Phaser
 
-| Cena       | Responsabilidade                                      |
-|------------|-------------------------------------------------------|
-| BootScene  | Carrega assets, exibe tela de loading, inicia GameScene |
-| GameScene  | Cena principal — dungeon, player, inimigos, HUD       |
-| GameOverScene | Exibe pontuação final, botão de reiniciar         |
+| Cena          | Responsabilidade                                                   |
+|---------------|--------------------------------------------------------------------|
+| BootScene     | Carrega todos os spritesheets Dawnlike, exibe loading, inicia GameScene |
+| GameScene     | Cena unificada: gerencia town e dungeon via área ativa             |
+| UIScene       | Overlay de HUD (HP, mana, XP, action bar, log) — lançada em paralelo |
+| GameOverScene | Exibe nível e XP, botão de reiniciar                               |
 
 ---
 
@@ -70,11 +82,14 @@ O Game Loop coordena o estado geral do jogo: inicialização, atualização por 
 
 - R1: Input só é processado no estado PLAYING
 - R2: Apenas um input é processado por frame (sem fila de inputs)
-- R3: HUD é atualizado após cada ação do player
+- R3: HUD é atualizado após cada ação do player via EventBus
 - R4: Transição para GameOver ocorre imediatamente quando `player-died` é emitido
 - R5: GameOverScene exibe XP total e nível atingido
-- R6: Botão "Jogar Novamente" reinicia a GameScene do zero (nova dungeon)
-- R7: A câmera segue o player, centralizando-o na tela
+- R6: Botão "Jogar Novamente" reinicia a GameScene do zero — `WorldSystem.clearDungeon()` no `create()`
+- R7: A câmera segue o player; bounds ajustados ao tamanho da área atual
+- R8: Ao entrar na dungeon pela primeira vez → gera nova dungeon BSP
+- R9: Ao retornar à dungeon → carrega estado salvo (grid, itens); inimigos SEMPRE respawnam
+- R10: Ao retornar à cidade → estado da dungeon salvo no WorldSystem (itens no chão persistem)
 
 ---
 

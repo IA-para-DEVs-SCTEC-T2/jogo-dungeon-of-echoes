@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { SPRITES } from '../utils/constants';
+import { FLOOR_ATLAS, OBJECT_ATLAS, NPC_ATLAS } from '../config/sprites-config';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -9,33 +10,39 @@ export class BootScene extends Phaser.Scene {
   preload(): void {
     const base = 'assets/dawnlike';
 
-    // Tiles de terreno (16×16 por frame)
-    this.load.spritesheet(SPRITES.FLOOR, `${base}/Objects/Ground0.png`, {
-      frameWidth: 16,
-      frameHeight: 16,
-    });
-    this.load.spritesheet(SPRITES.WALL, `${base}/Objects/Wall.png`, {
-      frameWidth: 16,
-      frameHeight: 16,
-    });
+    // ── Assets controlados por sprites-config.ts ──────────────────────────────
+    // Carrega automaticamente todos os spritesheets dos atlases, deduplicando
+    // por textureKey. Para adicionar um novo arquivo basta editar o config.
+    const loaded = new Set<string>();
 
-    // Sprites de personagens (16×16 por frame)
-    this.load.spritesheet(SPRITES.PLAYER, `${base}/Characters/Player0.png`, {
-      frameWidth: 16,
-      frameHeight: 16,
-    });
-    this.load.spritesheet(SPRITES.ENEMY, `${base}/Characters/Undead0.png`, {
-      frameWidth: 16,
-      frameHeight: 16,
-    });
+    const loadDef = (textureKey: string, subfolder: string, imageFile: string): void => {
+      if (loaded.has(textureKey)) return;
+      this.load.spritesheet(textureKey, `${base}/${subfolder}/${imageFile}`, {
+        frameWidth: 16,
+        frameHeight: 16,
+      });
+      loaded.add(textureKey);
+    };
 
-    // Easter egg — Platino (DragonDePlatino, CC-BY 4.0)
-    this.load.spritesheet(SPRITES.PLATINO, `${base}/Characters/Reptile0.png`, {
-      frameWidth: 16,
-      frameHeight: 16,
-    });
+    for (const def of Object.values(FLOOR_ATLAS)) {
+      loadDef(def.textureKey, def.subfolder, def.imageFile);
+    }
+    for (const def of Object.values(OBJECT_ATLAS)) {
+      loadDef(def.textureKey, def.subfolder, def.imageFile);
+    }
+    for (const def of Object.values(NPC_ATLAS)) {
+      loadDef(def.textureKey, def.subfolder, def.imageFile);
+    }
 
-    // Barra de progresso
+    // ── Assets fixos (parede, personagens, itens) ─────────────────────────────
+    // Estes não pertencem a biomas e permanecem hardcoded aqui intencionalmente.
+    this.load.spritesheet(SPRITES.WALL,    `${base}/Objects/Wall.png`,           { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet(SPRITES.PLAYER,  `${base}/Characters/Player0.png`,     { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet(SPRITES.ENEMY,   `${base}/Characters/Undead0.png`,     { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet(SPRITES.POTION,  `${base}/Items/Potion.png`,           { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet(SPRITES.MONEY,   `${base}/Items/Money.png`,            { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet(SPRITES.PLATINO, `${base}/Characters/Reptile0.png`,    { frameWidth: 16, frameHeight: 16 });
+
     this._setupLoadingBar();
   }
 
@@ -60,7 +67,7 @@ export class BootScene extends Phaser.Scene {
     const cx = width / 2;
     const cy = height / 2 + 60;
 
-    const bg = this.add.rectangle(cx, cy, 300, 16, 0x222222).setOrigin(0.5);
+    const bg  = this.add.rectangle(cx, cy, 300, 16, 0x222222).setOrigin(0.5);
     const bar = this.add.rectangle(cx - 150, cy, 0, 14, 0x00aaff).setOrigin(0, 0.5);
 
     this.add

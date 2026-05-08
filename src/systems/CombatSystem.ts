@@ -9,6 +9,11 @@ export interface CombatResult {
   playerDied: boolean;
 }
 
+export interface PixelPos {
+  x: number;
+  y: number;
+}
+
 export interface AttackResult {
   hit: boolean;
   damage: number;
@@ -35,8 +40,8 @@ export class CombatSystem {
   }
 
   resolve(
-    player: { hp: number; maxHp: number; attack: number; xp: number; level: number },
-    enemy: { hp: number; maxHp: number; attack: number; xpReward: number; alive: boolean },
+    player: { hp: number; maxHp: number; attack: number; xp: number; level: number; getPixelPos?: () => { x: number; y: number } },
+    enemy: { hp: number; maxHp: number; attack: number; xpReward: number; alive: boolean; getPixelPos?: () => { x: number; y: number } },
   ): CombatResult | null {
     if (!player || !enemy) return null;
     if (!enemy.alive) return null;
@@ -52,6 +57,9 @@ export class CombatSystem {
     result.playerDamage = player.attack;
     enemy.hp = Math.max(0, enemy.hp - player.attack);
     this.emitter.emit(EVENTS.COMBAT_HIT, { attacker: player, defender: enemy, damage: player.attack });
+    if (enemy.getPixelPos) {
+      this.emitter.emit(EVENTS.DAMAGE_ENEMY, { pos: enemy.getPixelPos(), damage: player.attack });
+    }
 
     if (enemy.hp <= 0) {
       enemy.alive = false;
@@ -65,6 +73,9 @@ export class CombatSystem {
     result.enemyDamage = enemy.attack;
     player.hp = Math.max(0, player.hp - enemy.attack);
     this.emitter.emit(EVENTS.COMBAT_HIT, { attacker: enemy, defender: player, damage: enemy.attack });
+    if (player.getPixelPos) {
+      this.emitter.emit(EVENTS.DAMAGE_PLAYER, { pos: player.getPixelPos(), damage: enemy.attack });
+    }
 
     if (player.hp <= 0) {
       result.playerDied = true;

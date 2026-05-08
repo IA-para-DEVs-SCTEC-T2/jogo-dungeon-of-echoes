@@ -1,4 +1,4 @@
-import { TILE_SIZE, EVENTS } from '../utils/constants';
+import { TILE_SIZE, EVENTS, INVENTORY } from '../utils/constants';
 import { EventBus } from '../utils/EventBus';
 import type { Player } from '../entities/Player';
 import type { EnemySystem } from './EnemySystem';
@@ -8,6 +8,7 @@ import type { DungeonGenerator } from '../generators/DungeonGenerator';
 export type Action =
   | { type: 'MOVE'; dx: number; dy: number }
   | { type: 'ATTACK'; target: EnemySystem }
+  | { type: 'USE_ITEM'; itemIndex: number }
   | { type: 'WAIT' };
 
 export interface TurnResult {
@@ -67,8 +68,31 @@ export class TurnManager {
       } else {
         result.messages.push('Você errou o ataque');
       }
+    } else if (action.type === 'USE_ITEM') {
+      const useResult = player.inventory.useItem(
+        action.itemIndex,
+        player.identifiedItems,
+        player.hp,
+        player.maxHp,
+      );
+
+      if (useResult.success) {
+        // Aplicar efeito de HP
+        if (useResult.hpDelta !== 0) {
+          player.hp = Math.max(0, Math.min(player.maxHp, player.hp + useResult.hpDelta));
+          EventBus.emit(EVENTS.PLAYER_HP_CHANGED, { hp: player.hp, maxHp: player.maxHp });
+
+          if (player.hp <= 0) {
+            result.playerDied = true;
+            result.messages.push('Você morreu');
+          }
+        }
+        result.messages.push(...useResult.messages);
+        EventBus.emit(EVENTS.ITEM_USED, { itemIndex: action.itemIndex });
+      } else {
+        result.messages.push(...useResult.messages);
+      }
     }
-    // WAIT: não faz nada
 
     // ─── Turno dos inimigos ─────────────────────────────────────────────────
     for (const enemy of enemies) {

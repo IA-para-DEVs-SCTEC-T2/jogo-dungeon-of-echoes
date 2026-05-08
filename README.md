@@ -35,9 +35,9 @@ https://ia-para-devs-sctec-t2.github.io/jogo-dungeon-of-echoes/dashboard/
 | IA de inimigos (IDLE → CHASING → ATTACKING) | ✅ Implementado |
 | HUD persistente (UIScene overlay) | ✅ Implementado |
 | Movimento contínuo ao segurar direcional | ✅ Implementado |
+| Inventário e itens | ✅ Implementado |
+| **Integração com IA Generativa (LLM)** | ✅ **Implementado** |
 | FOG of War | 🔜 Planejado |
-| Inventário e itens | 🔜 Planejado |
-| Integração com IA Generativa | 🔜 Planejado |
 
 ---
 
@@ -74,6 +74,7 @@ Input do jogador → Resolve ação (mover / atacar) → Turno dos inimigos → 
 | `XPSystem` | Acúmulo de XP, level up com múltiplos saltos, recálculo de atributos |
 | `UIScene` | HUD overlay com barras HP/Mana, labels Nível/ATK/XP e log de mensagens |
 | `EventBus` | Canal de eventos cross-cena (singleton, sem dependência de Phaser) |
+| **`AIService`** | **Integração com LLM para narrativa procedural (descrições, variantes, eventos)** |
 
 ---
 
@@ -107,6 +108,29 @@ npm test
 # Build de produção
 npm run build
 ```
+
+### 🤖 Configuração Opcional: IA Generativa
+
+O jogo funciona normalmente **sem** IA. Para habilitar descrições narrativas geradas por LLM:
+
+1. Copie o arquivo de exemplo:
+```bash
+cp .env.example .env.local
+```
+
+2. Adicione sua API key OpenAI no `.env.local`:
+```env
+VITE_AI_API_KEY=sk-your-api-key-here
+```
+
+3. Reinicie o servidor de desenvolvimento
+
+**O que a IA faz:**
+- Gera descrições atmosféricas para itens raros
+- Cria variantes únicas de inimigos elite
+- Produz eventos narrativos em locais especiais
+
+**Importante:** A IA é **não-bloqueante** — o jogo continua rodando normalmente enquanto as descrições são geradas em background. Veja [docs/ai-integration.md](./docs/ai-integration.md) para detalhes técnicos.
 
 ---
 
@@ -143,15 +167,24 @@ dungeon-of-echoes/
 │   │   ├── UIScene.ts          ← HUD overlay (HP/Mana/XP/log)
 │   │   └── GameOverScene.ts    ← Tela de Game Over
 │   ├── entities/
-│   │   └── Player.ts           ← Sprite + atributos base (STR/CON/WIS…)
+│   │   ├── Player.ts           ← Sprite + atributos base (STR/CON/WIS…)
+│   │   ├── Enemy.ts            ← Inimigo com suporte a variantes IA
+│   │   └── Item.ts             ← Item com descrição IA opcional
 │   ├── systems/                ← Camada de lógica de domínio
 │   │   ├── EnemySystem.ts      ← IA: IDLE → CHASING → ATTACKING
 │   │   ├── CombatSystem.ts     ← Resolução de ataque e dano
 │   │   └── XPSystem.ts         ← XP, level up, recálculo de atributos
 │   ├── generators/
 │   │   └── DungeonGenerator.ts ← BSP procedural, salas e corredores
+│   ├── ai/                     ← Sistema de IA Generativa (Fase 4)
+│   │   ├── AIService.ts        ← Serviço core (LLM, cache, fallbacks)
+│   │   ├── AIIntegration.ts    ← Integração com sistemas do jogo
+│   │   ├── config.ts           ← Configuração (API key)
+│   │   ├── example-integration.ts ← Exemplos de uso
+│   │   ├── test-ai.ts          ← Testes manuais
+│   │   └── README.md           ← Documentação do módulo IA
 │   └── utils/
-│       ├── constants.ts        ← TILE_SIZE=16, BASE_STATS, EVENTS, etc.
+│       ├── constants.ts        ← TILE_SIZE=16, BASE_STATS, EVENTS, AI, etc.
 │       └── EventBus.ts         ← Emitter cross-cena (sem dependência Phaser)
 │
 ├── public/
