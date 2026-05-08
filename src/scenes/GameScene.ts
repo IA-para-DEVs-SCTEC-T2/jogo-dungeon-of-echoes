@@ -19,6 +19,8 @@ import { InputModeManager } from '../systems/InputModeManager';
 import { MapTransitionSystem } from '../systems/MapTransitionSystem';
 import { DungeonFloorManager } from '../systems/DungeonFloorManager';
 import { DifficultyScalingSystem } from '../systems/DifficultyScalingSystem';
+import { PlayerMetrics } from '../systems/PlayerMetrics';
+import { DifficultyManager } from '../systems/DifficultyManager';
 import { DungeonFeatureGenerator, type DungeonFeature } from '../generators/DungeonFeatureGenerator';
 import { EquipmentSystem } from '../systems/EquipmentSystem';
 import { ShopSystem } from '../systems/ShopSystem';
@@ -52,6 +54,8 @@ export class GameScene extends Phaser.Scene {
   private mapTransitionSystem!: MapTransitionSystem;
   private floorManager!: DungeonFloorManager;
   private difficultySystem!: DifficultyScalingSystem;
+  private playerMetrics!: PlayerMetrics;
+  private difficultyManager!: DifficultyManager;
   private featureGenerator!: DungeonFeatureGenerator;
   private _dungeonFeatures: DungeonFeature[] = [];
   private equipmentSystem!: EquipmentSystem;
@@ -133,6 +137,8 @@ export class GameScene extends Phaser.Scene {
     this.mapTransitionSystem = new MapTransitionSystem();
     this.floorManager       = new DungeonFloorManager();
     this.difficultySystem   = new DifficultyScalingSystem();
+    this.playerMetrics      = new PlayerMetrics();
+    this.difficultyManager  = new DifficultyManager();
     this.featureGenerator   = new DungeonFeatureGenerator();
     this.floorManager.reset();
     this.equipmentSystem = new EquipmentSystem();
@@ -361,8 +367,8 @@ export class GameScene extends Phaser.Scene {
 
     this._renderDungeonFeatures(floor);
 
-    // Gerar inimigos com scaling de dificuldade
-    const difficulty = this.difficultySystem.getFloorDifficulty(floor);
+    // Gerar inimigos com scaling adaptativo (andar + performance do jogador)
+    const difficulty = this.difficultyManager.getAdaptiveDifficulty(floor);
     this._enemies = createEnemies(this._dungeon, this._dungeon.startPos, difficulty);
     this._createEnemySprites();
 
@@ -687,6 +693,7 @@ export class GameScene extends Phaser.Scene {
       this._enemies,
       this._currentMap,
       this.combatSystem,
+      this.playerMetrics,
     );
 
     result.messages.forEach(msg => EventBus.emit(EVENTS.UI_LOG, msg));
@@ -703,6 +710,13 @@ export class GameScene extends Phaser.Scene {
       this._removeEnemySprite(e);
       this.lootSystem.roll(e.gridX, e.gridY);
     });
+
+    // Atualizar dificuldade adaptativa e emitir hint narrativo se mudou
+    const levelChanged = this.difficultyManager.update(this.playerMetrics);
+    if (levelChanged) {
+      const hint = this.difficultyManager.getAdaptiveDifficulty(this.floorManager.currentFloor).narrativeHint;
+      if (hint) EventBus.emit(EVENTS.UI_LOG, hint);
+    }
 
     if (result.playerDied) {
       this.events.emit(EVENTS.PLAYER_DIED);
