@@ -52,7 +52,7 @@ Autor: Paolo
 Data: 2026-05-04
 
 Prompt exato utilizado:
-> "Vamos executar o processo mencionado no arquivo fase_5.md, por gentileza"
+> "Execute o processo mencionado no arquivo fase_5.md"
 
 O que foi feito:
 

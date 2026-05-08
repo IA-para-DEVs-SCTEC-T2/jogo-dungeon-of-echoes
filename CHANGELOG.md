@@ -111,6 +111,9 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 - `EnemySystem`: novo atributo `aggressionLevel` (0–1); HARD → raio de detecção +50%, sempre persegue; EASY → chance de idle mesmo detectando o player
 - `TurnManager`: registra métricas de combate via `PlayerMetrics` (dano, kills, mortes, itens usados)
 - `GameScene`: usa `DifficultyManager.getAdaptiveDifficulty()` no spawn; emite hints narrativos sutis ao mudar de dificuldade
+
+### Changed (docs)
+- `docs/prompts/Paolo.md`: descrição do prompt da fase 5 ajustada
 - Descida: player nasce no `stairUp` do andar destino; subida: player nasce no `stairDown` do andar de origem
 - Retorno à cidade via `stairUp` com `targetFloor = 'town'` — sem heurística de `startPos`
 - Labels visuais nas escadas: `▲ CIDADE` (floor 1), `▲ SUBIR` (demais floors), `▼ DESCER`
