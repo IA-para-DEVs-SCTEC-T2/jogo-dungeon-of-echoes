@@ -9,12 +9,10 @@ import { TurnManager } from '../systems/TurnManager';
 import { LootSystem } from '../systems/LootSystem';
 import { EventBus } from '../utils/EventBus';
 import { TownMap } from '../systems/WorldSystem';
-import { CityDecorationSystem } from '../systems/CityDecorationSystem';
 import { NPCController } from '../systems/NPCController';
 import { InteractiveObjectSystem } from '../systems/InteractiveObjectSystem';
-import { CityLayoutProcessor } from '../generators/CityLayoutProcessor';
-import { TileVariantResolver } from '../generators/TileVariantResolver';
-import { TOWN_CONFIG } from '../config/town.config';
+import { TownTMXRenderer } from '../systems/TownTMXRenderer';
+import { LAYER_GROUND } from '../config/sprites-config';
 import { InputModeManager } from '../systems/InputModeManager';
 import { MapTransitionSystem } from '../systems/MapTransitionSystem';
 import { DungeonFloorManager } from '../systems/DungeonFloorManager';
@@ -251,63 +249,42 @@ export class GameScene extends Phaser.Scene {
     this._enemies = [];
   }
 
-  private _loadTown(spawnX = TOWN_CONFIG.startX, spawnY = TOWN_CONFIG.startY): void {
-    // 1. Processar layout com biomas e variantes de tile
-    const resolver  = new TileVariantResolver();
-    const processor = new CityLayoutProcessor(resolver);
-    const layout    = processor.process(TOWN_CONFIG);
+  private _loadTown(spawnX = TOWN.START_X, spawnY = TOWN.START_Y): void {
+    const renderer = new TownTMXRenderer();
+    const { collisionGrid, npcSpawns, tileObjects } = renderer.render(this);
 
+    // Construir TownMap com o grid de colisão do TMX
     const townMap = new TownMap();
+    townMap.grid  = collisionGrid;
     this._currentMap = townMap;
 
-    const W = layout.width;
-    const H = layout.height;
+    this._tileObjects.push(...tileObjects);
 
-    // 2. Tiles de chão usando groundTiles resolvidos por bioma
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        const px = x * TILE_SIZE + TILE_SIZE / 2;
-        const py = y * TILE_SIZE + TILE_SIZE / 2;
-        const resolved = layout.groundTiles[y][x];
-        // Tiles WALL que não têm override visual são renderizados com sprite de parede
-        if (townMap.grid[y][x] === TILE.WALL && !TOWN_CONFIG.tileVisuals[`${x},${y}`]) {
-          this._tileObjects.push(
-            this.add.image(px, py, SPRITES.WALL, DAWNLIKE_FRAMES.WALL).setDepth(0),
-          );
-        } else {
-          this._tileObjects.push(
-            this.add.image(px, py, resolved.sprite, resolved.frame).setDepth(0),
-          );
-        }
-      }
-    }
+    // Marcador visual da saída para a dungeon
+    const exitPx = TOWN.EXIT_X * TILE_SIZE + TILE_SIZE / 2;
+    const exitPy = TOWN.EXIT_Y * TILE_SIZE + TILE_SIZE / 2;
+    this._tileObjects.push(
+      this.add.image(exitPx, exitPy, 'pit0', 0).setDepth(LAYER_GROUND + 0.5),
+    );
 
-    // 3. Decorações (árvores, barris, labels de edifícios, marcador dungeon)
-    const deco = new CityDecorationSystem();
-    this._decorObjects.push(...deco.render(this, layout.worldObjects, TOWN_CONFIG.labels));
-
-    // 4. NPCs com wandering via NPCController
+    // NPCs vindos do TMX
     this._npcController = new NPCController();
-    const npcSprites = this._npcController.spawn(this, layout.npcs);
-    // Registrar sprites no _decorObjects apenas para limpeza de emergência (NPCController.destroy já lida)
-    // não adicionamos aqui para evitar double-destroy — cleanup chama _npcController.destroy()
+    this._npcController.spawn(this, npcSpawns);
 
-    // 5. Objetos interativos (detecção de portas)
+    // Sistema de objetos interativos (sem layout procedural — lista vazia)
     this._interactiveSystem = new InteractiveObjectSystem();
-    this._interactiveSystem.load(this, layout.interactive, this._npcController!);
+    this._interactiveSystem.load(this, [], this._npcController);
 
-    void npcSprites; // used by NPCController internally
-
-    // 6. Reposicionar player
+    // Reposicionar player
     this.player.gridX = spawnX;
     this.player.gridY = spawnY;
     this.player.setPosition(spawnX * TILE_SIZE + TILE_SIZE / 2, spawnY * TILE_SIZE + TILE_SIZE / 2);
 
-    this.cameras.main.setBounds(0, 0, W * TILE_SIZE, H * TILE_SIZE);
+    this.cameras.main.setBounds(0, 0, TOWN.WIDTH * TILE_SIZE, TOWN.HEIGHT * TILE_SIZE);
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.cameras.main.setZoom(2);
 
-    const isReturn = spawnX === TOWN_CONFIG.exitX && spawnY === TOWN_CONFIG.exitY - 1;
+    const isReturn = spawnX !== TOWN.START_X || spawnY !== TOWN.START_Y;
     EventBus.emit(EVENTS.UI_LOG, isReturn
       ? 'Você retornou à cidade.'
       : 'Bem-vindo à cidade. Siga o caminho ao sul para entrar na dungeon.',

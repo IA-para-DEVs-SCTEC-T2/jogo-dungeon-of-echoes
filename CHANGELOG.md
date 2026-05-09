@@ -52,6 +52,18 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ### Added
 
+#### Sistema de Override de Tiles (mapa da cidade)
+
+- **`TILE_GID`** em `TileProperties.ts`: ~70 aliases de TMX GID organizados por tileset (Wall, Floor, Pit0, Door0, Decor0, Ground0, Tree0) — permite referenciar tiles por nome em vez de número
+- **`MANUAL_MAP_OVERRIDES`**: objeto de configuração por coordenada `"tmxX,tmxY"` com suporte a `forceGid`, `forceGidLike`, `overlayGid` e `walkable` — corrige tiles problemáticos do TMX sem alterar o renderer
+- **`DEBUG_SHOW_COORDINATES`** em `TownTMXRenderer.ts`: flag que exibe textos de coordenada sobre cada tile e adiciona label interativo — ao clicar com o mouse mostra `tile: X,Y` no canto da tela
+- Overrides aplicados antes de `getTileProp()` em ambos os layers (Tiles e Sprites), garantindo prioridade total sobre o TMX original; suporte a tiles vazios (GID 0) sendo preenchidos via override
+
+### Fixed
+
+- Quadrados pretos no lugar de árvores: frames 0–47 do Tree0.png são pretos/vazios — renderer agora os ignora; `isTreeTop` e aliases `TILE_GID.TREE*` atualizados para frames 48+ (primeira linha visível)
+- GIDs incorretos em `TILE_GID` (GRASS/STONE/DIRT apontavam para frame index em vez de TMX GID): corrigidos com `firstgid=2312` para Ground0.png
+
 #### Sistema de Comércio e Equipamentos
 
 - **`ShopSystem`**: lógica de compra e venda catalog-driven; `buyItem()` e `sellItem()` retornam resultado tipado; `buildViewModel()` e `buildSellItems()` constroem ViewModel sem acoplamento à UI

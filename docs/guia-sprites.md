@@ -144,3 +144,114 @@ Use o `textureKey` do `FLOOR_ATLAS` ou `OBJECT_ATLAS` para inspecionar qualquer 
 | `'cat0'` | `Cat0.png` — gato |
 
 Salvar o arquivo já atualiza a tela (Vite HMR) — tweake o frame e veja o resultado na hora.
+
+---
+
+## Override Manual por Coordenada
+
+Use isso para corrigir tiles problemáticos (animais estáticos, fundo escuro, colisão errada)
+sem precisar mexer na lógica do renderer.
+
+### Fluxo rápido
+
+| Passo | Ação |
+|---|---|
+| 1 | Em `src/systems/TownTMXRenderer.ts`, mude `DEBUG_SHOW_COORDINATES` para `true` |
+| 2 | Rode o jogo (`npm run dev`) e localize o tile problemático na tela |
+| 3 | Anote a coordenada exibida em branco/amarelo (ex: `14,3`) |
+| 4 | Abra `src/config/TileProperties.ts` |
+| 5 | Adicione a entrada em `MANUAL_MAP_OVERRIDES` (veja exemplos abaixo) |
+| 6 | Desligue o debug (`false`) e recarregue |
+
+> As coordenadas são relativas ao TMX (sem o padding de grama): canto superior esquerdo = `0,0`.
+> Tiles do layer "Tiles" aparecem em **branco**, tiles do layer "Sprites" em **amarelo**.
+
+### Tabela De/Para — exemplos comuns
+
+| Problema | Coordenada | Override |
+|---|---|---|
+| Animal estático visível | `14,3` | `'14,3': { forceGid: TILE_GID.GRASS }` |
+| Fundo escuro/void | `10,7` | `'10,7': { forceGid: TILE_GID.GRASS, walkable: true }` |
+| Cerca que bloqueia passagem | `5,12` | `'5,12': { walkable: true }` |
+| Trocar por chão de pedra | `8,2` | `'8,2': { forceGid: TILE_GID.STONE }` |
+| Trocar por chão de terra | `3,9` | `'3,9': { forceGid: TILE_GID.DIRT }` |
+
+### Aliases disponíveis (`TILE_GID` em `TileProperties.ts`)
+
+| Nome | TMX GID | Frame | Tile |
+|---|---|---|---|
+| `TILE_GID.STONE` | 2312 | 0 | Pedra cinza (Ground0, linha 0) |
+| `TILE_GID.DIRT` | 2320 | 8 | Terra marrom (Ground0, linha 1) |
+| `TILE_GID.GRASS` | 2328 | 16 | Grama verde (Ground0, linha 2) |
+| `TILE_GID.VOID` | 2329 | 17 | Grama variante (Ground0, linha 2) |
+
+> Os TMX GIDs são `firstgid(2312) + frame`. Para outros frames do Ground0.png, calcule: `2312 + frame`.
+> Para outros GIDs do mapa, use o número direto: `forceGid: 1176`.
+A lista completa de GIDs do mapa está em `src/config/TownTMXData.ts`.
+
+---
+
+## Como customizar o comportamento de Tiles e Objetos
+
+O arquivo **`src/config/TileProperties.ts`** é o ponto central para controlar
+colisão e interação de cada sprite no mapa da cidade, sem tocar no renderer.
+
+### Estrutura
+
+```typescript
+// Dentro de TABERNA, LOJA_ARMAS, CAMINHO_CIDADE, etc.
+2216: { label: 'Balcão esq', walkable: false, interaction: null },
+// ↑ GID do sprite        ↑ pode andar?    ↑ null = sem interação especial
+```
+
+### Como encontrar o GID de um sprite
+O GID é o número que aparece nas arrays `TMX_TILES_LAYER` ou `TMX_SPRITES_LAYER`
+em `src/config/TownTMXData.ts`. Para identificá-lo visualmente abra
+`public/assets/dawnlike/Examples/Town.tmx` no **Tiled Map Editor** e clique no tile.
+
+### Como tornar um objeto caminhável
+```typescript
+// Antes:
+2217: { label: 'Balcão centro', walkable: false, interaction: null },
+// Depois (libera a passagem):
+2217: { label: 'Balcão centro', walkable: true,  interaction: null },
+```
+Salve o arquivo — o HMR do Vite recarrega o mapa com a nova colisão.
+
+### Como adicionar interação a um tile (futuro)
+```typescript
+2217: { label: 'Balcão', walkable: false, interaction: { type: 'shop' } },
+```
+Tipos disponíveis: `'shop'` (abre loja), `'dialogue'` (mensagem no log),
+`'menu'` (menu de opções, ex.: descanso na estalagem).
+
+### Como adicionar um novo GID ao sistema
+1. Descubra o GID (Tiled ou inspecionando `TownTMXData.ts`)
+2. Adicione a entrada na seção temática correta (`TABERNA`, `LOJA_ARMAS`, etc.):
+   ```typescript
+   9999: { label: 'Minha decoração', walkable: false, interaction: null },
+   ```
+3. O `TILE_PROP_MAP` é montado automaticamente com `...TABERNA, ...LOJA_ARMAS, ...`
+
+### Regras de colisão padrão (quando o GID não está no mapa)
+| Layer    | Tileset           | Comportamento padrão |
+|----------|-------------------|----------------------|
+| Tiles    | Wall (GID 1–1020) | **Sólido**           |
+| Tiles    | Floor (GID 1021+) | Passável             |
+| Sprites  | Door0             | Passável (porta)     |
+| Sprites  | Qualquer outro    | **Sólido**           |
+
+### Tabela de textureKeys do mapa TMX
+| `textureKey` | Arquivo              | Uso no mapa           |
+|---|---|---|
+| `'floor'`    | `Floor.png`          | Piso principal (21 cols) |
+| `'wall'`     | `Wall.png`           | Paredes dos edifícios |
+| `'ground'`   | `Ground0.png`        | Grama e chão externo  |
+| `'decor0'`   | `Decor0.png`         | Móveis e decorações   |
+| `'door0'`    | `Door0.png`          | Portas (passáveis)    |
+| `'tree0'`    | `Tree0.png`          | Árvores               |
+| `'pit0'`     | `Pit0.png`           | Marcador de dungeon   |
+| `'chest0'`   | `Items/Chest0.png`   | Baús (sólidos)        |
+| `'humanoid0'`| `Humanoid0.png`      | NPCs humanoides       |
+| `'cat0'`     | `Cat0.png`           | Gato                  |
+| `'quad0'`    | `Quadraped0.png`     | Animais (cavalos etc) |

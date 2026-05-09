@@ -701,3 +701,25 @@ Arquivos gerados/modificados:
 - `src/scenes/GameScene.ts` — Fix 2, Fix 3, Fix 4
 - `src/types/viewmodels.ts` — InventoryDetailViewModel com 'unequip'
 - `src/ui/InventoryPanel.ts` — actionMap com '[E] Desequipar'
+
+## Prompt 19
+Autor: Vitor
+Data: 2026-05-09
+
+Contexto:
+O mapa da cidade (Town.tmx) apresentava tiles problemáticos: animais estáticos visíveis, fundos escuros, árvores com quadrados pretos, e tiles sem colisão correta. Precisávamos de uma forma rápida de corrigir esses problemas sem alterar o renderer.
+
+Objetivo:
+Implementar um sistema de override por coordenada que permita ajustes manuais rápidos no mapa, com aliases de GID amigáveis e modo debug visual.
+
+Tarefas realizadas:
+1. Criar `TILE_GID` em `TileProperties.ts` com ~70 aliases de TMX GID organizados por tileset
+2. Criar `MANUAL_MAP_OVERRIDES` com suporte a `forceGid`, `forceGidLike`, `overlayGid` e `walkable`
+3. Implementar `DEBUG_SHOW_COORDINATES` no renderer com textos estáticos por tile e label interativo ao clicar
+4. Corrigir frames pretos do Tree0.png (frames 0–47 vazios, árvores visíveis a partir do frame 48)
+5. Corrigir GIDs incorretos no `TILE_GID` (frame index vs TMX GID real)
+
+Arquivos modificados:
+- `src/config/TileProperties.ts` — TILE_GID, MANUAL_MAP_OVERRIDES
+- `src/systems/TownTMXRenderer.ts` — DEBUG_SHOW_COORDINATES, lógica de override, fix árvores
+- `docs/guia-sprites.md` — seção "Override Manual por Coordenada"
