@@ -22,26 +22,37 @@ export class EnemySystem {
   state: EnemyState;
   detectionRadius: number;
 
+  /**
+   * Nível de agressividade: 0–1.
+   * 0.0 = passivo (idle frequente, persegue menos)
+   * 1.0 = agressivo (sempre persegue, ataca imediatamente)
+   * Definido pelo DifficultyManager no momento do spawn.
+   */
+  aggressionLevel: number;
+
   sprite: Phaser.GameObjects.Sprite | null = null;
   hpBar: Phaser.GameObjects.Rectangle | null = null;
   hpBarBg: Phaser.GameObjects.Rectangle | null = null;
 
   constructor(gridX: number, gridY: number, id: number) {
-    this.id            = id;
-    this.hp            = ENEMY.HP;
-    this.maxHp         = ENEMY.HP;
-    this.attack        = ENEMY.ATTACK;
-    this.xpReward      = ENEMY.XP_REWARD;
-    this.gridX         = gridX;
-    this.gridY         = gridY;
-    this.alive         = true;
-    this.state         = 'IDLE';
+    this.id              = id;
+    this.hp              = ENEMY.HP;
+    this.maxHp           = ENEMY.HP;
+    this.attack          = ENEMY.ATTACK;
+    this.xpReward        = ENEMY.XP_REWARD;
+    this.gridX           = gridX;
+    this.gridY           = gridY;
+    this.alive           = true;
+    this.state           = 'IDLE';
     this.detectionRadius = ENEMY.DETECTION_RADIUS;
+    this.aggressionLevel = 0.5; // padrão NORMAL
   }
 
   /**
    * Executa o turno da IA.
-   * Retorna se o inimigo atacou o player e quanto dano causou.
+   * Comportamento adaptado pelo aggressionLevel:
+   * - Alto (>0.7): sempre persegue, raio de detecção ampliado
+   * - Baixo (<0.3): comportamento mais aleatório, chance de ficar idle
    */
   update(
     playerGridX: number,
@@ -56,12 +67,26 @@ export class EnemySystem {
     const manhattan = Math.abs(dx) + Math.abs(dy);
     const adjacent  = manhattan === 1;
 
-    // Detecção: mesma sala OU dentro do raio de visão
-    if (manhattan <= this.detectionRadius || this._isInSameRoom(playerGridX, playerGridY, dungeon)) {
+    // Raio de detecção ampliado para inimigos agressivos
+    const effectiveRadius = this.aggressionLevel > 0.7
+      ? this.detectionRadius * 1.5
+      : this.detectionRadius;
+
+    // Detecção: dentro do raio OU mesma sala (sempre para agressivos)
+    const detected = manhattan <= effectiveRadius ||
+      (this.aggressionLevel > 0.7) ||
+      this._isInSameRoom(playerGridX, playerGridY, dungeon);
+
+    if (detected) {
       this.state = 'CHASING';
     }
 
     if (this.state === 'IDLE') return { attacked: false, damage: 0 };
+
+    // Inimigos pouco agressivos têm chance de ficar idle mesmo detectando
+    if (this.aggressionLevel < 0.3 && Math.random() > this.aggressionLevel + 0.3) {
+      return { attacked: false, damage: 0 };
+    }
 
     // Ataca se estiver no tile adjacente ao player
     if (adjacent) {
@@ -136,11 +161,12 @@ export class EnemySystem {
 export function createEnemies(
   dungeon: DungeonGenerator,
   playerPos: GridPos,
-  difficulty?: FloorDifficulty,
+  difficulty?: FloorDifficulty & { aggressionLevel?: number },
 ): EnemySystem[] {
-  const count    = difficulty?.enemyCount ?? ENEMY.COUNT;
-  const hpScale  = difficulty?.enemyHpMultiplier  ?? 1;
-  const atkScale = difficulty?.enemyAtkMultiplier ?? 1;
+  const count      = difficulty?.enemyCount ?? ENEMY.COUNT;
+  const hpScale    = difficulty?.enemyHpMultiplier  ?? 1;
+  const atkScale   = difficulty?.enemyAtkMultiplier ?? 1;
+  const aggression = (difficulty as { aggressionLevel?: number } | undefined)?.aggressionLevel ?? 0.5;
 
   const enemies: EnemySystem[] = [];
   const occupied = new Set<string>();
@@ -157,10 +183,10 @@ export function createEnemies(
     if (!occupied.has(`${pos.x},${pos.y}`)) {
       occupied.add(`${pos.x},${pos.y}`);
       const enemy = new EnemySystem(pos.x, pos.y, i);
-      // Aplicar scaling no spawn — base stats das constants nunca mutadas
-      enemy.hp    = Math.round(ENEMY.HP     * hpScale);
-      enemy.maxHp = Math.round(ENEMY.HP     * hpScale);
-      enemy.attack = Math.round(ENEMY.ATTACK * atkScale);
+      enemy.hp             = Math.round(ENEMY.HP     * hpScale);
+      enemy.maxHp          = Math.round(ENEMY.HP     * hpScale);
+      enemy.attack         = Math.round(ENEMY.ATTACK * atkScale);
+      enemy.aggressionLevel = aggression;
       enemies.push(enemy);
     }
   }

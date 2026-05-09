@@ -4,6 +4,7 @@ import type { Player } from '../entities/Player';
 import type { EnemySystem } from './EnemySystem';
 import type { CombatSystem } from './CombatSystem';
 import type { DungeonGenerator } from '../generators/DungeonGenerator';
+import type { PlayerMetrics } from './PlayerMetrics';
 
 export type Action =
   | { type: 'MOVE'; dx: number; dy: number }
@@ -31,6 +32,7 @@ export class TurnManager {
     enemies: EnemySystem[],
     dungeon: DungeonGenerator,
     combat: CombatSystem,
+    metrics?: PlayerMetrics,
   ): TurnResult {
     const result: TurnResult = {
       messages: [],
@@ -52,17 +54,20 @@ export class TurnManager {
         player.gridY = ty;
         player.setPosition(tx * TILE_SIZE + TILE_SIZE / 2, ty * TILE_SIZE + TILE_SIZE / 2);
         result.playerMoved = true;
+        metrics?.recordTurn();
       }
     } else if (action.type === 'ATTACK') {
       const target = action.target;
       const atk = combat.attack(player, target);
       if (atk.hit) {
         target.hp = Math.max(0, target.hp - atk.damage);
+        metrics?.recordDamageDealt(atk.damage);
         result.messages.push(`Você atacou e causou ${atk.damage} de dano`);
         if (target.hp <= 0) {
           target.alive = false;
           result.enemiesDied.push(target);
           result.messages.push('Inimigo morreu');
+          metrics?.recordEnemyKilled();
           combat['xpSystem']?.addXP(player, target.xpReward);
         }
       } else {
@@ -77,16 +82,15 @@ export class TurnManager {
       );
 
       if (useResult.success) {
-        // Aplicar efeito de HP
         if (useResult.hpDelta !== 0) {
           player.hp = Math.max(0, Math.min(player.maxHp, player.hp + useResult.hpDelta));
           EventBus.emit(EVENTS.PLAYER_HP_CHANGED, { hp: player.hp, maxHp: player.maxHp });
-
           if (player.hp <= 0) {
             result.playerDied = true;
             result.messages.push('Você morreu');
           }
         }
+        metrics?.recordItemUsed();
         result.messages.push(...useResult.messages);
         EventBus.emit(EVENTS.ITEM_USED, { itemIndex: action.itemIndex });
       } else {
@@ -104,10 +108,12 @@ export class TurnManager {
         const atk = combat.attack(enemy, player);
         if (atk.hit) {
           player.hp = Math.max(0, player.hp - atk.damage);
+          metrics?.recordDamageTaken(atk.damage);
           EventBus.emit(EVENTS.PLAYER_HP_CHANGED, { hp: player.hp, maxHp: player.maxHp });
           result.messages.push(`Inimigo atacou você por ${atk.damage}`);
           if (player.hp <= 0) {
             result.playerDied = true;
+            metrics?.recordDeath();
             result.messages.push('Você morreu');
           }
         } else {

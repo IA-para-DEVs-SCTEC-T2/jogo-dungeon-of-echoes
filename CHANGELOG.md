@@ -103,6 +103,17 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 - `DungeonFloorManager`: cache de andares por sessão — andares já visitados preservam inimigos mortos e itens coletados
 - `DungeonFeatureGenerator`: gera `stairUp` e `stairDown` em salas diferentes, com distância mínima de 5 tiles entre elas
 - `DifficultyScalingSystem`: scaling de inimigos data-driven via `FLOOR_DIFFICULTY_TABLE` — HP e ATK aumentam por andar, base stats nunca mutados
+
+#### IA Adaptativa — Fase 5
+
+- `PlayerMetrics`: coleta métricas em tempo real (dano causado/recebido, kills, turnos sobrevividos, itens usados, mortes); score normalizado -100 a +100 com janela deslizante de 20 turnos
+- `DifficultyManager`: dificuldade adaptativa com 3 níveis (EASY/NORMAL/HARD); histerese de 3 ciclos evita oscilação; recalcula a cada 10 turnos; combina tabela estática por andar com modificadores adaptativos
+- `EnemySystem`: novo atributo `aggressionLevel` (0–1); HARD → raio de detecção +50%, sempre persegue; EASY → chance de idle mesmo detectando o player
+- `TurnManager`: registra métricas de combate via `PlayerMetrics` (dano, kills, mortes, itens usados)
+- `GameScene`: usa `DifficultyManager.getAdaptiveDifficulty()` no spawn; emite hints narrativos sutis ao mudar de dificuldade
+
+### Changed (docs)
+- `docs/prompts/Paolo.md`: descrição do prompt da fase 5 ajustada
 - Descida: player nasce no `stairUp` do andar destino; subida: player nasce no `stairDown` do andar de origem
 - Retorno à cidade via `stairUp` com `targetFloor = 'town'` — sem heurística de `startPos`
 - Labels visuais nas escadas: `▲ CIDADE` (floor 1), `▲ SUBIR` (demais floors), `▼ DESCER`
