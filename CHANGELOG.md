@@ -52,6 +52,12 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ### Added
 
+#### Renderização de padding completo (30×25)
+
+- **Loop de grama expandido** em `TownTMXRenderer.ts`: as 450 células de padding agora consultam `MANUAL_MAP_OVERRIDES` (suportando chaves com coordenadas negativas como `"-5,-3"`) e exibem `DEBUG_SHOW_COORDINATES` — todas as 750 células do mapa ficam visíveis no modo debug
+- Células de padding com `forceGid` no override renderizam o tile customizado; sem override continuam com grama padrão (frames 16/17/18)
+- `walkable: false` em overrides de padding marca a célula como sólida no `collisionGrid`; padrão é sempre passável
+
 #### Sistema de Override de Tiles (mapa da cidade)
 
 - **`TILE_GID`** em `TileProperties.ts`: ~70 aliases de TMX GID organizados por tileset (Wall, Floor, Pit0, Door0, Decor0, Ground0, Tree0) — permite referenciar tiles por nome em vez de número

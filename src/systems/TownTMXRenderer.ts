@@ -26,7 +26,7 @@ const GID_MASK = 0x1FFFFFFF;
 
 // Quando true, exibe "tmxX,tmxY" sobre cada tile — útil para identificar coordenadas
 // de tiles problemáticos e adicioná-los em MANUAL_MAP_OVERRIDES (TileProperties.ts).
-const DEBUG_SHOW_COORDINATES = true;
+const DEBUG_SHOW_COORDINATES = false;
 
 // Frames de grama usados no preenchimento ao redor do mapa TMX
 const GRASS_FRAMES = [16, 17, 18] as const;
@@ -84,13 +84,38 @@ export class TownTMXRenderer {
         const tmxX = worldX - TMX_PAD_X;
         const tmxY = worldY - TMX_PAD_Y;
         const inTMX = tmxX >= 0 && tmxX < TMX_WIDTH && tmxY >= 0 && tmxY < TMX_HEIGHT;
-        if (!inTMX) {
+        if (inTMX) continue; // células TMX são tratadas nos loops abaixo
+
+        const coordKey = `${tmxX},${tmxY}`;
+        const manualOverride = MANUAL_MAP_OVERRIDES[coordKey];
+        const px = worldX * TILE_SIZE + TILE_SIZE / 2;
+        const py = worldY * TILE_SIZE + TILE_SIZE / 2;
+
+        if (manualOverride?.forceGid !== undefined) {
+          const resolved = resolveGid(manualOverride.forceGid);
+          if (resolved) {
+            tileObjects.push(
+              scene.add
+                .image(px, py, resolved.textureKey, resolved.frame)
+                .setDepth(LAYER_GROUND)
+                .setFlipX(resolved.flipX)
+                .setFlipY(resolved.flipY),
+            );
+          }
+          if (manualOverride.walkable === false) {
+            collisionGrid[worldY][worldX] = TILE.WALL;
+          }
+        } else {
           const frame = GRASS_FRAMES[(worldX * 7 + worldY * 13) % GRASS_FRAMES.length];
-          const px = worldX * TILE_SIZE + TILE_SIZE / 2;
-          const py = worldY * TILE_SIZE + TILE_SIZE / 2;
           tileObjects.push(
             scene.add.image(px, py, 'ground', frame).setDepth(LAYER_GROUND),
           );
+        }
+
+        if (DEBUG_SHOW_COORDINATES) {
+          scene.add.text(px - TILE_SIZE / 2, py - TILE_SIZE / 2, coordKey, {
+            fontSize: '5px', color: '#ffffff', backgroundColor: '#000000cc',
+          }).setDepth(9999).setScrollFactor(1);
         }
       }
     }

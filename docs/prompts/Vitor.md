@@ -723,3 +723,22 @@ Arquivos modificados:
 - `src/config/TileProperties.ts` — TILE_GID, MANUAL_MAP_OVERRIDES
 - `src/systems/TownTMXRenderer.ts` — DEBUG_SHOW_COORDINATES, lógica de override, fix árvores
 - `docs/guia-sprites.md` — seção "Override Manual por Coordenada"
+
+## Prompt 20
+Autor: Vitor
+Data: 2026-05-09
+
+Contexto:
+A área de padding (fundo escuro com flores) fora dos limites do TMX (20×15) não exibia coordenadas de debug nem permitia uso de MANUAL_MAP_OVERRIDES. O renderer só processava as 300 células do TMX, ignorando as 450 células de padding que completam o mapa 30×25.
+
+Objetivo:
+Expandir o loop de grama de preenchimento para suportar MANUAL_MAP_OVERRIDES e DEBUG_SHOW_COORDINATES em todas as 750 células (30×25), incluindo as de padding com coordenadas negativas.
+
+Tarefas realizadas:
+1. Refatorar o loop de grama em TownTMXRenderer.ts para verificar MANUAL_MAP_OVERRIDES por coordenada (incluindo chaves negativas como "-5,-3")
+2. Renderizar tile customizado via forceGid quando override presente; grama padrão caso contrário
+3. Exibir DEBUG_SHOW_COORDINATES em todas as células de padding
+4. Respeitar walkable: false nos overrides de padding (padrão é walkable)
+
+Arquivos modificados:
+- `src/systems/TownTMXRenderer.ts` — loop de grama expandido com override e debug
