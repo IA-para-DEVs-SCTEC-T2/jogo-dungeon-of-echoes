@@ -229,3 +229,8 @@ export const AI = {
   CACHE_MAX_SIZE: 100,          // Máximo de entradas no cache
   REQUEST_TIMEOUT: 5000,        // Timeout de 5s para chamadas LLM
 } as const;
+
+// ─── Configurações de desenvolvimento ────────────────────────────────────────
+export const DEV_CONFIG = {
+  godMode: false,  // true → player não toma dano
+};

@@ -12,6 +12,8 @@ import { TownMap } from '../systems/WorldSystem';
 import { NPCController } from '../systems/NPCController';
 import { InteractiveObjectSystem } from '../systems/InteractiveObjectSystem';
 import { TownTMXRenderer } from '../systems/TownTMXRenderer';
+import { themeForFloor } from '../config/dungeon-themes';
+import { DungeonRenderer } from '../systems/DungeonRenderer';
 import { BonusAreaRenderer } from '../systems/BonusAreaRenderer';
 import { LAYER_GROUND } from '../config/sprites-config';
 import { InputModeManager } from '../systems/InputModeManager';
@@ -370,8 +372,7 @@ export class GameScene extends Phaser.Scene {
     } else {
       this._dungeon = new DungeonGenerator();
       this._dungeon.generate();
-      const variants   = DAWNLIKE_FRAMES.FLOOR_VARIANTS;
-      this._floorFrame = variants[Math.floor(Math.random() * variants.length)];
+      this._floorFrame = 0; // mantido para compatibilidade com DungeonState (cache)
       this._items      = [];
       this._generateInitialItems();
       // Gerar features e salvar conexões apenas uma vez (Math.random implica não-determinismo)
@@ -383,23 +384,21 @@ export class GameScene extends Phaser.Scene {
     this._currentMap  = this._dungeon;
     this._currentArea = 'dungeon';
 
-    // Renderizar tiles
+    // Renderizar tiles via DungeonRenderer (semantic autotiling)
+    const theme = themeForFloor(floor);
     const { width: W, height: H, grid } = this._dungeon;
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        const isFloor = grid[y][x] === TILE.FLOOR;
-        const px = x * TILE_SIZE + TILE_SIZE / 2;
-        const py = y * TILE_SIZE + TILE_SIZE / 2;
-        this._tileObjects.push(
-          this.add.image(px, py, isFloor ? SPRITES.FLOOR : SPRITES.WALL,
-            isFloor ? this._floorFrame : DAWNLIKE_FRAMES.WALL).setDepth(0),
-        );
-      }
+    const renderer = new DungeonRenderer();
+    const commands = renderer.buildCommands(grid, theme, floor);
+    for (const cmd of commands) {
+      this._tileObjects.push(
+        this.add.image(cmd.x, cmd.y, cmd.texture, cmd.frame).setDepth(cmd.depth),
+      );
     }
 
     // Recriar sprites dos itens no chão
     for (const item of this._items) {
       if (item.gridX === null || item.gridY === null) continue;
+      item.sprite?.destroy();
       const px = item.gridX * TILE_SIZE + TILE_SIZE / 2;
       const py = item.gridY * TILE_SIZE + TILE_SIZE / 2;
       const { texture, frame } = this._getItemVisual(item.type);
@@ -609,10 +608,8 @@ export class GameScene extends Phaser.Scene {
       this.player.inventory.addItem(item);
       const slotIndex = this.player.inventory.items.findIndex(i => i === item);
 
-      const s = item.sprite;
+      item.sprite?.destroy();
       item.sprite = null;
-      s?.setVisible(false);
-      this.time.delayedCall(0, () => s?.destroy());
 
       EventBus.emit(EVENTS.UI_LOG, `Você pegou ${displayName}`);
       EventBus.emit(EVENTS.ITEM_PICKED_UP, { item, slotIndex });

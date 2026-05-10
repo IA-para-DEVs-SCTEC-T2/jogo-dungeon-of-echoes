@@ -870,3 +870,76 @@ Arquivos modificados:
 - `IMPLEMENTATION_SUMMARY.md` — removido
 - `fase_3.md` — removido
 - `fase_5.md` — removido
+
+---
+
+## Prompt 26 — feat(dungeon): autotiling semântico por tema de andar
+
+Contexto:
+A renderização de dungeon usava seleção de frames por hash simples (sem contexto espacial) com lógica embutida diretamente no loop da GameScene. Um único tema visual era aplicado a todos os andares.
+
+Objetivo:
+1. Introduzir arquitetura de semantic rendering com separação estrita de camadas
+2. Implementar autotiling de 4 vizinhos com cantos externos/côncavos e corpo sólido
+3. Temas visuais distintos por faixa de andares (dungeon/mine/underworld/boss)
+4. Preparar extensão futura (water, lava, chasm) sem alterar renderer
+
+Tarefas realizadas:
+1. `dungeon-themes.ts` reestruturado: `TileCategory`, `AutoTileSet` (face, cornerOuter_TL/TR, bodyFrames, cornerInner_TL/TR), `DungeonTheme` com `autoTileSets`; 4 temas com frames corretos de Wall.png e Floor.png
+2. `AutoTileResolver` criado: interpreta vizinhos cardinais, resolve `TileRenderData`; sem objetos Phaser
+3. `DungeonRenderer` criado: itera grid, delega ao resolver, emite `RenderCommand[]`
+4. `GameScene._loadDungeonFloor()`: loop inline substituído por `DungeonRenderer.buildCommands()`; imports de `pickFloorFrame`/`pickWallFrame` removidos
+
+Arquivos modificados:
+- `src/config/dungeon-themes.ts` — reescrito com AutoTileSet e 4 temas
+- `src/systems/AutoTileResolver.ts` — novo
+- `src/systems/DungeonRenderer.ts` — novo
+- `src/scenes/GameScene.ts` — delegação ao DungeonRenderer, `width: W, height: H` restaurados
+
+---
+
+## Prompt 27 — fix(dungeon): sprite de poção não desaparecia ao coletar; feat(dev): godMode
+
+Contexto:
+Ao coletar uma poção na dungeon, o sprite permanecia visível no mapa. Além disso, foi solicitado um modo de desenvolvimento onde o player não toma dano.
+
+Objetivo:
+1. Corrigir sprite de item não desaparecendo ao coletar
+2. Adicionar flag `godMode` em configuração de desenvolvimento
+
+Tarefas realizadas:
+1. `_checkItemPickup()`: substituído `delayedCall(0, s.destroy)` por `item.sprite?.destroy()` imediato
+2. Loop de recriação de sprites em `_loadDungeonFloor()`: adicionado `item.sprite?.destroy()` antes de criar novo sprite
+3. `constants.ts`: adicionado `DEV_CONFIG = { godMode: false }` ao final do arquivo
+4. `CombatSystem`: importado `DEV_CONFIG`; dano ao player condicionado a `!DEV_CONFIG.godMode`
+
+Arquivos modificados:
+- `src/scenes/GameScene.ts` — destroy imediato, destroy antes de recriar
+- `src/utils/constants.ts` — DEV_CONFIG
+- `src/systems/CombatSystem.ts` — godMode check
+
+---
+
+## Prompt 28 — docs: atualização pós-v5.2.0
+
+Contexto:
+Após implementação do autotiling semântico, godMode e correções de bugs, atualizar toda a documentação.
+
+Objetivo:
+Manter documentação sincronizada com o estado atual do código.
+
+Tarefas realizadas:
+1. `CHANGELOG.md`: nova seção `[5.2.0]` com Added, Fixed e Changed
+2. `docs/guia-sprites.md`: seção de dungeon reescrita para API de autotiling; tabela resumo atualizada
+3. `docs/PRD.md`: versão 5.2.0, status atualizado, seção dungeon com múltiplos andares/temas, escopo expandido
+4. `.kiro/steering/game-steering.md`: estrutura de pastas e 6 novas restrições arquiteturais
+5. `.kiro/specs/product.md`: tabela de sistemas e seção Dungeon atualizadas; área bônus documentada
+6. `.kiro/specs/world.spec.md`: tabela de áreas e transições expandida com área bônus e múltiplos andares
+
+Arquivos modificados:
+- `CHANGELOG.md`
+- `docs/guia-sprites.md`
+- `docs/PRD.md`
+- `.kiro/steering/game-steering.md`
+- `.kiro/specs/product.md`
+- `.kiro/specs/world.spec.md`

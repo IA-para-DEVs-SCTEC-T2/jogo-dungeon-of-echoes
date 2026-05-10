@@ -23,17 +23,42 @@ O frame `0` é o canto superior esquerdo, incrementa da esquerda pra direita, de
 
 ## Onde Ajustar Cada Sprite
 
-### Dungeon — chão e parede
-**`src/utils/constants.ts`** — seção `DAWNLIKE_FRAMES`
+### Dungeon — chão e parede (autotiling por tema)
+**`src/config/dungeon-themes.ts`** — `AutoTileSet` por tema e categoria
+
+A dungeon usa renderização semântica: cada tile é resolvido pelo `AutoTileResolver` com base nos vizinhos cardinais. Os frames são definidos por tema em `dungeon-themes.ts`.
 
 ```typescript
-FLOOR_VARIANTS: [0, 1, 2, 3, 8, 9, 10, 16, 17, 24, 25, 32, 40, 48],
-FLOOR: 3,    // fallback fixo — frame 3 do Ground0.png
-WALL: 3,     // frame 3 do Wall.png
+// Estrutura de um AutoTileSet (exemplo: tema dungeon, categoria wall)
+wall: {
+  face:           181,        // borda superior visível (vizinho sul = floor)
+  cornerOuter_TL: 180,        // canto externo superior-esquerdo
+  cornerOuter_TR: 182,        // canto externo superior-direito
+  bodyFrames:     [200, 201], // corpo sólido — pool de variação por posição
+  cornerInner_TL: 362,        // canto côncavo (compartilhado entre temas)
+  cornerInner_TR: 360,
+},
+floor: {
+  bodyFrames: [210, 211, 212, 213, 214, 215], // Floor.png linha 10
+},
 ```
 
-- **Chão:** edite `FLOOR_VARIANTS` (lista sorteada por andar) ou `FLOOR` (fallback)
-- **Parede:** edite `WALL`
+**Temas por andar:**
+
+| Andares | Tema | Wall frames (body) | Floor frames |
+|---------|------|-------------------|--------------|
+| 1–2 | `dungeon` | 200, 201 | 210–215 |
+| 3–4 | `mine` | 155, 175 | 378–381, 399–402 |
+| 5–6 | `underworld` | 260, 261 | 441–444, 462–465 |
+| 7+ | `underworld_boss` | 260, 280 | 441–444, 210–212 |
+
+- **Chão:** edite `bodyFrames` na categoria `floor` do tema desejado
+- **Parede:** edite `face`, `cornerOuter_TL/TR`, `bodyFrames` na categoria `wall`
+- **Inner corners** (`362`, `360`) são compartilhados — mudar `SHARED_INNER` altera todos os temas
+
+**Spritesheets de referência:**
+- `Wall.png` — 20 colunas × 51 linhas; frame = linha × 20 + coluna
+- `Floor.png` — 21 colunas × 39 linhas; frame = linha × 21 + coluna
 
 ### Cidade — chão por bioma
 **`src/config/sprites-config.ts`** — objeto `FLOOR_ATLAS`
@@ -109,8 +134,9 @@ cat:       { imageFile: 'Cat0.png',      textureKey: 'cat0',      frame: 0,  des
 
 | O que mudar | Arquivo | Campo |
 |---|---|---|
-| Chão da dungeon | `src/utils/constants.ts` | `DAWNLIKE_FRAMES.FLOOR_VARIANTS` |
-| Parede da dungeon | `src/utils/constants.ts` | `DAWNLIKE_FRAMES.WALL` |
+| Chão da dungeon (por tema) | `src/config/dungeon-themes.ts` | `THEMES[tema].autoTileSets.floor.bodyFrames` |
+| Parede da dungeon (por tema) | `src/config/dungeon-themes.ts` | `THEMES[tema].autoTileSets.wall.*` |
+| Inner corners (todos os temas) | `src/config/dungeon-themes.ts` | `SHARED_INNER` |
 | Chão cidade por bioma | `src/config/sprites-config.ts` | `FLOOR_ATLAS[bioma].frames` |
 | Arquivo fonte de um bioma | `src/config/sprites-config.ts` | `FLOOR_ATLAS[bioma].imageFile` + `.textureKey` |
 | Caminho de pedra central | `src/utils/constants.ts` | `TOWN.STONE_PATH_FRAME` |

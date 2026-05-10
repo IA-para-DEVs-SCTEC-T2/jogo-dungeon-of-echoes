@@ -50,6 +50,34 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ## [Unreleased]
 
+## [5.2.0] — 2026-05-10
+
+### Added
+
+#### Renderização semântica de dungeon com autotiling
+
+- **`AutoTileResolver`** (`src/systems/AutoTileResolver.ts`): resolve frames de tile com base no contexto espacial (vizinhos cardinais) — substitui seleção por hash simples; sem instanciar objetos Phaser
+- **`DungeonRenderer`** (`src/systems/DungeonRenderer.ts`): itera o grid, delega ao resolver e emite `RenderCommand[]` — `GameScene` apenas consome os comandos para criar sprites
+- **`dungeon-themes.ts`** reestruturado: `TileCategory` extensível, `AutoTileSet` com `face`, `cornerOuter_TL/TR`, `bodyFrames`, `cornerInner_TL/TR`; 4 temas completos (dungeon, mine, underworld, underworld_boss) com frames corretos de Wall.png e Floor.png
+- Temas visuais por andar: andares 1–2 → Dungeon (pedra cinza), 3–4 → Mine (terra), 5–6 → Underworld (pedra escura), 7+ → Underworld Boss (mix abismo)
+- Inner corners compartilhados (`cornerInner_TL: 362`, `cornerInner_TR: 360`) em todos os temas
+- Variação determinística de frames por hash posicional — mesma seed, visual idêntico em reentrada
+
+#### Configuração de desenvolvimento
+
+- **`DEV_CONFIG`** em `constants.ts`: flag `godMode` — quando `true`, player não recebe dano de inimigos; permite testes de exploração sem preocupação com HP
+
+### Fixed
+
+- Sprite de poção não desaparecia do mapa ao ser coletada: `delayedCall(0, s.destroy)` substituído por `item.sprite?.destroy()` imediato, eliminando race condition entre agendamento e cleanup de andar
+- Loop de recriação de sprites (`_loadDungeonFloor`) agora destrói sprite anterior antes de criar novo, evitando leak se sprite ainda estiver ativo
+- `ReferenceError: W is not defined` ao entrar na dungeon: `width: W, height: H` removidos inadvertidamente do destructuring durante refatoração; restaurados
+
+### Changed
+
+- `GameScene._loadDungeonFloor()`: loop inline de tiles substituído por `DungeonRenderer.buildCommands()` — zero lógica visual na cena
+- `dungeon-themes.ts`: removidas funções `pickFloorFrame` e `pickWallFrame` (encapsuladas no `AutoTileResolver`)
+
 ### Changed
 
 - Removidos arquivos de resumo/documentação obsoletos da raiz do repositório: `KIRO_RESUMO.md`, `IMPLEMENTATION_SUMMARY.md`, `fase_3.md`, `fase_5.md` — conteúdo migrado para `.kiro/` e `docs/`

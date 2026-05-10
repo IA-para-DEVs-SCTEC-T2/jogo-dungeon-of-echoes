@@ -8,10 +8,22 @@ O WorldSystem gerencia o estado do mundo entre transições de área dentro de u
 
 ## Áreas
 
-| Área     | Mapa           | Inimigos | Itens           |
-|----------|----------------|----------|-----------------|
-| `town`   | Fixo (TownMap) | Nenhum   | Nenhum          |
-| `dungeon`| BSP procedural | Sim (respawn sempre) | Sim (persistem) |
+| Área     | Mapa                        | Inimigos              | Itens              |
+|----------|-----------------------------|-----------------------|--------------------|
+| `town`   | Fixo (TownMap, TMX)         | Nenhum                | Nenhum             |
+| `dungeon`| BSP procedural, N andares   | Sim (respawn sempre)  | Sim (persistem por andar) |
+| `bonus`  | Fixo (BonusAreaRenderer, 30×22) | Nenhum           | Nenhum             |
+
+### Transições
+
+| De → Para | Gatilho |
+|-----------|---------|
+| `town` → `dungeon` | tile com `entrarDungeon: true` em `MANUAL_MAP_OVERRIDES` |
+| `dungeon` → `town` | escada para cima no andar 1 |
+| `dungeon` → `dungeon` (N+1) | tile `stairDown` da feature generator |
+| `dungeon` → `dungeon` (N-1) | tile `stairUp` da feature generator |
+| `town` → `bonus` | game(12,0) — borda norte da cidade |
+| `bonus` → `town` | `player.gridY >= BONUS_H - 1` (borda sul da área) |
 
 ---
 
