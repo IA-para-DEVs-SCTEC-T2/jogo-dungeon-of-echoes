@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { EVENTS } from '../utils/constants';
+import { EVENTS, DEV_CONFIG } from '../utils/constants';
 import type { XPSystem } from './XPSystem';
 
 export interface CombatResult {
@@ -71,7 +71,7 @@ export class CombatSystem {
 
     // Inimigo contra-ataca
     result.enemyDamage = enemy.attack;
-    player.hp = Math.max(0, player.hp - enemy.attack);
+    if (!DEV_CONFIG.godMode) player.hp = Math.max(0, player.hp - enemy.attack);
     this.emitter.emit(EVENTS.COMBAT_HIT, { attacker: enemy, defender: player, damage: enemy.attack });
     if (player.getPixelPos) {
       this.emitter.emit(EVENTS.DAMAGE_PLAYER, { pos: player.getPixelPos(), damage: enemy.attack });

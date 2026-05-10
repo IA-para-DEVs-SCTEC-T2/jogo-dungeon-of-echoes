@@ -57,6 +57,11 @@ Dungeon of Echoes é um RPG 2D tile-based jogado no navegador. O jogador explora
 - **InputModeManager** controla qual painel recebe input — `push()` ao abrir, `pop()` ao fechar; em modo ≠ GAMEPLAY o personagem não se move
 - **`INVENTORY_OPENED` é o único evento que autoriza `_inventoryPanel.show()`** — `INVENTORY_STATE_RESPONSE` apenas atualiza dados; nunca abre o painel
 - **Bônus de equipamento são reversíveis** — `Player.applyEquipmentBonuses()` / `removeEquipmentBonuses()` acumulam em `_equipmentBonuses`; `recalcStats()` é a fonte de verdade dos stats derivados
+- **Renderização de dungeon é delegada ao `DungeonRenderer`** — `GameScene` apenas itera `RenderCommand[]` e cria sprites; zero lógica de autotiling na cena
+- **`AutoTileResolver` nunca instancia objetos Phaser** — opera sobre grid[][] e retorna `TileRenderData`; extensão futura: adicionar case em `resolveCategory()` e `AutoTileSet` no tema
+- **Temas visuais em `dungeon-themes.ts`** — `TileCategory` extensível; frames organizados por `AutoTileSet` (face, cornerOuter_TL/TR, bodyFrames, cornerInner_TL/TR); `themeForFloor()` mapeia andar → tema
+- **`BONUS_AREA_OVERRIDES` é estritamente isolado de `MANUAL_MAP_OVERRIDES`** — nunca cruzar importações entre `BonusAreaData.ts` e `TileProperties.ts`
+- **`DEV_CONFIG.godMode`** em `constants.ts` — flag de desenvolvimento; `CombatSystem` consulta antes de aplicar dano ao player; manter `false` em produção
 
 ## Estrutura de Pastas
 
@@ -69,6 +74,7 @@ Dungeon of Echoes é um RPG 2D tile-based jogado no navegador. O jogador explora
                    InputModeManager, LootSystem, WorldSystem, LogSystem
                    NPCController, InteractiveObjectSystem, CityDecorationSystem
                    MapTransitionSystem, DungeonFloorManager, DifficultyScalingSystem
+                   AutoTileResolver, DungeonRenderer, BonusAreaRenderer
   /entities     → Entidades puras (Player — gold, equipmentBonuses; Item — slotId, bonuses)
   /generators   → DungeonGenerator, CityLayoutProcessor, TileVariantResolver
   /config       → constants.ts, town.config.ts, sprites-config.ts, shop.catalog.ts

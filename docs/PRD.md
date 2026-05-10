@@ -1,10 +1,10 @@
 # PRD — Product Requirements Document
 # Dungeon of Echoes
 
-**Versão:** 0.3.0  
-**Data:** 2026-05-05  
+**Versão:** 5.2.0  
+**Data:** 2026-05-10  
 **Equipe:** Equipe 7 — IA para DEVs SCTEC T2  
-**Status:** Fase 3 entregue — Sistema de Inventário e Itens
+**Status:** Fase 5 entregue — Renderização semântica de dungeon, múltiplos andares, área bônus
 
 ---
 
@@ -70,6 +70,9 @@ Cada partida começa em uma dungeon nova. O jogador avança derrotando inimigos,
 - Geração procedural: até **8 salas** (4×4 a 10×8 tiles), conectadas por corredores em L
 - Borda sempre WALL; posição inicial do player sempre em tile FLOOR
 - Suporte a `seed` para reprodutibilidade em debug
+- **Múltiplos andares** com cache de estado por andar (`_dungeonCache`): escadas para baixo (andar N+1) e para cima (andar N-1), retorno à cidade pelo andar 1
+- **Tema visual por andar**: andares 1–2 → Dungeon, 3–4 → Mine, 5–6 → Underworld, 7+ → Underworld Boss; frames resolvidos por `AutoTileResolver` com autotiling de 4 vizinhos
+- **`DungeonRenderer`** emite `RenderCommand[]`; `GameScene` apenas cria sprites — zero lógica visual na cena
 
 ### 6.2 Player
 
@@ -228,7 +231,7 @@ Os requisitos abaixo são derivados diretamente das specs em `.kiro/specs/`.
 
 ## 9. Escopo
 
-### Dentro do escopo (v0.3.0 — estado atual)
+### Dentro do escopo (v5.2.0 — estado atual)
 
 - [x] Geração procedural de dungeon (salas + corredores BSP, 40×40 tiles)
 - [x] Player controlável (4 direções, turn-based real via TurnManager)
@@ -239,8 +242,14 @@ Os requisitos abaixo são derivados diretamente das specs em `.kiro/specs/`.
 - [x] HUD persistente via UIScene overlay (barras HP/Mana, log, action bar de inventário)
 - [x] Sistema de inventário: 20 slots, coleta automática, uso por tecla
 - [x] Sistema de identificação roguelike de itens (nome desconhecido → real ao usar)
+- [x] Equipamentos: armas e armaduras com slots, bônus reversíveis, loja de compra/venda
+- [x] Múltiplos andares de dungeon com cache de estado e escadas bidirecionais
+- [x] Tema visual por andar: Dungeon/Mine/Underworld/Boss com autotiling de 4 vizinhos
+- [x] Mapa da cidade (TMX) com NPCs, loja, estalajadeiro e debug de tiles
+- [x] Área bônus (30×22 tiles) com renderer próprio, debug idêntico à cidade e overrides isolados
+- [x] `DEV_CONFIG.godMode` para testes sem risco de morte
 - [x] Game Over com tela de resultado e restart
-- [x] 108 testes unitários
+- [x] 125 testes unitários
 - [x] Dashboard estático de acompanhamento do projeto
 
 ### Fora do escopo (planejado para versões futuras)

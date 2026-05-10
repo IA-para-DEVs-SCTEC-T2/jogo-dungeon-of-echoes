@@ -34,7 +34,10 @@ Input do jogador → Resolve ação → Atualiza visão (FOG) → Turno dos inim
 | Sistema | Responsabilidade |
 |---------|-----------------|
 | PlayerSystem | Atributos, HP/Mana, gold, bônus de equipamento acumulados em `_equipmentBonuses`; `recalcStats()` como fonte de verdade |
-| DungeonSystem | Geração procedural BSP, tiles, FOG of War |
+| DungeonSystem | Geração procedural BSP, múltiplos andares com cache |
+| AutoTileResolver | Interpreta vizinhos cardinais → `TileRenderData`; puro, sem Phaser |
+| DungeonRenderer | Itera grid + tema → `RenderCommand[]`; sem conhecer a Scene |
+| BonusAreaRenderer | Renderiza área bônus com debug e overrides isolados |
 | EnemySystem | Spawn, estados de IA (IDLE/CHASING/ATTACKING) |
 | CombatSystem | Resolução de ataque, dano, morte |
 | XPSystem | Ganho de XP, cálculo de nível, level up |
@@ -70,9 +73,17 @@ Input do jogador → Resolve ação → Atualiza visão (FOG) → Turno dos inim
 
 ### Dungeon
 - Geração por BSP (Binary Space Partitioning) com corredores L-shaped
-- FOG of War: tiles não visitados escuros, visitados em cinza, visíveis em destaque
-- Escadas de entrada e saída em cada andar
-- Temas visuais por faixa de andares (caverna, ruínas, cripta)
+- Múltiplos andares com cache de estado por andar: inimigos reiniciam, itens persistem
+- Escadas bidirecionais: descida (andar N+1), subida (andar N-1), retorno à cidade pelo andar 1
+- **Autotiling semântico**: `AutoTileResolver` interpreta vizinhos cardinais e escolhe frame — face, cantos externos, cantos côncavos, corpo sólido
+- **Temas visuais por andar**: andares 1–2 Dungeon (pedra cinza), 3–4 Mine (terra), 5–6 Underworld (pedra escura), 7+ Underworld Boss (mix abismo)
+- `DungeonRenderer` emite `RenderCommand[]` — `GameScene` apenas cria sprites; arquitetura extensível para novas categorias (water, lava, chasm)
+- FOG of War: spec pronta em `.kiro/specs/fog-of-war.spec.md` (não implementado)
+
+### Área Bônus
+- Mapa 30×22 tiles em game(12,0), acessível pela entrada norte da cidade
+- `BonusAreaRenderer` com sistema de overrides próprio (`BONUS_AREA_OVERRIDES`) isolado da cidade
+- Debug de tiles idêntico à cidade: labels `x,y`, toggle ON/OFF, clique exibe coordenadas e override atual
 
 ### Cidade (Town)
 
