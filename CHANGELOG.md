@@ -50,6 +50,10 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ## [Unreleased]
 
+### Changed
+
+- Removidos arquivos de resumo/documentação obsoletos da raiz do repositório: `KIRO_RESUMO.md`, `IMPLEMENTATION_SUMMARY.md`, `fase_3.md`, `fase_5.md` — conteúdo migrado para `.kiro/` e `docs/`
+
 ## [5.1.0] — 2026-05-10
 
 ### Added

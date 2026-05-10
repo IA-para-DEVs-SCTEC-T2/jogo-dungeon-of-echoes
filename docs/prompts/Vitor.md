@@ -850,3 +850,23 @@ Arquivos modificados:
 - `src/config/BonusAreaData.ts` — novo, config isolada da área bônus
 - `src/systems/BonusAreaRenderer.ts` — novo, renderer com debug completo
 - `src/scenes/GameScene.ts` — `_loadBonusArea()` reescrito, import de `BonusAreaRenderer`, condição de saída corrigida
+
+---
+
+## Prompt 25
+
+Contexto:
+Limpeza de arquivos de documentação obsoletos da raiz do repositório.
+
+Objetivo:
+Remover `KIRO_RESUMO.md`, `IMPLEMENTATION_SUMMARY.md`, `fase_3.md` e `fase_5.md` — conteúdo já migrado para `.kiro/` e `docs/`.
+
+Tarefas realizadas:
+1. Arquivos deletados e staged para remoção
+2. CHANGELOG.md e Vitor.md atualizados para o commit passar
+
+Arquivos modificados:
+- `KIRO_RESUMO.md` — removido
+- `IMPLEMENTATION_SUMMARY.md` — removido
+- `fase_3.md` — removido
+- `fase_5.md` — removido
