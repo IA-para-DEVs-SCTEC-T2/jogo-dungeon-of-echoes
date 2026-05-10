@@ -701,3 +701,128 @@ Arquivos gerados/modificados:
 - `src/scenes/GameScene.ts` — Fix 2, Fix 3, Fix 4
 - `src/types/viewmodels.ts` — InventoryDetailViewModel com 'unequip'
 - `src/ui/InventoryPanel.ts` — actionMap com '[E] Desequipar'
+
+## Prompt 19
+Autor: Vitor
+Data: 2026-05-09
+
+Contexto:
+O mapa da cidade (Town.tmx) apresentava tiles problemáticos: animais estáticos visíveis, fundos escuros, árvores com quadrados pretos, e tiles sem colisão correta. Precisávamos de uma forma rápida de corrigir esses problemas sem alterar o renderer.
+
+Objetivo:
+Implementar um sistema de override por coordenada que permita ajustes manuais rápidos no mapa, com aliases de GID amigáveis e modo debug visual.
+
+Tarefas realizadas:
+1. Criar `TILE_GID` em `TileProperties.ts` com ~70 aliases de TMX GID organizados por tileset
+2. Criar `MANUAL_MAP_OVERRIDES` com suporte a `forceGid`, `forceGidLike`, `overlayGid` e `walkable`
+3. Implementar `DEBUG_SHOW_COORDINATES` no renderer com textos estáticos por tile e label interativo ao clicar
+4. Corrigir frames pretos do Tree0.png (frames 0–47 vazios, árvores visíveis a partir do frame 48)
+5. Corrigir GIDs incorretos no `TILE_GID` (frame index vs TMX GID real)
+
+Arquivos modificados:
+- `src/config/TileProperties.ts` — TILE_GID, MANUAL_MAP_OVERRIDES
+- `src/systems/TownTMXRenderer.ts` — DEBUG_SHOW_COORDINATES, lógica de override, fix árvores
+- `docs/guia-sprites.md` — seção "Override Manual por Coordenada"
+
+## Prompt 20
+Autor: Vitor
+Data: 2026-05-09
+
+Contexto:
+A área de padding (fundo escuro com flores) fora dos limites do TMX (20×15) não exibia coordenadas de debug nem permitia uso de MANUAL_MAP_OVERRIDES. O renderer só processava as 300 células do TMX, ignorando as 450 células de padding que completam o mapa 30×25.
+
+Objetivo:
+Expandir o loop de grama de preenchimento para suportar MANUAL_MAP_OVERRIDES e DEBUG_SHOW_COORDINATES em todas as 750 células (30×25), incluindo as de padding com coordenadas negativas.
+
+Tarefas realizadas:
+1. Refatorar o loop de grama em TownTMXRenderer.ts para verificar MANUAL_MAP_OVERRIDES por coordenada (incluindo chaves negativas como "-5,-3")
+2. Renderizar tile customizado via forceGid quando override presente; grama padrão caso contrário
+3. Exibir DEBUG_SHOW_COORDINATES em todas as células de padding
+4. Respeitar walkable: false nos overrides de padding (padrão é walkable)
+
+Arquivos modificados:
+- `src/systems/TownTMXRenderer.ts` — loop de grama expandido com override e debug
+
+## Prompt 21
+Autor: Vitor
+Data: 2026-05-09
+
+Contexto:
+O modo DEBUG_SHOW_COORDINATES exibia coordenadas nos tiles mas não havia feedback ao clicar sobre qual GID correspondia ao tile clicado, dificultando o preenchimento de MANUAL_MAP_OVERRIDES. Além disso, overlayGid não funcionava em coordenadas fora dos limites TMX (padding) e o spritesheet Decor0.png não era carregado.
+
+Objetivo:
+Melhorar o ferramental de debug de tiles para facilitar a identificação e configuração de overrides no mapa da cidade.
+
+Tarefas realizadas:
+1. Adicionar console.log ao clicar num tile com coordenadas TMX, world, forceGid das layers Tiles e Sprites, e override atual
+2. Corrigir cálculo de coordenadas do clique usando pointer.worldX/worldY em vez de cálculo manual incorreto
+3. Adicionar botão toggle "[ coords: ON/OFF ]" na UIScene para mostrar/esconder os labels de coordenada dinamicamente sem interromper o console.log
+4. Expandir o log para tiles fora dos limites TMX: detectar grama procedural, borda de caminho ou override de padding
+5. Corrigir overlayGid para funcionar também no loop de padding (coordenadas negativas como "-1,8")
+6. Adicionar carregamento do spritesheet Decor0.png no BootScene (estava ausente, impedindo renderização de GIDs 2136–2311)
+
+Arquivos modificados:
+- `src/systems/TownTMXRenderer.ts` — console.log de clique, botão toggle, overlayGid no loop de padding
+- `src/scenes/BootScene.ts` — carregamento de decor0
+- `src/config/TileProperties.ts` — ajustes de overrides
+
+## Prompt 22 — feat(city): entrarDungeon data-driven, melhorias de debug e limpeza de NPCs
+Autor: Vitor
+Data: 2026-05-10
+
+Contexto:
+A entrada para a dungeon era definida por um array hardcoded `TOWN_DUNGEON_EXITS` em constants.ts.
+NPCs residuais (Ajudante, sprite de player no TMX, Viajante) apareciam em posições erradas.
+O debug de clique usava fórmula manual incorreta para converter coordenadas de tela em mundo.
+NPCs com wanderBounds não respondiam ao [T] porque getAllNPCs() retornava posições de spawn originais.
+
+Objetivo:
+1. Substituir `TOWN_DUNGEON_EXITS` por campo `entrarDungeon: boolean` em `MANUAL_MAP_OVERRIDES`
+2. Corrigir fórmula do debug de clique para usar `camera.getWorldPoint()`
+3. Exibir conversão `game(x,y)` no output do debug de clique
+4. Remover NPCs residuais: Ajudante (TMX 16,5), Viajante (TMX 18,14), sprite estático (TMX 13,13)
+5. Corrigir `getAllNPCs()` para retornar posição atual dos NPCs (não posição de spawn)
+6. Adicionar suporte a `interaction` em `TileOverride` para sprites estáticos interativos (placas)
+7. Corrigir `TOWN.BONUS_ENTRY_Y` de 10 para 0 (game(12,0) = TMX(7,-5))
+8. `TMX_REMOVED_POSITIONS` expandido para cobrir sprites estáticos (não só NPCs)
+9. Estalajadeiro com `interactRange: 2` para interação do balcão
+
+Tarefas realizadas:
+1. Remover `TOWN_DUNGEON_EXITS` de constants.ts; adicionar `entrarDungeon?` ao `TileOverride`
+2. `GameScene._loadTown()`: escaneia `MANUAL_MAP_OVERRIDES` por `entrarDungeon:true`, computa game coords, registra spawn de retorno dinamicamente
+3. `GameScene._checkAreaTransition()`: usa `_dungeonEntryTiles` em vez de array hardcoded
+4. `TownTMXRenderer`: pit0 não sobrepõe tile com `forceGid`; check de `TMX_REMOVED_POSITIONS` movido para antes de todo rendering de sprite
+5. `TownTMXRenderer`: fórmula do clique substituída por `cam.getWorldPoint()`; debug exibe `→ game(x,y)`
+6. `NPCController.getAllNPCs()`: retorna `{...n.def, gridX: n.gridX, gridY: n.gridY}` com posição atual
+7. `TileOverride`: adicionados `npcName?` e `interaction?`; sprites com interaction viram sign NPCs no renderer
+8. `TownTMXData`: removidos Ajudante e Viajante via `TMX_REMOVED_POSITIONS`; guardas com `wanderBounds` restritos a `maxX:16, maxY:17`
+
+Arquivos modificados:
+- `src/utils/constants.ts` — removido TOWN_DUNGEON_EXITS, TOWN.BONUS_ENTRY_Y = 0
+- `src/config/TileProperties.ts` — TileOverride com entrarDungeon, npcName, interaction; MANUAL_MAP_OVERRIDES com placa
+- `src/config/TownTMXData.ts` — TMX_REMOVED_POSITIONS expandido, overrides de NPC atualizados
+- `src/scenes/GameScene.ts` — _dungeonEntryTiles, scan de entrarDungeon, pit0 condicional
+- `src/systems/TownTMXRenderer.ts` — getWorldPoint, game() no debug, TMX_REMOVED_POSITIONS antes do rendering, sign NPC
+- `src/systems/NPCController.ts` — getAllNPCs() com posição atual
+
+---
+
+## Prompt 23
+
+Contexto:
+Após o commit das melhorias no cenário da cidade, atualizar a documentação interna do projeto.
+
+Objetivo:
+1. Atualizar `.kiro/specs/world.spec.md` com pipeline data-driven, NPCs com posições/ranges corretos e transição via `_dungeonEntryTiles`
+2. Atualizar `.kiro/specs/product.md` com placa interativa, `entrarDungeon` data-driven, `interactRange` e debug
+3. Atualizar `.kiro/steering/game-steering.md` com 5 novas restrições arquiteturais
+
+Tarefas realizadas:
+1. `world.spec.md`: pipeline substituído por `TownTMXRenderer + MANUAL_MAP_OVERRIDES`; NPCs com posições TMX, `interactRange` e comportamento corretos; transição cidade→dungeon documenta `_dungeonEntryTiles`
+2. `product.md`: seções Cidade e NPCs atualizadas — placa, `entrarDungeon`, `interactRange`, debug de tiles
+3. `game-steering.md`: adicionadas restrições para `interactRange`, objetos estáticos interativos, entradas data-driven, `TMX_REMOVED_POSITIONS` e `getAllNPCs()`
+
+Arquivos modificados:
+- `.kiro/specs/world.spec.md` — pipeline, NPCs, transição data-driven
+- `.kiro/specs/product.md` — seções Cidade e NPCs
+- `.kiro/steering/game-steering.md` — novas restrições arquiteturais

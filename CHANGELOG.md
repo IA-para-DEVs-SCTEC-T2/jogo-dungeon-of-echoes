@@ -52,6 +52,61 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ### Added
 
+#### Documentação interna (.kiro)
+
+- `world.spec.md` atualizado: pipeline data-driven via `TownTMXRenderer + MANUAL_MAP_OVERRIDES`, NPCs com posições TMX e `interactRange`, transição cidade→dungeon via `_dungeonEntryTiles`
+- `product.md` atualizado: placa interativa, `entrarDungeon` data-driven, `interactRange` por NPC, debug de tiles
+- `game-steering.md`: 5 novas restrições arquiteturais — `interactRange`, objetos estáticos interativos, entradas data-driven, `TMX_REMOVED_POSITIONS` e `getAllNPCs()`
+
+#### Melhorias no cenário da cidade
+
+- **`entrarDungeon` data-driven**: campo `entrarDungeon?: boolean` em `TileOverride` permite marcar qualquer tile do mapa como entrada para a dungeon via `MANUAL_MAP_OVERRIDES` — elimina o array estático `TOWN_DUNGEON_EXITS`
+- **Placa interativa** em TMX(12,12): ao pressionar `[T]`, exibe mensagem "Bem vindas à cidade. Taxa de sobrevivência: surpreendentemente baixa" — implementado via campo `interaction` em `TileOverride` sem alterar o visual do sprite
+- **Interação com Estalajadeiro** ampliada para `interactRange: 2`: permite ativar o menu de descanso estando 2 tiles de distância (game(21,10))
+- **Debug de tiles aprimorado**: log ao clicar agora exibe coordenadas game(`gX, gY`) além de TMX — facilita localizar sobreposições em `MANUAL_MAP_OVERRIDES`
+- `TMX_PAD_X/Y` importados em `GameScene` para conversão TMX→game sem duplicar constantes
+
+### Fixed
+
+#### Correções de NPCs e transições da cidade
+
+- Removidos NPCs residuais em TMX(16,5), TMX(13,13) e TMX(18,14) via `TMX_REMOVED_POSITIONS` — sprites sem interação que apareciam no mapa
+- `TMX_REMOVED_POSITIONS` verificado antes de qualquer renderização de sprite (incluindo GIDs fora do intervalo NPC), eliminando sprites fantasma como o player-frame em TMX(13,13)
+- `NPCController.getAllNPCs()` agora retorna posição atual (`gridX/gridY`) dos NPCs em vez da posição de spawn — corrige interação `[T]` que falhava após NPCs se moverem
+- Fórmula de clique no debug corrigida: substituído cálculo manual por `cam.getWorldPoint(pointer.x, pointer.y)` — coordenadas TMX exibidas agora coincidem com os labels visuais
+- `TOWN.BONUS_ENTRY_Y` corrigido de `10` para `0`: entrada da área bônus em game(12,0) = TMX(7,-5); valor anterior transportava o jogador para uma posição errada
+
+### Added
+
+#### Ferramental de debug de tiles (mapa da cidade)
+
+- **Console.log ao clicar num tile** em `TownTMXRenderer.ts`: exibe coordenadas TMX e world, `forceGid` das layers Tiles e Sprites, e override atual — pronto para copiar em `MANUAL_MAP_OVERRIDES`
+- **Botão toggle "[ coords: ON/OFF ]"** adicionado à `UIScene`: esconde/mostra os labels de coordenada nos tiles dinamicamente sem afetar o console.log; fica sempre visível acima de todos os painéis
+- **Suporte a `overlayGid` no loop de padding**: overrides com `overlayGid` agora funcionam em coordenadas fora dos limites TMX (ex: `"-1,8"`)
+- **Spritesheet `Decor0.png` carregado** no `BootScene`: GIDs 2136–2311 (mobília, tapetes, decorações) agora renderizam corretamente via `forceGid` e `overlayGid`
+
+### Fixed
+
+- Cálculo incorreto de coordenadas ao clicar no mapa: substituído cálculo manual `pointer.x / cam.zoom + cam.scrollX` por `pointer.worldX` / `pointer.worldY`, eliminando offset errado quando a câmera não estava na origem
+
+#### Renderização de padding completo (30×25)
+
+- **Loop de grama expandido** em `TownTMXRenderer.ts`: as 450 células de padding agora consultam `MANUAL_MAP_OVERRIDES` (suportando chaves com coordenadas negativas como `"-5,-3"`) e exibem `DEBUG_SHOW_COORDINATES` — todas as 750 células do mapa ficam visíveis no modo debug
+- Células de padding com `forceGid` no override renderizam o tile customizado; sem override continuam com grama padrão (frames 16/17/18)
+- `walkable: false` em overrides de padding marca a célula como sólida no `collisionGrid`; padrão é sempre passável
+
+#### Sistema de Override de Tiles (mapa da cidade)
+
+- **`TILE_GID`** em `TileProperties.ts`: ~70 aliases de TMX GID organizados por tileset (Wall, Floor, Pit0, Door0, Decor0, Ground0, Tree0) — permite referenciar tiles por nome em vez de número
+- **`MANUAL_MAP_OVERRIDES`**: objeto de configuração por coordenada `"tmxX,tmxY"` com suporte a `forceGid`, `forceGidLike`, `overlayGid` e `walkable` — corrige tiles problemáticos do TMX sem alterar o renderer
+- **`DEBUG_SHOW_COORDINATES`** em `TownTMXRenderer.ts`: flag que exibe textos de coordenada sobre cada tile e adiciona label interativo — ao clicar com o mouse mostra `tile: X,Y` no canto da tela
+- Overrides aplicados antes de `getTileProp()` em ambos os layers (Tiles e Sprites), garantindo prioridade total sobre o TMX original; suporte a tiles vazios (GID 0) sendo preenchidos via override
+
+### Fixed
+
+- Quadrados pretos no lugar de árvores: frames 0–47 do Tree0.png são pretos/vazios — renderer agora os ignora; `isTreeTop` e aliases `TILE_GID.TREE*` atualizados para frames 48+ (primeira linha visível)
+- GIDs incorretos em `TILE_GID` (GRASS/STONE/DIRT apontavam para frame index em vez de TMX GID): corrigidos com `firstgid=2312` para Ground0.png
+
 #### Sistema de Comércio e Equipamentos
 
 - **`ShopSystem`**: lógica de compra e venda catalog-driven; `buyItem()` e `sellItem()` retornam resultado tipado; `buildViewModel()` e `buildSellItems()` constroem ViewModel sem acoplamento à UI

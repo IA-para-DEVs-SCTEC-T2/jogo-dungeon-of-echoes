@@ -39,6 +39,7 @@ export interface NPCInstanceDef {
   state: NPCStateId;
   wanderBounds?: { minX: number; maxX: number; minY: number; maxY: number };
   houseBounds?: { x: number; y: number; w: number; h: number };
+  interactRange?: number;
   interaction?: {
     type: 'dialogue' | 'shop' | 'menu';
     message: string;

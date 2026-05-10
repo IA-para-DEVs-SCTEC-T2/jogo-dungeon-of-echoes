@@ -71,7 +71,7 @@ export class NPCController {
 
   /** Retorna as definições de todos os NPCs carregados. */
   getAllNPCs(): NPCInstanceDef[] {
-    return this._npcs.map(n => n.def);
+    return this._npcs.map(n => ({ ...n.def, gridX: n.gridX, gridY: n.gridY }));
   }
 
   /**

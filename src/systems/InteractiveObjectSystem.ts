@@ -83,10 +83,10 @@ export class InteractiveObjectSystem {
       const b = npc.houseBounds;
       return px >= b.x && px < b.x + b.w && py >= b.y && py < b.y + b.h;
     }
-    // Adjacência ortogonal
+    const range = npc.interactRange ?? 1;
     const dx = Math.abs(npc.gridX - px);
     const dy = Math.abs(npc.gridY - py);
-    return (dx === 1 && dy === 0) || (dx === 0 && dy === 1);
+    return dx + dy <= range && dx + dy > 0;
   }
 
   private _interact(): void {

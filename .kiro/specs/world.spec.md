@@ -17,30 +17,33 @@ O WorldSystem gerencia o estado do mundo entre transições de área dentro de u
 
 ## TownMap
 
-- Mapa fixo 24×20 tiles
-- Borda: `WALL`; interior: `FLOOR`
-- `startPos` da cidade: tile `(12, 8)` — onde o player reaparece ao voltar da dungeon
-- Saída para dungeon: tile `(12, 18)` — marcado com retângulo laranja `[ DUNGEON ]`
+- Mapa fixo 30×25 tiles (TMX 20×15 + padding 5 de cada lado)
+- Baseado em `Town.tmx` (Dawnlike) renderizado por `TownTMXRenderer`
+- `startPos` da cidade: tile `(TOWN.START_X, TOWN.START_Y)` — onde o player reaparece ao voltar da dungeon
+- Saídas para dungeon: definidas via `entrarDungeon: true` em `MANUAL_MAP_OVERRIDES` — atualmente tiles game(12,24)/(13,24)/(14,24)
+- Tiles de chão com variantes visuais determinísticas; overrides de tile por coordenada TMX via `MANUAL_MAP_OVERRIDES`
 - Implementado como subclasse de `DungeonGenerator` para compatibilidade com `TurnManager` e `EnemySystem` sem alterar suas assinaturas
 
-### Pipeline de Geração da Cidade
+### Pipeline de Renderização da Cidade
 
 O layout da cidade segue um pipeline de dados antes de ser renderizado:
 
 ```
-TOWN_CONFIG (town.config.ts)
-  → CityLayoutProcessor.process()
-      - Lê biomeOverrides do config (opcional)
-      - Atribui biomas por região: urban / natural / interior / transition
-      - Resolve visuais via TileVariantResolver (frame determinístico por posição)
-      - Produz ProcessedTownLayout { groundTiles[][], worldObjects[], npcs[], interactive[] }
+TownTMXData (TownTMXData.ts)
+  + MANUAL_MAP_OVERRIDES (TileProperties.ts)
+  → TownTMXRenderer.render()
+      - Itera TMX_TILES_LAYER e TMX_SPRITES_LAYER
+      - Aplica TMX_REMOVED_POSITIONS (sprites ignorados) antes de qualquer render
+      - Aplica MANUAL_MAP_OVERRIDES por coordenada "tmxX,tmxY" (forceGid, walkable, entrarDungeon, interaction)
+      - NPCs derivados de TMX_NPC_OVERRIDES e TileOverride.interaction (signs/placas)
+      - Produz { collisionGrid, npcSpawns, dungeonEntries }
   → GameScene._loadTown()
-      - Renderiza groundTiles[y][x] com frame resolvido (sem magic numbers)
-      - Instancia NPCController para cada NPC do layout
-      - Instancia InteractiveObjectSystem com objetos interativos
+      - Instancia NPCController com npcSpawns
+      - Armazena dungeonEntries em _dungeonEntryTiles
+      - Registra spawns de retorno da dungeon no norte dos dungeonEntries
 ```
 
-`TownConfig` aceita `biomeOverrides?: Record<string, BiomeType>` para sobrescrever o bioma de regiões específicas por tile key (`"x,y"`).
+`MANUAL_MAP_OVERRIDES` é o mecanismo central de customização: chave `"tmxX,tmxY"`, suporte a `forceGid`, `overlayGid`, `walkable`, `entrarDungeon`, `npcName` e `interaction`.
 
 ### Sistemas da Cidade
 
@@ -54,12 +57,13 @@ TOWN_CONFIG (town.config.ts)
 
 ### NPCs e Objetos
 
-- **Guarda**: sem `wanderBounds` → estático; `interaction.type = 'menu'` → abre `DialogPanel` com 4 opções de ajuda (objetivos, como jogar, controles, dicas)
-- **Mercador**: `wanderBounds` ±2 tiles; `interaction.type = 'shop'` → abre loja com 2 abas (Comprar/Vender); requer player dentro de `houseBounds` da taverna
-- **Taberneiro** (ex-Estalajadeiro): `wanderBounds`; `interaction.type = 'menu'` → menu de descanso; "Repousar (20 ouros)" restaura HP+Mana ao máximo se player tiver ouro suficiente
-- **Gato**: `customWanderBounds` dedicado (tile (3,9), área sul da praça); FSM wander livre; não atravessa paredes
-- `NPCController.update(delta, grid)` é chamado em `GameScene.update()` a cada frame
-- `InteractiveObjectSystem._canInteract()`: NPCs com `houseBounds` exigem player dentro dos bounds; demais usam adjacência ortogonal (4 direções)
+- **Guarda** (TMX 10,10 e 9,11): `wanderBounds {minX:9,maxX:16,minY:10,maxY:17}`; `interaction.type = 'dialogue'` com mensagem de patrulha
+- **Mercador** (TMX 2,6): estático (sem `wanderBounds`); `interactRange: 2`; `interaction.type = 'shop'` → abre loja com 2 abas (Comprar/Vender)
+- **Estalajadeiro** (TMX 16,3): estático; `interactRange: 2` (permite interação de até 2 tiles de distância); `interaction.type = 'menu'` → menu de descanso; "Repousar (20 ouro)" restaura HP+Mana ao máximo
+- **Gato**: `customWanderBounds` dedicado; FSM wander livre; não atravessa paredes
+- **Placa** (TMX 12,12): NPC estático gerado via `TileOverride.interaction`; `interaction.type = 'dialogue'` com mensagem de boas-vindas
+- `NPCController.update(delta, grid)` é chamado em `GameScene.update()` a cada frame; `getAllNPCs()` retorna posição atual (não a de spawn)
+- `InteractiveObjectSystem._canInteract()`: usa `interactRange ?? 1` para manhattan distance; posição atual do NPC via `getAllNPCs()`
 
 ---
 
@@ -86,7 +90,7 @@ type DungeonState = {
 
 ```
 Cidade → Dungeon:
-  player pisa em (EXIT_X, EXIT_Y)
+  player pisa em qualquer tile com entrarDungeon: true (_dungeonEntryTiles)
   → WorldSystem.hasDungeon()?
     false → DungeonGenerator.generate() (nova dungeon)
     true  → restaura DungeonState (mesma dungeon)
