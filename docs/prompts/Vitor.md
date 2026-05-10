@@ -826,3 +826,47 @@ Arquivos modificados:
 - `.kiro/specs/world.spec.md` — pipeline, NPCs, transição data-driven
 - `.kiro/specs/product.md` — seções Cidade e NPCs
 - `.kiro/steering/game-steering.md` — novas restrições arquiteturais
+
+---
+
+## Prompt 24
+
+Contexto:
+Área bônus (acessível em game(12,0)) era um mapa pequeno 15×10 sem debug. O sistema de debug de clique (coords, toggle, console.log) só existia na cidade.
+
+Objetivo:
+1. Expandir área bônus para preencher a tela inteira (≥25×19 tiles com zoom=2)
+2. Criar config isolada `BonusAreaData.ts` com `BONUS_AREA_OVERRIDES` separado de `MANUAL_MAP_OVERRIDES`
+3. Criar `BonusAreaRenderer` com debug idêntico ao `TownTMXRenderer` (labels, toggle, clique → console)
+4. Corrigir condição de saída da área bônus (estava hardcoded em `gridY >= 9`)
+
+Tarefas realizadas:
+1. `src/config/BonusAreaData.ts` criado: `BONUS_W=30`, `BONUS_H=22`, `BONUS_AREA_OVERRIDES`, `BONUS_AREA_NPCS`
+2. `src/systems/BonusAreaRenderer.ts` criado: renderiza chão com suporte a `forceGid`, labels de coord, toggle ON/OFF, clique exibe `[DEBUG bonus] (x,y)` e override atual
+3. `GameScene._loadBonusArea()` reescrito para delegar ao `BonusAreaRenderer` (igual ao `_loadTown` com `TownTMXRenderer`)
+4. Condição de saída corrigida: `gridY >= 9` → `gridY >= BONUS_H - 1`
+
+Arquivos modificados:
+- `src/config/BonusAreaData.ts` — novo, config isolada da área bônus
+- `src/systems/BonusAreaRenderer.ts` — novo, renderer com debug completo
+- `src/scenes/GameScene.ts` — `_loadBonusArea()` reescrito, import de `BonusAreaRenderer`, condição de saída corrigida
+
+---
+
+## Prompt 25
+
+Contexto:
+Limpeza de arquivos de documentação obsoletos da raiz do repositório.
+
+Objetivo:
+Remover `KIRO_RESUMO.md`, `IMPLEMENTATION_SUMMARY.md`, `fase_3.md` e `fase_5.md` — conteúdo já migrado para `.kiro/` e `docs/`.
+
+Tarefas realizadas:
+1. Arquivos deletados e staged para remoção
+2. CHANGELOG.md e Vitor.md atualizados para o commit passar
+
+Arquivos modificados:
+- `KIRO_RESUMO.md` — removido
+- `IMPLEMENTATION_SUMMARY.md` — removido
+- `fase_3.md` — removido
+- `fase_5.md` — removido
