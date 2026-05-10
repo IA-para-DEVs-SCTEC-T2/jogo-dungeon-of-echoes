@@ -43,6 +43,14 @@ export class BootScene extends Phaser.Scene {
     this.load.spritesheet(SPRITES.MONEY,   `${base}/Items/Money.png`,            { frameWidth: 16, frameHeight: 16 });
     this.load.spritesheet(SPRITES.PLATINO, `${base}/Characters/Reptile0.png`,    { frameWidth: 16, frameHeight: 16 });
 
+    // Assets necessários para o mapa TMX da cidade
+    this.load.spritesheet('floor',  `${base}/Objects/Floor.png`,           { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('pit0',   `${base}/Objects/Pit0.png`,            { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('door0',  `${base}/Objects/Door0.png`,           { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('decor0', `${base}/Objects/Decor0.png`,          { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('chest0', `${base}/Items/Chest0.png`,            { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('quad0',  `${base}/Characters/Quadraped0.png`,   { frameWidth: 16, frameHeight: 16 });
+
     this._setupLoadingBar();
   }
 

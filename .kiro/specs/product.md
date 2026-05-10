@@ -62,10 +62,11 @@ Input do jogador → Resolve ação → Atualiza visão (FOG) → Turno dos inim
 - **Inventário visual** (`I`): 3 colunas (slots de equipamento / lista de itens / detalhes); `E` equipa ou desequipa, `U` usa, `D` dropa
 
 ### NPCs e Diálogos
-- **Mercador**: abre loja ao interagir (dentro do edifício)
-- **Guarda**: menu de ajuda com objetivos, controles e dicas
-- **Taberneiro**: menu de descanso — 20 ouros restauram HP e Mana ao máximo
+- **Mercador**: abre loja ao interagir (`interactRange: 2`)
+- **Guarda**: diálogo de patrulha; vaga pela área central da cidade (`wanderBounds`)
+- **Estalajadeiro**: menu de descanso — 20 ouro restauram HP e Mana ao máximo (`interactRange: 2`)
 - **Gato**: vaga livremente pela cidade respeitando paredes
+- **Placa**: objeto estático interativo via `TileOverride.interaction` — mensagem ao pressionar `[T]`
 
 ### Dungeon
 - Geração por BSP (Binary Space Partitioning) com corredores L-shaped
@@ -74,11 +75,15 @@ Input do jogador → Resolve ação → Atualiza visão (FOG) → Turno dos inim
 - Temas visuais por faixa de andares (caverna, ruínas, cripta)
 
 ### Cidade (Town)
-- Layout fixo processado por `CityLayoutProcessor`: biomas por região (urban, natural, interior, transition)
-- Tiles de chão com variantes visuais determinísticas por posição (sem magic frame numbers no código)
-- NPCs com comportamento de wander configurável (`wanderBounds`); Guard é estático
-- Objetos interativos (portas, signs) com prompt de interação por proximidade
+
+- Layout 30×25 baseado em `Town.tmx` renderizado por `TownTMXRenderer`
+- Overrides de tile por coordenada TMX via `MANUAL_MAP_OVERRIDES` (`forceGid`, `walkable`, `entrarDungeon`, `interaction`)
+- Entradas da dungeon data-driven: `entrarDungeon: true` em `MANUAL_MAP_OVERRIDES` — sem array estático
+- Sprites removidos via `TMX_REMOVED_POSITIONS` (verificado antes de qualquer renderização)
+- NPCs com comportamento de wander configurável (`wanderBounds`); `interactRange` por NPC
+- Objetos interativos estáticos (placas) via `TileOverride.interaction` — sem NPC dedicado
 - Objetos do mundo (árvores, barris) com Y-sort automático para profundidade correta
+- Debug de tiles: clique exibe coordenadas TMX + game e GIDs das layers; toggle de labels na `UIScene`
 
 ### Inimigos
 - Inimigos com estados de IA: IDLE → ALERTED → CHASING → ATTACKING → FLEEING

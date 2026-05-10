@@ -44,3 +44,45 @@ Resultado:
 Estrutura `.kiro/` agora segue o padrão correto do Kiro:
 - `.kiro/steering/` → apenas diretrizes gerais (`game-steering.md`)
 - `.kiro/specs/` → todas as especificações de sistemas do jogo
+
+---
+
+## Prompt 4 — feat: IA adaptativa (Fase 5)
+Autor: Paolo
+Data: 2026-05-04
+
+Prompt exato utilizado:
+> "Execute o processo mencionado no arquivo fase_5.md"
+
+O que foi feito:
+
+1. Criado `src/systems/PlayerMetrics.ts`:
+   - Rastreia turnos sobrevividos, dano causado/recebido, kills, itens usados e mortes
+   - `getPerformanceScore()`: score acumulado normalizado (-100 a +100)
+   - `getRecentPerformanceScore()`: janela deslizante dos últimos 20 turnos
+
+2. Criado `src/systems/DifficultyManager.ts`:
+   - 3 níveis: EASY, NORMAL, HARD
+   - Limiares: score < -20 → EASY, score > +20 → HARD
+   - Histerese de 3 ciclos para evitar oscilação brusca
+   - Recalcula a cada 10 turnos
+   - Combina tabela estática por andar com modificadores adaptativos
+
+3. Atualizado `src/systems/EnemySystem.ts`:
+   - Novo atributo `aggressionLevel` (0–1)
+   - HARD (0.9): raio de detecção +50%, sempre persegue
+   - EASY (0.2): chance de ficar idle mesmo detectando o player
+   - `createEnemies()` recebe e aplica `aggressionLevel`
+
+4. Atualizado `src/systems/TurnManager.ts`:
+   - Parâmetro opcional `metrics?: PlayerMetrics`
+   - Registra dano causado, dano recebido, kills, itens usados e mortes
+
+5. Atualizado `src/scenes/GameScene.ts`:
+   - Instancia `PlayerMetrics` e `DifficultyManager`
+   - Usa `DifficultyManager.getAdaptiveDifficulty()` no spawn de inimigos
+   - Emite hint narrativo sutil quando dificuldade muda
+   - Passa métricas ao `TurnManager`
+
+Resultado:
+125 testes passando. O jogo agora se adapta ao desempenho do jogador em tempo real.
