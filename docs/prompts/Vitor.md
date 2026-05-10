@@ -765,3 +765,42 @@ Arquivos modificados:
 - `src/systems/TownTMXRenderer.ts` — console.log de clique, botão toggle, overlayGid no loop de padding
 - `src/scenes/BootScene.ts` — carregamento de decor0
 - `src/config/TileProperties.ts` — ajustes de overrides
+
+## Prompt 22 — feat(city): entrarDungeon data-driven, melhorias de debug e limpeza de NPCs
+Autor: Vitor
+Data: 2026-05-10
+
+Contexto:
+A entrada para a dungeon era definida por um array hardcoded `TOWN_DUNGEON_EXITS` em constants.ts.
+NPCs residuais (Ajudante, sprite de player no TMX, Viajante) apareciam em posições erradas.
+O debug de clique usava fórmula manual incorreta para converter coordenadas de tela em mundo.
+NPCs com wanderBounds não respondiam ao [T] porque getAllNPCs() retornava posições de spawn originais.
+
+Objetivo:
+1. Substituir `TOWN_DUNGEON_EXITS` por campo `entrarDungeon: boolean` em `MANUAL_MAP_OVERRIDES`
+2. Corrigir fórmula do debug de clique para usar `camera.getWorldPoint()`
+3. Exibir conversão `game(x,y)` no output do debug de clique
+4. Remover NPCs residuais: Ajudante (TMX 16,5), Viajante (TMX 18,14), sprite estático (TMX 13,13)
+5. Corrigir `getAllNPCs()` para retornar posição atual dos NPCs (não posição de spawn)
+6. Adicionar suporte a `interaction` em `TileOverride` para sprites estáticos interativos (placas)
+7. Corrigir `TOWN.BONUS_ENTRY_Y` de 10 para 0 (game(12,0) = TMX(7,-5))
+8. `TMX_REMOVED_POSITIONS` expandido para cobrir sprites estáticos (não só NPCs)
+9. Estalajadeiro com `interactRange: 2` para interação do balcão
+
+Tarefas realizadas:
+1. Remover `TOWN_DUNGEON_EXITS` de constants.ts; adicionar `entrarDungeon?` ao `TileOverride`
+2. `GameScene._loadTown()`: escaneia `MANUAL_MAP_OVERRIDES` por `entrarDungeon:true`, computa game coords, registra spawn de retorno dinamicamente
+3. `GameScene._checkAreaTransition()`: usa `_dungeonEntryTiles` em vez de array hardcoded
+4. `TownTMXRenderer`: pit0 não sobrepõe tile com `forceGid`; check de `TMX_REMOVED_POSITIONS` movido para antes de todo rendering de sprite
+5. `TownTMXRenderer`: fórmula do clique substituída por `cam.getWorldPoint()`; debug exibe `→ game(x,y)`
+6. `NPCController.getAllNPCs()`: retorna `{...n.def, gridX: n.gridX, gridY: n.gridY}` com posição atual
+7. `TileOverride`: adicionados `npcName?` e `interaction?`; sprites com interaction viram sign NPCs no renderer
+8. `TownTMXData`: removidos Ajudante e Viajante via `TMX_REMOVED_POSITIONS`; guardas com `wanderBounds` restritos a `maxX:16, maxY:17`
+
+Arquivos modificados:
+- `src/utils/constants.ts` — removido TOWN_DUNGEON_EXITS, TOWN.BONUS_ENTRY_Y = 0
+- `src/config/TileProperties.ts` — TileOverride com entrarDungeon, npcName, interaction; MANUAL_MAP_OVERRIDES com placa
+- `src/config/TownTMXData.ts` — TMX_REMOVED_POSITIONS expandido, overrides de NPC atualizados
+- `src/scenes/GameScene.ts` — _dungeonEntryTiles, scan de entrarDungeon, pit0 condicional
+- `src/systems/TownTMXRenderer.ts` — getWorldPoint, game() no debug, TMX_REMOVED_POSITIONS antes do rendering, sign NPC
+- `src/systems/NPCController.ts` — getAllNPCs() com posição atual

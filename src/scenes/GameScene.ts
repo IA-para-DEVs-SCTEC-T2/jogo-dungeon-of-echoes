@@ -38,6 +38,8 @@ import {
   TOWN,
   TAVERN,
 } from '../utils/constants';
+import { MANUAL_MAP_OVERRIDES } from '../config/TileProperties';
+import { TMX_PAD_X, TMX_PAD_Y } from '../config/TownTMXData';
 import type { DialogMenuOption } from '../types/town';
 import type { EquipmentSlotId } from '../types/equipment';
 
@@ -69,7 +71,7 @@ export class GameScene extends Phaser.Scene {
   }>();
 
   // ─── Estado da área atual ─────────────────────────────────────────────────
-  private _currentArea: 'town' | 'dungeon' = 'town';
+  private _currentArea: 'town' | 'dungeon' | 'bonus' = 'town';
   private _currentMap!: DungeonGenerator;
   private _dungeon: DungeonGenerator | null = null;
   private _enemies: EnemySystem[] = [];
@@ -83,6 +85,8 @@ export class GameScene extends Phaser.Scene {
   // ─── Sistemas de cidade (recriados em cada _loadTown) ────────────────────
   private _npcController: NPCController | null = null;
   private _interactiveSystem: InteractiveObjectSystem | null = null;
+  private _debugDispose: (() => void) | null = null;
+  private _dungeonEntryTiles: { x: number; y: number }[] = [];
 
   // ─── Input ────────────────────────────────────────────────────────────────
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -167,13 +171,13 @@ export class GameScene extends Phaser.Scene {
     if (this.gameState !== GAME_STATE.PLAYING) return;
     this._handleInput(_time);
 
-    // Atualizar NPCs com wandering (apenas na cidade)
-    if (this._currentArea === 'town' && this._npcController) {
+    // Atualizar NPCs com wandering (cidade e área bônus)
+    if ((this._currentArea === 'town' || this._currentArea === 'bonus') && this._npcController) {
       this._npcController.update(delta, this._currentMap.grid);
     }
 
     // Atualizar prompt de interação baseado na posição do player
-    if (this._currentArea === 'town' && this._interactiveSystem) {
+    if ((this._currentArea === 'town' || this._currentArea === 'bonus') && this._interactiveSystem) {
       this._interactiveSystem.update(this.player.gridX, this.player.gridY);
     }
   }
@@ -182,15 +186,16 @@ export class GameScene extends Phaser.Scene {
 
   private _registerTransitions(): void {
     // SpawnPoints
-    this.mapTransitionSystem.registerSpawn({ id: 'town-main',          mapId: 'town',    gridX: TOWN.START_X, gridY: TOWN.START_Y });
-    this.mapTransitionSystem.registerSpawn({ id: 'town-near-exit',     mapId: 'town',    gridX: TOWN.EXIT_X,  gridY: TOWN.EXIT_Y - 1 });
+    this.mapTransitionSystem.registerSpawn({ id: 'town-main',          mapId: 'town',    gridX: TOWN.START_X,            gridY: TOWN.START_Y });
+    // Retorno da dungeon: spawn placeholder — será sobrescrito em _loadTown() após escanear entrarDungeon
+    this.mapTransitionSystem.registerSpawn({ id: 'town-near-exit',     mapId: 'town',    gridX: TOWN.START_X, gridY: TOWN.START_Y });
     this.mapTransitionSystem.registerSpawn({ id: 'dungeon-floor1-entry', mapId: 'dungeon', gridX: 0, gridY: 0 });
 
     // TransitionPoints
     this.mapTransitionSystem.registerTransition({
       id: 'town-to-dungeon',
       fromMapId: 'town', toMapId: 'dungeon',
-      fromGridX: TOWN.EXIT_X, fromGridY: TOWN.EXIT_Y,
+      fromGridX: 0, fromGridY: 0,  // posição verificada em _checkAreaTransition via _dungeonEntryTiles
       targetSpawnId: 'dungeon-floor1-entry',
     });
     this.mapTransitionSystem.registerTransition({
@@ -242,6 +247,9 @@ export class GameScene extends Phaser.Scene {
     this._interactiveSystem?.destroy();
     this._interactiveSystem = null;
 
+    this._debugDispose?.();
+    this._debugDispose = null;
+
     this._items.forEach(i => { i.sprite?.destroy(); i.sprite = null; });
     this._items = [];
 
@@ -251,7 +259,8 @@ export class GameScene extends Phaser.Scene {
 
   private _loadTown(spawnX = TOWN.START_X, spawnY = TOWN.START_Y): void {
     const renderer = new TownTMXRenderer();
-    const { collisionGrid, npcSpawns, tileObjects } = renderer.render(this);
+    const { collisionGrid, npcSpawns, tileObjects, debugDispose } = renderer.render(this);
+    this._debugDispose = debugDispose;
 
     // Construir TownMap com o grid de colisão do TMX
     const townMap = new TownMap();
@@ -260,12 +269,31 @@ export class GameScene extends Phaser.Scene {
 
     this._tileObjects.push(...tileObjects);
 
-    // Marcador visual da saída para a dungeon
-    const exitPx = TOWN.EXIT_X * TILE_SIZE + TILE_SIZE / 2;
-    const exitPy = TOWN.EXIT_Y * TILE_SIZE + TILE_SIZE / 2;
-    this._tileObjects.push(
-      this.add.image(exitPx, exitPy, 'pit0', 0).setDepth(LAYER_GROUND + 0.5),
-    );
+    // Escanear MANUAL_MAP_OVERRIDES por tiles com entrarDungeon:true
+    this._dungeonEntryTiles = Object.entries(MANUAL_MAP_OVERRIDES)
+      .filter(([, v]) => v.entrarDungeon === true)
+      .map(([k]) => {
+        const [tx, ty] = k.split(',').map(Number);
+        return { x: tx + TMX_PAD_X, y: ty + TMX_PAD_Y };
+      });
+    console.log('[entrarDungeon] tiles registrados:', this._dungeonEntryTiles);
+
+    for (const tile of this._dungeonEntryTiles) {
+      const tmxKey = `${tile.x - TMX_PAD_X},${tile.y - TMX_PAD_Y}`;
+      const override = MANUAL_MAP_OVERRIDES[tmxKey];
+      // pit0 só é adicionado se o tile não tem forceGid próprio (forceGid é absoluto)
+      if (!override?.forceGid) {
+        this._tileObjects.push(
+          this.add.image(tile.x * TILE_SIZE + TILE_SIZE / 2, tile.y * TILE_SIZE + TILE_SIZE / 2, 'pit0', 0).setDepth(LAYER_GROUND + 0.5),
+        );
+      }
+    }
+
+    // Atualiza spawn de retorno para o tile ao norte do mais alto
+    if (this._dungeonEntryTiles.length > 0) {
+      const north = this._dungeonEntryTiles.reduce((a, b) => b.y < a.y ? b : a);
+      this.mapTransitionSystem.registerSpawn({ id: 'town-near-exit', mapId: 'town', gridX: north.x, gridY: north.y - 1 });
+    }
 
     // NPCs vindos do TMX
     this._npcController = new NPCController();
@@ -289,6 +317,60 @@ export class GameScene extends Phaser.Scene {
       ? 'Você retornou à cidade.'
       : 'Bem-vindo à cidade. Siga o caminho ao sul para entrar na dungeon.',
     );
+  }
+
+  private _loadBonusArea(): void {
+    this._cleanup();
+    this._currentArea = 'bonus';
+
+    const W = 15;
+    const H = 10;
+    const grid: number[][] = Array.from({ length: H }, (_, y) =>
+      Array.from({ length: W }, (_, x) =>
+        (x === 0 || x === W - 1 || y === 0) ? TILE.WALL : TILE.FLOOR,
+      ),
+    );
+    const bonusMap = new TownMap();
+    bonusMap.grid = grid;
+    this._currentMap = bonusMap;
+
+    // Grama usando GID 1176 → floor tileset, frame 155
+    for (let gy = 0; gy < H; gy++) {
+      for (let gx = 0; gx < W; gx++) {
+        this._tileObjects.push(
+          this.add.image(gx * TILE_SIZE + TILE_SIZE / 2, gy * TILE_SIZE + TILE_SIZE / 2, 'floor', 155).setDepth(LAYER_GROUND),
+        );
+      }
+    }
+
+    const npcX = Math.floor(W / 2);
+    const npcY = Math.floor(H / 2) - 1;
+    this._npcController = new NPCController();
+    this._npcController.spawn(this, [{
+      id: 'bonus-npc',
+      gridX: npcX, gridY: npcY,
+      sprite: 'humanoid0', frame: 0,
+      name: 'Habitante',
+      state: 'idle',
+      interactRange: 2,
+      interaction: { type: 'dialogue', message: 'Seja bem vindo ao trabalho do grupo 7 - SC TEC' },
+    }]);
+
+    this._interactiveSystem = new InteractiveObjectSystem();
+    this._interactiveSystem.load(this, [], this._npcController);
+
+    const spawnX = npcX;
+    const spawnY = H - 2;
+    this.player.gridX = spawnX;
+    this.player.gridY = spawnY;
+    this.player.setPosition(spawnX * TILE_SIZE + TILE_SIZE / 2, spawnY * TILE_SIZE + TILE_SIZE / 2);
+
+    this.cameras.main.setBounds(0, 0, W * TILE_SIZE, H * TILE_SIZE);
+    this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+    this.cameras.main.setZoom(2);
+
+    EventBus.emit(EVENTS.AREA_CHANGED, { area: 'bonus', timestamp: Date.now() });
+    EventBus.emit(EVENTS.UI_LOG, 'Uma área especial...');
   }
 
   /**
@@ -437,9 +519,30 @@ export class GameScene extends Phaser.Scene {
 
   private _checkAreaTransition(): void {
     if (this._currentArea === 'town') {
-      if (this.player.gridX === TOWN.EXIT_X && this.player.gridY === TOWN.EXIT_Y) {
+      const px = this.player.gridX;
+      const py = this.player.gridY;
+      // Entrar na dungeon ao pisar em tile com entrarDungeon:true
+      console.log(`[town move] player game(${px},${py}) | entries:`, this._dungeonEntryTiles.map(e => `(${e.x},${e.y})`).join(' '));
+      if (this._dungeonEntryTiles.some(e => e.x === px && e.y === py)) {
         const resolution = this.mapTransitionSystem.requestTransition('town-to-dungeon');
         if (resolution) this._executeTransition(resolution);
+        return;
+      }
+      // Entrar na área bônus (TMX 7,5 = game 12,10)
+      if (px === TOWN.BONUS_ENTRY_X && py === TOWN.BONUS_ENTRY_Y) {
+        this._loadBonusArea();
+        return;
+      }
+      return;
+    }
+
+    if (this._currentArea === 'bonus') {
+      // Sair da área bônus pela borda sul → retornar à cidade um tile abaixo do gatilho
+      if (this.player.gridY >= 9) {
+        this._cleanup();
+        this._currentArea = 'town';
+        this._loadTown(TOWN.BONUS_ENTRY_X, TOWN.BONUS_ENTRY_Y + 1);
+        EventBus.emit(EVENTS.AREA_CHANGED, { area: 'town', timestamp: Date.now() });
       }
       return;
     }

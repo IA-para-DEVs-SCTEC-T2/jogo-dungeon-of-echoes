@@ -262,12 +262,21 @@ export const TILE_PROP_MAP: Record<number, TileProp> = {
 //   forceGidLike — copia o GID do tile na coordenada "x,y" indicada
 //   overlayGid  — sprite adicional renderizado em cima do tile base (depth LAYER_GROUND+1)
 //   walkable    — sobrescreve a colisão daquele ponto
-export const MANUAL_MAP_OVERRIDES: Record<string, {
-  forceGid?:    number;
+export interface TileOverride {
+  forceGid?:     number;
   forceGidLike?: string;  // ex: '18,11' — copia o tile dessa posição
-  overlayGid?:  number;
-  walkable?:    boolean;
-}> = {
+  overlayGid?:   number;
+  walkable?:     boolean;
+  entrarDungeon?: boolean;  // se true, pisar neste tile transporta para a dungeon
+  npcName?:       string;   // nome exibido no prompt [T]
+  interaction?: {           // torna o sprite interativo sem alterar o visual
+    type: 'dialogue' | 'shop' | 'menu';
+    message: string;
+  };
+}
+
+export const MANUAL_MAP_OVERRIDES: Record<string, TileOverride> = {
+  '12,12': { npcName: 'Placa', interaction: { type: 'dialogue', message: 'Bem vindas à cidade. Taxa de sobrevivência: surpreendentemente baixa' } },
   // Exemplos (descomente e ajuste conforme necessário):
   // '14,3': { forceGid: TILE_GID.GRASS_FLOOR, walkable: true },
   // '10,7': { forceGid: TILE_GID.GRASS_FLOOR, overlayGid: 2313, walkable: true },
@@ -433,17 +442,17 @@ export const MANUAL_MAP_OVERRIDES: Record<string, {
   '7,-4': { forceGid: TILE_GID.STONE_PATH_VERT, walkable: true },
   '7,-5': { forceGid: TILE_GID.STONE_PATH_VERT, walkable: true },
   '7,18': { forceGid: 1168, walkable: true },
-  '7,19': { forceGid: 1168, walkable: true },
+  '7,19': { forceGid: 1168, walkable: true, entrarDungeon: true },
   '8,-4': { forceGid: TILE_GID.GRASS_FLOOR_R, walkable: true },
   '8,-5': { forceGid: TILE_GID.GRASS_FLOOR_R, walkable: true },
   '8,18': { forceGid: 1169, walkable: true },
-  '8,19': { forceGid: 1169, walkable: true },
+  '8,19': { forceGid: 1169, walkable: true, entrarDungeon: true },
+  '9,19': { forceGid: 1170, walkable: true, entrarDungeon: true },
   '9,-5': { forceGid: TILE_GID.GRASS_FLOOR, walkable: true },
   '9,-4': { forceGid: TILE_GID.GRASS_FLOOR, walkable: true },
   '9,6': { walkable: true },
   '9,7': { walkable: true },
   '9,18': { forceGid: 1170, walkable: true },
-  '9,19': { forceGid: 1170, walkable: true },
   '10,-5': { forceGid: TILE_GID.GRASS_FLOOR, walkable: true },
   '10,-4': { forceGid: TILE_GID.GRASS_FLOOR, walkable: true },
   '10,6': { walkable: true },
@@ -485,6 +494,7 @@ export const MANUAL_MAP_OVERRIDES: Record<string, {
   '14,6': { walkable: true },
   '14,7': { walkable: true },
   '14,8': { walkable: true },
+  '14,11': { walkable: true },
   '14,15': { forceGid: TILE_GID.GRASS_FLOOR_L, walkable: true },
   '14,16': { forceGid: TILE_GID.GRASS_FLOOR_L, walkable: true },
   '14,17': { forceGid: TILE_GID.GRASS_FLOOR_L, walkable: true },
@@ -502,6 +512,7 @@ export const MANUAL_MAP_OVERRIDES: Record<string, {
   '16,6': { walkable: true },
   '16,7': { walkable: true },
   '16,8': { walkable: true },
+  '16,11': { walkable: true },
   '16,18': { forceGid: 1169, walkable: true },
   '16,19': { forceGid: 1169, walkable: true },
   '17,-5': { forceGid: 1176, walkable: true },

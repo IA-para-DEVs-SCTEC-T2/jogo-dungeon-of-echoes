@@ -191,11 +191,14 @@ export const TOWN = {
   HEIGHT:           25,   // TMX(15) + 2×padding(5) = 25
   START_X:          12,   // pad(5) + tmx_start(7)
   START_Y:          14,   // pad(5) + tmx_start(9)
-  EXIT_X:           12,   // pad(5) + tmx_exit(7)
-  EXIT_Y:           19,   // pad(5) + tmx_exit(14)
+  EXIT_X:           12,   // mantido para compatibilidade
+  EXIT_Y:           19,
   FLOOR_FRAME:      16,  // grama verde do Ground0.png
   STONE_PATH_FRAME: 1,   // pedra cinza do Ground0.png (caminho central)
+  BONUS_ENTRY_X:    12,  // TMX(7,-5) + pad = game(12,0)
+  BONUS_ENTRY_Y:    0,
 } as const;
+
 
 // --- Loot ---
 export const LOOT = {

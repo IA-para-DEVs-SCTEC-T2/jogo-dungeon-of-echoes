@@ -102,13 +102,15 @@ export const SPRITE_EMPTY_GIDS = new Set([0, 7]);
 // Permite atribuir interações específicas a NPCs identificados na análise do Sprites layer
 import type { NPCInstanceDef } from '../types/town';
 
+// Posições TMX (x,y) cujos sprites são completamente ignorados no renderer
+export const TMX_REMOVED_POSITIONS = new Set(['7,5', '6,4', '8,2', '16,5', '18,14', '13,13']);
+
 export const TMX_NPC_OVERRIDES: Record<string, Partial<NPCInstanceDef>> = {
-  '2,6':  { name: 'Mercador',      interaction: { type: 'shop',     message: 'O que deseja comprar?' } },
-  '16,3': { name: 'Estalajadeiro', interaction: { type: 'menu',     message: 'Bem-vindo à pousada.',
+  // Mercador atrás do balcão (2,7) — interagível a 2 tiles do ponto (2,8)
+  '2,6':  { name: 'Mercador',      interactRange: 2, interaction: { type: 'shop',     message: 'O que deseja comprar?' } },
+  '16,3': { name: 'Estalajadeiro', interactRange: 2, interaction: { type: 'menu', message: 'Bem-vindo à pousada.',
               menuOptions: [{ id: 'rest', label: 'Repousar (20 ouro)', content: 'Descanse e recupere HP e MP.', action: 'rest', goldCost: 20 }] } },
-  '16,5': { name: 'Ajudante',      interaction: { type: 'dialogue', message: 'A pousada está sempre aberta.' } },
-  '10,10':{ name: 'Guarda',        interaction: { type: 'dialogue', message: 'Mantenha a paz, aventureiro.' } },
-  '9,11': { name: 'Guarda',        interaction: { type: 'dialogue', message: 'Cuidado com o que há lá fora.' } },
-  '7,12': { name: 'Guarda',        interaction: { type: 'dialogue', message: 'Por aqui vai à dungeon.' } },
-  '18,14':{ name: 'Viajante',      interaction: { type: 'dialogue', message: 'Boa sorte na sua jornada.' } },
+  // NPCs externos com wandering pela área central da cidade
+  '10,10':{ name: 'Guarda',   wanderBounds: { minX: 9, maxX: 16, minY: 10, maxY: 17 }, interaction: { type: 'dialogue', message: 'Mantenha a paz, aventureiro.' } },
+  '9,11': { name: 'Guarda',   wanderBounds: { minX: 9, maxX: 16, minY: 10, maxY: 17 }, interaction: { type: 'dialogue', message: 'Cuidado com o que há lá fora.' } },
 };

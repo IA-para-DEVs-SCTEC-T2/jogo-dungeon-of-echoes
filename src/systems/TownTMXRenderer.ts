@@ -7,6 +7,7 @@ import {
   TMX_TILES_LAYER, TMX_SPRITES_LAYER,
   SPRITE_EMPTY_GIDS,
   TMX_NPC_OVERRIDES,
+  TMX_REMOVED_POSITIONS,
   resolveGid,
 } from '../config/TownTMXData';
 import { getTileProp, MANUAL_MAP_OVERRIDES } from '../config/TileProperties';
@@ -79,6 +80,7 @@ export interface TownTMXResult {
   collisionGrid: number[][];
   npcSpawns:     NPCInstanceDef[];
   tileObjects:   Phaser.GameObjects.Image[];
+  debugDispose:  () => void;
 }
 
 export class TownTMXRenderer {
@@ -257,8 +259,11 @@ export class TownTMXRenderer {
         let gid = rawToGid(raw);
         if (gid === 0 || gid === 7) continue;
 
-        // Override manual — sempre tem prioridade sobre o TMX
         const coordKey = `${tmxX},${tmxY}`;
+        // Posições removidas: ignora todo rendering de sprite (NPC ou estático)
+        if (TMX_REMOVED_POSITIONS.has(coordKey)) continue;
+
+        // Override manual — sempre tem prioridade sobre o TMX
         const manualOverride = MANUAL_MAP_OVERRIDES[coordKey];
         if (manualOverride?.forceGid !== undefined) {
           gid = manualOverride.forceGid;
@@ -281,17 +286,38 @@ export class TownTMXRenderer {
         if (inRange(gid, HUMAN0_FIRST, HUMAN0_LAST) ||
             inRange(gid, CAT0_FIRST,   CAT0_LAST)   ||
             inRange(gid, QUAD0_FIRST,  QUAD0_LAST)) {
+          if (TMX_REMOVED_POSITIONS.has(`${tmxX},${tmxY}`)) continue;
           const { sprite, frame } = npcSpriteFromGid(gid);
           const override = TMX_NPC_OVERRIDES[`${tmxX},${tmxY}`] ?? {};
           npcSpawns.push({
-            id:          `tmx-npc-${tmxX}-${tmxY}`,
-            gridX:       worldX,
-            gridY:       worldY,
+            id:           `tmx-npc-${tmxX}-${tmxY}`,
+            gridX:        worldX,
+            gridY:        worldY,
             sprite,
             frame,
-            name:        override.name        ?? npcDefaultName(gid),
-            state:       override.state       ?? 'idle',
-            interaction: override.interaction ?? npcDefaultInteraction(gid),
+            name:         override.name         ?? npcDefaultName(gid),
+            state:        override.state        ?? 'idle',
+            wanderBounds: override.wanderBounds,
+            houseBounds:  override.houseBounds,
+            interactRange:override.interactRange,
+            interaction:  override.interaction  ?? npcDefaultInteraction(gid),
+          });
+          continue;
+        }
+
+        // Sprite estático com interaction definida no MANUAL_MAP_OVERRIDES → sign NPC
+        if (manualOverride?.interaction) {
+          const resolved2 = resolveGid(gid);
+          npcSpawns.push({
+            id:           `tmx-sign-${tmxX}-${tmxY}`,
+            gridX:        worldX,
+            gridY:        worldY,
+            sprite:       resolved2?.textureKey ?? 'decor0',
+            frame:        resolved2?.frame      ?? 0,
+            name:         manualOverride.npcName ?? 'Placa',
+            state:        'idle',
+            interactRange: 1,
+            interaction:  manualOverride.interaction,
           });
           continue;
         }
@@ -353,6 +379,8 @@ export class TownTMXRenderer {
       }
     }
 
+    let debugDispose = () => {};
+
     if (DEBUG_SHOW_COORDINATES) {
       const label = scene.add.text(8, 8, 'clique num tile...', {
         fontSize: '12px', fontFamily: 'monospace', color: '#00ffff',
@@ -374,16 +402,23 @@ export class TownTMXRenderer {
         toggleBtn.setColor(coordsVisible ? '#00ff00' : '#ff4444');
       });
 
-      scene.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-        const tmxX = Math.floor(pointer.worldX / TILE_SIZE) - TMX_PAD_X;
-        const tmxY = Math.floor(pointer.worldY / TILE_SIZE) - TMX_PAD_Y;
+      const onPointerDown = (pointer: Phaser.Input.Pointer) => {
+        const cam = scene.cameras.main;
+        const wp  = cam.getWorldPoint(pointer.x, pointer.y);
+        const worldX = wp.x;
+        const worldY = wp.y;
+        const tmxX   = Math.floor(worldX / TILE_SIZE) - TMX_PAD_X;
+        const tmxY   = Math.floor(worldY / TILE_SIZE) - TMX_PAD_Y;
         label.setText(`tile: ${tmxX},${tmxY}`);
 
-        const coordKey  = `${tmxX},${tmxY}`;
-        const override  = MANUAL_MAP_OVERRIDES[coordKey];
-        const inBounds  = tmxX >= 0 && tmxY >= 0 && tmxX < TMX_WIDTH && tmxY < TMX_HEIGHT;
+        const coordKey = `${tmxX},${tmxY}`;
+        const override = MANUAL_MAP_OVERRIDES[coordKey];
+        const inBounds = tmxX >= 0 && tmxY >= 0 && tmxX < TMX_WIDTH && tmxY < TMX_HEIGHT;
+        const gX = tmxX + TMX_PAD_X;
+        const gY = tmxY + TMX_PAD_Y;
         const lines: string[] = [
-          `[DEBUG] tmx(${tmxX}, ${tmxY}) | world(${pointer.worldX.toFixed(1)}, ${pointer.worldY.toFixed(1)})`,
+          `[DEBUG] tmx(${tmxX}, ${tmxY}) | world(${worldX.toFixed(1)}, ${worldY.toFixed(1)})`,
+          `  → game(${gX}, ${gY})  [use '${tmxX},${tmxY}' em MANUAL_MAP_OVERRIDES]`,
         ];
 
         if (inBounds) {
@@ -394,9 +429,6 @@ export class TownTMXRenderer {
           if (spritesGid) lines.push(`  Sprites layer forceGid: ${spritesGid}`);
           if (!tilesGid && !spritesGid) lines.push('  Ambas as layers: GID 0 (vazio no TMX)');
         } else {
-          // área de padding fora do TMX
-          const worldX = tmxX + TMX_PAD_X;
-          const worldY = tmxY + TMX_PAD_Y;
           const distFromBorder = Math.max(
             tmxX < 0 ? -(tmxX + 1) : tmxX >= TMX_WIDTH  ? tmxX - TMX_WIDTH  : 0,
             tmxY < 0 ? -(tmxY + 1) : tmxY >= TMX_HEIGHT ? tmxY - TMX_HEIGHT : 0,
@@ -408,7 +440,7 @@ export class TownTMXRenderer {
             if (roadGid !== null) lines.push(`  Padding (borda de caminho) forceGid: ${roadGid}`);
             else                  lines.push(`  Padding (borda) — sem caminho adjacente, grama procedural`);
           } else {
-            const frame = weightedGrassFrame(worldX, worldY);
+            const frame = weightedGrassFrame(gX, gY);
             lines.push(`  Padding (grama procedural) texture: ground  frame: ${frame}`);
             lines.push(`  → Para forçar aqui use forceGid de outra coord com a mesma grama,`);
             lines.push(`    ou procure o GID que resolveGid mapeia para { textureKey:'ground', frame:${frame} }`);
@@ -416,11 +448,19 @@ export class TownTMXRenderer {
         }
 
         if (override) lines.push(`  Override atual: ${JSON.stringify(override)}`);
-
         console.log(lines.join('\n'));
-      });
+      };
+
+      scene.input.on('pointerdown', onPointerDown);
+
+      debugDispose = () => {
+        scene.input.off('pointerdown', onPointerDown);
+        label.destroy();
+        toggleBtn.destroy();
+        coordLabels.forEach(t => t.destroy());
+      };
     }
 
-    return { collisionGrid, npcSpawns, tileObjects };
+    return { collisionGrid, npcSpawns, tileObjects, debugDispose };
   }
 }
