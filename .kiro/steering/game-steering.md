@@ -48,7 +48,12 @@ Dungeon of Echoes é um RPG 2D tile-based jogado no navegador. O jogador explora
 - **Scenes nunca calculam lógica de domínio** — delegam a Systems
 - **Magic frame numbers pertencem a `sprites-config.ts`** — não espalhar literais de frame em cenas ou sistemas
 - **Biomas e variantes de tile resolvidos por `CityLayoutProcessor` + `TileVariantResolver`** — `GameScene` apenas consome `ProcessedTownLayout`, não decide frames
-- **NPCs com `wanderBounds` undefined são estáticos** (Guard); com bounds wandam (`customWanderBounds` para o Gato)
+- **NPCs com `wanderBounds` undefined são estáticos**; com bounds wandam (`customWanderBounds` para o Gato)
+- **`interactRange`** em `NPCInstanceDef` define raio de interação em manhattan distance (padrão 1); usar `2` para NPCs atrás de balcão
+- **Objetos estáticos interativos** (placas, sinais) são criados via `TileOverride.interaction` em `MANUAL_MAP_OVERRIDES` — sem sprite NPC dedicado; `TownTMXRenderer` os converte em `npcSpawns`
+- **Entradas da dungeon** definidas por `entrarDungeon: true` em `MANUAL_MAP_OVERRIDES` — nunca em array estático; `GameScene._loadTown()` lê e popula `_dungeonEntryTiles`
+- **`TMX_REMOVED_POSITIONS`** é verificado antes de qualquer renderização de sprite no `TownTMXRenderer`; cobre GIDs fora do intervalo NPC também
+- **`NPCController.getAllNPCs()`** retorna posição atual (`gridX/gridY`) — nunca a posição de spawn; `InteractiveObjectSystem` depende disso para NPCs que wandam
 - **InputModeManager** controla qual painel recebe input — `push()` ao abrir, `pop()` ao fechar; em modo ≠ GAMEPLAY o personagem não se move
 - **`INVENTORY_OPENED` é o único evento que autoriza `_inventoryPanel.show()`** — `INVENTORY_STATE_RESPONSE` apenas atualiza dados; nunca abre o painel
 - **Bônus de equipamento são reversíveis** — `Player.applyEquipmentBonuses()` / `removeEquipmentBonuses()` acumulam em `_equipmentBonuses`; `recalcStats()` é a fonte de verdade dos stats derivados

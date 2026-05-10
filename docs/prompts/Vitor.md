@@ -804,3 +804,25 @@ Arquivos modificados:
 - `src/scenes/GameScene.ts` — _dungeonEntryTiles, scan de entrarDungeon, pit0 condicional
 - `src/systems/TownTMXRenderer.ts` — getWorldPoint, game() no debug, TMX_REMOVED_POSITIONS antes do rendering, sign NPC
 - `src/systems/NPCController.ts` — getAllNPCs() com posição atual
+
+---
+
+## Prompt 23
+
+Contexto:
+Após o commit das melhorias no cenário da cidade, atualizar a documentação interna do projeto.
+
+Objetivo:
+1. Atualizar `.kiro/specs/world.spec.md` com pipeline data-driven, NPCs com posições/ranges corretos e transição via `_dungeonEntryTiles`
+2. Atualizar `.kiro/specs/product.md` com placa interativa, `entrarDungeon` data-driven, `interactRange` e debug
+3. Atualizar `.kiro/steering/game-steering.md` com 5 novas restrições arquiteturais
+
+Tarefas realizadas:
+1. `world.spec.md`: pipeline substituído por `TownTMXRenderer + MANUAL_MAP_OVERRIDES`; NPCs com posições TMX, `interactRange` e comportamento corretos; transição cidade→dungeon documenta `_dungeonEntryTiles`
+2. `product.md`: seções Cidade e NPCs atualizadas — placa, `entrarDungeon`, `interactRange`, debug de tiles
+3. `game-steering.md`: adicionadas restrições para `interactRange`, objetos estáticos interativos, entradas data-driven, `TMX_REMOVED_POSITIONS` e `getAllNPCs()`
+
+Arquivos modificados:
+- `.kiro/specs/world.spec.md` — pipeline, NPCs, transição data-driven
+- `.kiro/specs/product.md` — seções Cidade e NPCs
+- `.kiro/steering/game-steering.md` — novas restrições arquiteturais

@@ -52,6 +52,12 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ### Added
 
+#### Documentação interna (.kiro)
+
+- `world.spec.md` atualizado: pipeline data-driven via `TownTMXRenderer + MANUAL_MAP_OVERRIDES`, NPCs com posições TMX e `interactRange`, transição cidade→dungeon via `_dungeonEntryTiles`
+- `product.md` atualizado: placa interativa, `entrarDungeon` data-driven, `interactRange` por NPC, debug de tiles
+- `game-steering.md`: 5 novas restrições arquiteturais — `interactRange`, objetos estáticos interativos, entradas data-driven, `TMX_REMOVED_POSITIONS` e `getAllNPCs()`
+
 #### Melhorias no cenário da cidade
 
 - **`entrarDungeon` data-driven**: campo `entrarDungeon?: boolean` em `TileOverride` permite marcar qualquer tile do mapa como entrada para a dungeon via `MANUAL_MAP_OVERRIDES` — elimina o array estático `TOWN_DUNGEON_EXITS`
