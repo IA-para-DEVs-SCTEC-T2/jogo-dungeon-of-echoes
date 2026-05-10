@@ -26,13 +26,28 @@ const GID_MASK = 0x1FFFFFFF;
 
 // Quando true, exibe "tmxX,tmxY" sobre cada tile — útil para identificar coordenadas
 // de tiles problemáticos e adicioná-los em MANUAL_MAP_OVERRIDES (TileProperties.ts).
-const DEBUG_SHOW_COORDINATES = false;
+const DEBUG_SHOW_COORDINATES = true;
 
-// Frames de grama usados no preenchimento ao redor do mapa TMX
-const GRASS_FRAMES = [16, 17, 18] as const;
+const STONE_PATH_FIRST  = 1147;
+const STONE_PATH_LAST   = 1200;
+const ROAD_EXTEND_TILES = 3;
+
+function weightedGrassFrame(worldX: number, worldY: number): number {
+  const h = (worldX * 7 + worldY * 13) % 100;
+  if (h < 60) return 16;
+  if (h < 90) return 17;
+  return 18;
+}
 
 function rawToGid(raw: number): number {
   return raw & GID_MASK;
+}
+
+function borderStonePathGid(tmxX: number, tmxY: number): number | null {
+  const bx = Math.max(0, Math.min(TMX_WIDTH  - 1, tmxX));
+  const by = Math.max(0, Math.min(TMX_HEIGHT - 1, tmxY));
+  const gid = rawToGid(TMX_TILES_LAYER[by * TMX_WIDTH + bx]);
+  return (gid >= STONE_PATH_FIRST && gid <= STONE_PATH_LAST) ? gid : null;
 }
 
 function inRange(gid: number, first: number, last: number): boolean {
@@ -70,6 +85,7 @@ export class TownTMXRenderer {
   render(scene: Phaser.Scene): TownTMXResult {
     const tileObjects: Phaser.GameObjects.Image[] = [];
     const npcSpawns:   NPCInstanceDef[]           = [];
+    const coordLabels: Phaser.GameObjects.Text[]  = [];
 
     // Grid de colisão do tamanho total (com padding de grama)
     const collisionGrid: number[][] = Array.from(
@@ -102,20 +118,54 @@ export class TownTMXRenderer {
                 .setFlipY(resolved.flipY),
             );
           }
+          if (manualOverride.overlayGid !== undefined) {
+            const overlayResolved = resolveGid(manualOverride.overlayGid);
+            if (overlayResolved) {
+              tileObjects.push(
+                scene.add
+                  .image(px, py, overlayResolved.textureKey, overlayResolved.frame)
+                  .setDepth(LAYER_GROUND + 1)
+                  .setFlipX(overlayResolved.flipX)
+                  .setFlipY(overlayResolved.flipY),
+              );
+            }
+          }
           if (manualOverride.walkable === false) {
             collisionGrid[worldY][worldX] = TILE.WALL;
           }
         } else {
-          const frame = GRASS_FRAMES[(worldX * 7 + worldY * 13) % GRASS_FRAMES.length];
-          tileObjects.push(
-            scene.add.image(px, py, 'ground', frame).setDepth(LAYER_GROUND),
+          const distFromBorder = Math.max(
+            tmxX < 0 ? -(tmxX + 1) : tmxX >= TMX_WIDTH  ? tmxX - TMX_WIDTH  : 0,
+            tmxY < 0 ? -(tmxY + 1) : tmxY >= TMX_HEIGHT ? tmxY - TMX_HEIGHT : 0,
           );
+          const roadGid = distFromBorder < ROAD_EXTEND_TILES
+            ? borderStonePathGid(tmxX, tmxY)
+            : null;
+
+          if (roadGid !== null) {
+            const resolved = resolveGid(roadGid);
+            if (resolved) {
+              tileObjects.push(
+                scene.add
+                  .image(px, py, resolved.textureKey, resolved.frame)
+                  .setDepth(LAYER_GROUND)
+                  .setFlipX(resolved.flipX)
+                  .setFlipY(resolved.flipY),
+              );
+            }
+          } else {
+            tileObjects.push(
+              scene.add.image(px, py, 'ground', weightedGrassFrame(worldX, worldY)).setDepth(LAYER_GROUND),
+            );
+          }
         }
 
         if (DEBUG_SHOW_COORDINATES) {
-          scene.add.text(px - TILE_SIZE / 2, py - TILE_SIZE / 2, coordKey, {
-            fontSize: '5px', color: '#ffffff', backgroundColor: '#000000cc',
-          }).setDepth(9999).setScrollFactor(1);
+          coordLabels.push(
+            scene.add.text(px - TILE_SIZE / 2, py - TILE_SIZE / 2, coordKey, {
+              fontSize: '5px', color: '#ffffff', backgroundColor: '#000000cc',
+            }).setDepth(9999).setScrollFactor(1),
+          );
         }
       }
     }
@@ -177,9 +227,11 @@ export class TownTMXRenderer {
         }
 
         if (DEBUG_SHOW_COORDINATES) {
-          scene.add.text(px - TILE_SIZE / 2, py - TILE_SIZE / 2, coordKey, {
-            fontSize: '5px', color: '#ffffff', backgroundColor: '#000000cc',
-          }).setDepth(9999).setScrollFactor(1);
+          coordLabels.push(
+            scene.add.text(px - TILE_SIZE / 2, py - TILE_SIZE / 2, coordKey, {
+              fontSize: '5px', color: '#ffffff', backgroundColor: '#000000cc',
+            }).setDepth(9999).setScrollFactor(1),
+          );
         }
 
         // Colisão: Wall tileset (GID 1–1020) = sólido por padrão
@@ -218,9 +270,11 @@ export class TownTMXRenderer {
         if (DEBUG_SHOW_COORDINATES) {
           const px = worldX * TILE_SIZE + TILE_SIZE / 2;
           const py = worldY * TILE_SIZE + TILE_SIZE / 2;
-          scene.add.text(px - TILE_SIZE / 2, py - TILE_SIZE / 2, coordKey, {
-            fontSize: '5px', color: '#ffff00', backgroundColor: '#000000cc',
-          }).setDepth(9999).setScrollFactor(1);
+          coordLabels.push(
+            scene.add.text(px - TILE_SIZE / 2, py - TILE_SIZE / 2, coordKey, {
+              fontSize: '5px', color: '#ffff00', backgroundColor: '#000000cc',
+            }).setDepth(9999).setScrollFactor(1),
+          );
         }
 
         // NPCs — registrar para spawn, não renderizar como imagem estática
@@ -305,13 +359,65 @@ export class TownTMXRenderer {
         backgroundColor: '#000000dd', padding: { x: 5, y: 3 },
       }).setDepth(9999).setScrollFactor(0);
 
+      let coordsVisible = true;
+      const uiScene = scene.game.scene.getScene('UIScene') ?? scene;
+      const { height } = uiScene.scale;
+      const toggleBtn = uiScene.add.text(8, height - 28, '[ coords: ON ]', {
+        fontSize: '12px', fontFamily: 'monospace', color: '#00ff00',
+        backgroundColor: '#000000dd', padding: { x: 5, y: 3 },
+      }).setDepth(99999).setScrollFactor(0).setInteractive({ useHandCursor: true });
+
+      toggleBtn.on('pointerdown', () => {
+        coordsVisible = !coordsVisible;
+        coordLabels.forEach(t => t.setVisible(coordsVisible));
+        toggleBtn.setText(coordsVisible ? '[ coords: ON ]' : '[ coords: OFF ]');
+        toggleBtn.setColor(coordsVisible ? '#00ff00' : '#ff4444');
+      });
+
       scene.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-        const cam = scene.cameras.main;
-        const worldX = pointer.x / cam.zoom + cam.scrollX;
-        const worldY = pointer.y / cam.zoom + cam.scrollY;
-        const tmxX = Math.floor(worldX / TILE_SIZE) - TMX_PAD_X;
-        const tmxY = Math.floor(worldY / TILE_SIZE) - TMX_PAD_Y;
+        const tmxX = Math.floor(pointer.worldX / TILE_SIZE) - TMX_PAD_X;
+        const tmxY = Math.floor(pointer.worldY / TILE_SIZE) - TMX_PAD_Y;
         label.setText(`tile: ${tmxX},${tmxY}`);
+
+        const coordKey  = `${tmxX},${tmxY}`;
+        const override  = MANUAL_MAP_OVERRIDES[coordKey];
+        const inBounds  = tmxX >= 0 && tmxY >= 0 && tmxX < TMX_WIDTH && tmxY < TMX_HEIGHT;
+        const lines: string[] = [
+          `[DEBUG] tmx(${tmxX}, ${tmxY}) | world(${pointer.worldX.toFixed(1)}, ${pointer.worldY.toFixed(1)})`,
+        ];
+
+        if (inBounds) {
+          const idx        = tmxY * TMX_WIDTH + tmxX;
+          const tilesGid   = rawToGid(TMX_TILES_LAYER[idx]);
+          const spritesGid = rawToGid(TMX_SPRITES_LAYER[idx]);
+          if (tilesGid)   lines.push(`  Tiles layer   forceGid: ${tilesGid}`);
+          if (spritesGid) lines.push(`  Sprites layer forceGid: ${spritesGid}`);
+          if (!tilesGid && !spritesGid) lines.push('  Ambas as layers: GID 0 (vazio no TMX)');
+        } else {
+          // área de padding fora do TMX
+          const worldX = tmxX + TMX_PAD_X;
+          const worldY = tmxY + TMX_PAD_Y;
+          const distFromBorder = Math.max(
+            tmxX < 0 ? -(tmxX + 1) : tmxX >= TMX_WIDTH  ? tmxX - TMX_WIDTH  : 0,
+            tmxY < 0 ? -(tmxY + 1) : tmxY >= TMX_HEIGHT ? tmxY - TMX_HEIGHT : 0,
+          );
+          if (override?.forceGid !== undefined) {
+            lines.push(`  Padding (override) forceGid: ${override.forceGid}`);
+          } else if (distFromBorder < ROAD_EXTEND_TILES) {
+            const roadGid = borderStonePathGid(tmxX, tmxY);
+            if (roadGid !== null) lines.push(`  Padding (borda de caminho) forceGid: ${roadGid}`);
+            else                  lines.push(`  Padding (borda) — sem caminho adjacente, grama procedural`);
+          } else {
+            const frame = weightedGrassFrame(worldX, worldY);
+            lines.push(`  Padding (grama procedural) texture: ground  frame: ${frame}`);
+            lines.push(`  → Para forçar aqui use forceGid de outra coord com a mesma grama,`);
+            lines.push(`    ou procure o GID que resolveGid mapeia para { textureKey:'ground', frame:${frame} }`);
+          }
+        }
+
+        if (override) lines.push(`  Override atual: ${JSON.stringify(override)}`);
+
+        console.log(lines.join('\n'));
       });
     }
 

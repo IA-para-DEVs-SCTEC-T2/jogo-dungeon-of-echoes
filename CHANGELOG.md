@@ -52,6 +52,17 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ### Added
 
+#### Ferramental de debug de tiles (mapa da cidade)
+
+- **Console.log ao clicar num tile** em `TownTMXRenderer.ts`: exibe coordenadas TMX e world, `forceGid` das layers Tiles e Sprites, e override atual — pronto para copiar em `MANUAL_MAP_OVERRIDES`
+- **Botão toggle "[ coords: ON/OFF ]"** adicionado à `UIScene`: esconde/mostra os labels de coordenada nos tiles dinamicamente sem afetar o console.log; fica sempre visível acima de todos os painéis
+- **Suporte a `overlayGid` no loop de padding**: overrides com `overlayGid` agora funcionam em coordenadas fora dos limites TMX (ex: `"-1,8"`)
+- **Spritesheet `Decor0.png` carregado** no `BootScene`: GIDs 2136–2311 (mobília, tapetes, decorações) agora renderizam corretamente via `forceGid` e `overlayGid`
+
+### Fixed
+
+- Cálculo incorreto de coordenadas ao clicar no mapa: substituído cálculo manual `pointer.x / cam.zoom + cam.scrollX` por `pointer.worldX` / `pointer.worldY`, eliminando offset errado quando a câmera não estava na origem
+
 #### Renderização de padding completo (30×25)
 
 - **Loop de grama expandido** em `TownTMXRenderer.ts`: as 450 células de padding agora consultam `MANUAL_MAP_OVERRIDES` (suportando chaves com coordenadas negativas como `"-5,-3"`) e exibem `DEBUG_SHOW_COORDINATES` — todas as 750 células do mapa ficam visíveis no modo debug

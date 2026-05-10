@@ -742,3 +742,26 @@ Tarefas realizadas:
 
 Arquivos modificados:
 - `src/systems/TownTMXRenderer.ts` — loop de grama expandido com override e debug
+
+## Prompt 21
+Autor: Vitor
+Data: 2026-05-09
+
+Contexto:
+O modo DEBUG_SHOW_COORDINATES exibia coordenadas nos tiles mas não havia feedback ao clicar sobre qual GID correspondia ao tile clicado, dificultando o preenchimento de MANUAL_MAP_OVERRIDES. Além disso, overlayGid não funcionava em coordenadas fora dos limites TMX (padding) e o spritesheet Decor0.png não era carregado.
+
+Objetivo:
+Melhorar o ferramental de debug de tiles para facilitar a identificação e configuração de overrides no mapa da cidade.
+
+Tarefas realizadas:
+1. Adicionar console.log ao clicar num tile com coordenadas TMX, world, forceGid das layers Tiles e Sprites, e override atual
+2. Corrigir cálculo de coordenadas do clique usando pointer.worldX/worldY em vez de cálculo manual incorreto
+3. Adicionar botão toggle "[ coords: ON/OFF ]" na UIScene para mostrar/esconder os labels de coordenada dinamicamente sem interromper o console.log
+4. Expandir o log para tiles fora dos limites TMX: detectar grama procedural, borda de caminho ou override de padding
+5. Corrigir overlayGid para funcionar também no loop de padding (coordenadas negativas como "-1,8")
+6. Adicionar carregamento do spritesheet Decor0.png no BootScene (estava ausente, impedindo renderização de GIDs 2136–2311)
+
+Arquivos modificados:
+- `src/systems/TownTMXRenderer.ts` — console.log de clique, botão toggle, overlayGid no loop de padding
+- `src/scenes/BootScene.ts` — carregamento de decor0
+- `src/config/TileProperties.ts` — ajustes de overrides
