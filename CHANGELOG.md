@@ -50,6 +50,22 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ## [Unreleased]
 
+## [5.1.0] — 2026-05-10
+
+### Added
+
+#### Área Bônus — expansão e sistema de debug
+
+- **`BonusAreaData.ts`**: config isolada da área bônus (`BONUS_W=30`, `BONUS_H=22`) — `BONUS_AREA_OVERRIDES` separado de `MANUAL_MAP_OVERRIDES` da cidade; nunca misturar os dois
+- **`BonusAreaRenderer`**: renderer com debug idêntico ao `TownTMXRenderer` — labels `x,y` sobre cada tile, toggle `[ coords: ON/OFF ]`, clique exibe `[DEBUG bonus] (x,y)`, coordenadas world e override atual
+- Suporte a `forceGid`, `walkable` e `interaction` em `BONUS_AREA_OVERRIDES` — mesma ergonomia da cidade
+- NPCs e objetos interativos estáticos (placas) definidos em `BONUS_AREA_NPCS` e via `interaction` nos overrides
+
+### Fixed
+
+- Área bônus não permitia movimento: condição de saída estava hardcoded em `gridY >= 9` (altura antiga 10); corrigido para `gridY >= BONUS_H - 1`
+- `GameScene._loadBonusArea()` reescrito para delegar ao `BonusAreaRenderer`, eliminando lógica duplicada de renderização
+
 ### Added
 
 #### Documentação interna (.kiro)

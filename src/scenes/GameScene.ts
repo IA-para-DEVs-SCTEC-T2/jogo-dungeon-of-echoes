@@ -12,6 +12,7 @@ import { TownMap } from '../systems/WorldSystem';
 import { NPCController } from '../systems/NPCController';
 import { InteractiveObjectSystem } from '../systems/InteractiveObjectSystem';
 import { TownTMXRenderer } from '../systems/TownTMXRenderer';
+import { BonusAreaRenderer } from '../systems/BonusAreaRenderer';
 import { LAYER_GROUND } from '../config/sprites-config';
 import { InputModeManager } from '../systems/InputModeManager';
 import { MapTransitionSystem } from '../systems/MapTransitionSystem';
@@ -39,7 +40,8 @@ import {
   TAVERN,
 } from '../utils/constants';
 import { MANUAL_MAP_OVERRIDES } from '../config/TileProperties';
-import { TMX_PAD_X, TMX_PAD_Y } from '../config/TownTMXData';
+import { TMX_PAD_X, TMX_PAD_Y, TMX_TILESETS } from '../config/TownTMXData';
+import { BONUS_W, BONUS_H, BONUS_PLAYER_START_X, BONUS_PLAYER_START_Y } from '../config/BonusAreaData';
 import type { DialogMenuOption } from '../types/town';
 import type { EquipmentSlotId } from '../types/equipment';
 
@@ -323,49 +325,29 @@ export class GameScene extends Phaser.Scene {
     this._cleanup();
     this._currentArea = 'bonus';
 
-    const W = 15;
-    const H = 10;
-    const grid: number[][] = Array.from({ length: H }, (_, y) =>
-      Array.from({ length: W }, (_, x) =>
-        (x === 0 || x === W - 1 || y === 0) ? TILE.WALL : TILE.FLOOR,
-      ),
-    );
+    const renderer = new BonusAreaRenderer();
+    const { collisionGrid, npcSpawns, tileObjects, debugDispose } = renderer.render(this);
+    this._debugDispose = debugDispose;
+    this._tileObjects.push(...tileObjects);
+
     const bonusMap = new TownMap();
-    bonusMap.grid = grid;
+    bonusMap.grid = collisionGrid;
     this._currentMap = bonusMap;
 
-    // Grama usando GID 1176 → floor tileset, frame 155
-    for (let gy = 0; gy < H; gy++) {
-      for (let gx = 0; gx < W; gx++) {
-        this._tileObjects.push(
-          this.add.image(gx * TILE_SIZE + TILE_SIZE / 2, gy * TILE_SIZE + TILE_SIZE / 2, 'floor', 155).setDepth(LAYER_GROUND),
-        );
-      }
-    }
-
-    const npcX = Math.floor(W / 2);
-    const npcY = Math.floor(H / 2) - 1;
     this._npcController = new NPCController();
-    this._npcController.spawn(this, [{
-      id: 'bonus-npc',
-      gridX: npcX, gridY: npcY,
-      sprite: 'humanoid0', frame: 0,
-      name: 'Habitante',
-      state: 'idle',
-      interactRange: 2,
-      interaction: { type: 'dialogue', message: 'Seja bem vindo ao trabalho do grupo 7 - SC TEC' },
-    }]);
+    this._npcController.spawn(this, npcSpawns);
 
     this._interactiveSystem = new InteractiveObjectSystem();
     this._interactiveSystem.load(this, [], this._npcController);
 
-    const spawnX = npcX;
-    const spawnY = H - 2;
-    this.player.gridX = spawnX;
-    this.player.gridY = spawnY;
-    this.player.setPosition(spawnX * TILE_SIZE + TILE_SIZE / 2, spawnY * TILE_SIZE + TILE_SIZE / 2);
+    this.player.gridX = BONUS_PLAYER_START_X;
+    this.player.gridY = BONUS_PLAYER_START_Y;
+    this.player.setPosition(
+      BONUS_PLAYER_START_X * TILE_SIZE + TILE_SIZE / 2,
+      BONUS_PLAYER_START_Y * TILE_SIZE + TILE_SIZE / 2,
+    );
 
-    this.cameras.main.setBounds(0, 0, W * TILE_SIZE, H * TILE_SIZE);
+    this.cameras.main.setBounds(0, 0, BONUS_W * TILE_SIZE, BONUS_H * TILE_SIZE);
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.cameras.main.setZoom(2);
 
@@ -538,7 +520,7 @@ export class GameScene extends Phaser.Scene {
 
     if (this._currentArea === 'bonus') {
       // Sair da área bônus pela borda sul → retornar à cidade um tile abaixo do gatilho
-      if (this.player.gridY >= 9) {
+      if (this.player.gridY >= BONUS_H - 1) {
         this._cleanup();
         this._currentArea = 'town';
         this._loadTown(TOWN.BONUS_ENTRY_X, TOWN.BONUS_ENTRY_Y + 1);

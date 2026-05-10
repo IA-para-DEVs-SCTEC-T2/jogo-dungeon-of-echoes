@@ -27,7 +27,7 @@ const GID_MASK = 0x1FFFFFFF;
 
 // Quando true, exibe "tmxX,tmxY" sobre cada tile — útil para identificar coordenadas
 // de tiles problemáticos e adicioná-los em MANUAL_MAP_OVERRIDES (TileProperties.ts).
-const DEBUG_SHOW_COORDINATES = true;
+const DEBUG_SHOW_COORDINATES = false;
 
 const STONE_PATH_FIRST  = 1147;
 const STONE_PATH_LAST   = 1200;
