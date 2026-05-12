@@ -69,3 +69,31 @@ Resultado:
 108 testes passando. Sistema de inventário completo e funcional seguindo o padrão roguelike clássico.
 
 Branch criada: `feature/inventory-system`
+
+## Prompt 5 — test(guide): testes guia para LogSystem e PlayerMetrics
+Autor: Andrea
+Data: 2026-05-05
+
+Prompt utilizado:
+> "Pense como um professor especialista em desenvolvimento de jogos, analise o código do jogo e sugira alguma atividade para que uma aluna iniciante na área possa fazer e que seja uma melhoria que beneficie a toda a equipe."
+
+O que foi feito:
+
+1. Identificado que LogSystem e PlayerMetrics não tinham nenhum teste, apesar de serem sistemas críticos usados por toda a equipe.
+
+2. Criada branch `feature/tests-log-metrics` a partir de `staging`.
+
+3. Criado `tests/log-system.test.js`:
+   - 10 testes prontos (testes guia) que passam imediatamente
+   - 6 exercícios comentados com dicas para a aluna completar
+   - Comentários explicativos sobre describe(), it(), expect()
+
+4. Criado `tests/player-metrics.test.js`:
+   - 11 testes prontos (testes guia) que passam imediatamente
+   - 7 exercícios comentados com dicas para a aluna completar
+   - Cobre: estado inicial, registro de eventos, score de performance, janela deslizante, reset
+
+Resultado:
+159 testes passando. Arquivos servem como material de aprendizado e contribuição real ao projeto.
+
+Branch criada: `feature/tests-log-metrics`
