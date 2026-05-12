@@ -4,7 +4,7 @@
 **Versão:** 0.5.4  
 **Data:** 2026-05-12  
 **Equipe:** Equipe 7 — IA para DEVs SCTEC T2  
-**Status:** v0.5.4 entregue — Sistema de Magias com projéteis, dois slots equipáveis, progressão data-driven por nível
+**Status:** v0.5.4 entregue — Sistema de Magias melee-range, dois slots J/K no footer, navegação por teclado no painel de magias
 
 ---
 
@@ -357,15 +357,16 @@ Os requisitos abaixo são derivados diretamente das specs em `.kiro/specs/`.
 - [x] Todos os 4 temas de dungeon migrados para `bitmaskFrames`
 
 ### v0.5.4 — Sistema de Magias (entregue em 2026-05-12)
-- [x] `SpellSystem`: desbloqueio de magias por nível, dois slots equipáveis, cooldown por slot
-- [x] `SpellCastingSystem`: disparo com verificação de mana e cooldown; instancia `Projectile`
-- [x] `Projectile`: sprite com movimento autônomo, colisão com paredes e inimigos, animação de impacto
-- [x] `SpellsPanel`: painel de UI para equipar magias com navegação por teclado
+- [x] `SpellSystem`: desbloqueio de magias por nível, dois slots J/K com cooldown independente
+- [x] `SpellCastingSystem`: mecânica melee-range — verifica mana e cooldown, aplica dano em todos os inimigos adjacentes (4 cardinais)
+- [x] `SpellsPanel`: integrado ao painel `I`; mesmas dimensões do inventário; navegação por teclado (↓ entra na lista, ↑ na primeira magia volta às abas, Enter/E equipa em J, K equipa em K)
 - [x] `StatusPanel`: painel de atributos detalhados (STR/INT/DEX/CON/WIS/CHA, HP, Mana)
 - [x] `spells.db.ts`: 5 magias data-driven (fire_bolt, ice_shard, wind_cyclone, fire_explosion, blizzard)
 - [x] `spell-progression.ts`: tabela de desbloqueio por nível extendível
+- [x] Slots J/K no footer (action bar), canto direito, tamanho 20×20 com barra de cooldown
 - [x] Player com `facingDir`, `unlockedSpells` e `equippedSpells`
 - [x] XPSystem integrado: desbloqueia magias automaticamente ao subir de nível
+- [x] Barra de HP do inimigo atualizada imediatamente após dano de magia
 
 ### v0.6.0 — FOG of War (planejado)
 - [ ] FOG of War: HIDDEN / VISIBLE / REVEALED por tile

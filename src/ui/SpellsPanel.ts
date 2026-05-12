@@ -163,6 +163,11 @@ export class SpellsPanel {
     }
   }
 
+  clearSelection(): void {
+    this._selectedId = null;
+    this._dirty = true;
+  }
+
   render(vm: SpellsViewModel): void {
     if (!this._dirty) return;
     this._dirty = false;

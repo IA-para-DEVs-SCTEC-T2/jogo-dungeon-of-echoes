@@ -28,7 +28,6 @@ import { ShopSystem } from '../systems/ShopSystem';
 import { SHOP_CATALOG } from '../config/shop.catalog';
 import { SpellSystem } from '../systems/SpellSystem';
 import { SpellCastingSystem } from '../systems/SpellCastingSystem';
-import { Projectile } from '../entities/Projectile';
 import { SPELLS_DB } from '../config/spells.db';
 import type { TransitionResolution } from '../types/transitions';
 import type { GridPos } from '../generators/DungeonGenerator';
@@ -70,7 +69,6 @@ export class GameScene extends Phaser.Scene {
   private _shopSystem!: ShopSystem;
   private _spellSystem!: SpellSystem;
   private _spellCastingSystem!: SpellCastingSystem;
-  private _projectiles: Projectile[] = [];
   private gameState!: string;
 
   // Cache de andares visitados (runtime — não serializado ainda)
@@ -120,6 +118,9 @@ export class GameScene extends Phaser.Scene {
 
   // ─── Estado de seleção de inventário / loja ───────────────────────────────
   private _inventorySelectedIndex = 0;
+  private _inventoryTab: 'inventory' | 'status' | 'spells' = 'status';
+  private _spellsSelectedIndex = 0;
+  private _spellsFocus: 'tabs' | 'list' = 'tabs';
   private _shopSelectedIndex = 0;
   private _shopTab: 'buy' | 'sell' = 'buy';
 
@@ -161,7 +162,6 @@ export class GameScene extends Phaser.Scene {
     this._shopSystem          = new ShopSystem(SHOP_CATALOG);
     this._spellSystem         = new SpellSystem();
     this._spellCastingSystem  = new SpellCastingSystem();
-    this._projectiles         = [];
     this._registerTransitions();
 
     // Player criado uma vez — moves between areas
@@ -179,7 +179,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   shutdown(): void {
-    this._clearProjectiles();
     EventBus.off(EVENTS.ITEM_DROPPED, this._handleItemDropped, this);
     EventBus.off(EVENTS.INVENTORY_STATE_REQUESTED, undefined, this);
     EventBus.off(EVENTS.STATUS_STATE_REQUESTED,    undefined, this);
@@ -196,10 +195,7 @@ export class GameScene extends Phaser.Scene {
     if (this.gameState !== GAME_STATE.PLAYING) return;
     this._handleInput(_time);
 
-    // Atualizar projéteis de magia (real-time)
-    if (this._currentArea === 'dungeon' && this._dungeon) {
-      this._updateProjectiles();
-    }
+
 
     // Atualizar NPCs com wandering (cidade e área bônus)
     if ((this._currentArea === 'town' || this._currentArea === 'bonus') && this._npcController) {
@@ -265,8 +261,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   private _cleanup(): void {
-    this._clearProjectiles();
-
     this._tileObjects.forEach(o => o.destroy());
     this._tileObjects = [];
 
@@ -725,6 +719,8 @@ export class GameScene extends Phaser.Scene {
         EventBus.emit(EVENTS.DIALOG_CLOSED, {});
       } else if (this.inputMode.is('INVENTORY')) {
         this.inputMode.pop();
+        this._inventoryTab = 'status';
+        this._spellsFocus = 'tabs';
         EventBus.emit(EVENTS.INVENTORY_CLOSED, { timestamp: Date.now() });
       } else if (this.inputMode.is('SHOP')) {
         this.inputMode.pop();
@@ -743,6 +739,8 @@ export class GameScene extends Phaser.Scene {
     if (JD(this.iKey)) {
       if (this.inputMode.is('INVENTORY')) {
         this.inputMode.pop();
+        this._inventoryTab = 'status';
+        this._spellsFocus = 'tabs';
         EventBus.emit(EVENTS.INVENTORY_CLOSED, { timestamp: Date.now() });
       } else if (this.inputMode.is('GAMEPLAY')) {
         this.inputMode.push('INVENTORY');
@@ -857,15 +855,82 @@ export class GameScene extends Phaser.Scene {
 
   private _handleInventoryInput(): void {
     const JD = Phaser.Input.Keyboard.JustDown;
+    const up   = JD(this.cursors.up)   || JD(this.wasd.up);
+    const down = JD(this.cursors.down) || JD(this.wasd.down);
+    const left = JD(this.cursors.left) || JD(this.wasd.left);
+    const right= JD(this.cursors.right)|| JD(this.wasd.right);
+
+    const TAB_ORDER: Array<'status' | 'inventory' | 'spells'> = ['status', 'inventory', 'spells'];
+
+    // ── Aba MAGIAS com foco na lista ──────────────────────────────────────
+    if (this._inventoryTab === 'spells' && this._spellsFocus === 'list') {
+      const spellCount = this.player.unlockedSpells.length;
+
+      if (up) {
+        if (this._spellsSelectedIndex === 0) {
+          // Volta o foco para as abas
+          this._spellsFocus = 'tabs';
+          EventBus.emit(EVENTS.SPELLS_SELECTION_CHANGED, { index: -1 });
+        } else {
+          this._spellsSelectedIndex--;
+          EventBus.emit(EVENTS.SPELLS_SELECTION_CHANGED, { index: this._spellsSelectedIndex });
+        }
+        return;
+      }
+      if (down) {
+        this._spellsSelectedIndex = Math.min(spellCount - 1, this._spellsSelectedIndex + 1);
+        EventBus.emit(EVENTS.SPELLS_SELECTION_CHANGED, { index: this._spellsSelectedIndex });
+        return;
+      }
+      // E/Enter — equipa no slot J (0) por padrão; K com tecla K
+      if (JD(this.enterKey) || JD(this.eKey)) {
+        const spellId = this.player.unlockedSpells[this._spellsSelectedIndex] ?? null;
+        if (spellId) EventBus.emit(EVENTS.SPELL_EQUIP_REQUEST, { slotIndex: 0, spellId });
+        return;
+      }
+      if (JD(this.kKey)) {
+        const spellId = this.player.unlockedSpells[this._spellsSelectedIndex] ?? null;
+        if (spellId) EventBus.emit(EVENTS.SPELL_EQUIP_REQUEST, { slotIndex: 1, spellId });
+        return;
+      }
+      return;
+    }
+
+    // ── Navegação de abas (←/→ ou ↓ entra na lista da aba magias) ─────────
+    if (left) {
+      const idx = TAB_ORDER.indexOf(this._inventoryTab);
+      this._inventoryTab = TAB_ORDER[(idx - 1 + TAB_ORDER.length) % TAB_ORDER.length];
+      this._spellsFocus = 'tabs';
+      EventBus.emit(EVENTS.INVENTORY_TAB_CHANGED, { tab: this._inventoryTab, _fromKeyboard: true });
+      return;
+    }
+    if (right) {
+      const idx = TAB_ORDER.indexOf(this._inventoryTab);
+      this._inventoryTab = TAB_ORDER[(idx + 1) % TAB_ORDER.length];
+      this._spellsFocus = 'tabs';
+      EventBus.emit(EVENTS.INVENTORY_TAB_CHANGED, { tab: this._inventoryTab, _fromKeyboard: true });
+      return;
+    }
+    if (down && this._inventoryTab === 'spells') {
+      // Entra na lista de magias
+      this._spellsFocus = 'list';
+      this._spellsSelectedIndex = 0;
+      EventBus.emit(EVENTS.SPELLS_SELECTION_CHANGED, { index: 0 });
+      return;
+    }
+
+    // ── Aba INVENTÁRIO ────────────────────────────────────────────────────
+    if (this._inventoryTab !== 'inventory') return;
+
     const inv = this.player.inventory;
     const total = inv.items.filter(i => i !== null).length;
 
-    if (JD(this.cursors.up) || JD(this.wasd.up)) {
+    if (up) {
       this._inventorySelectedIndex = Math.max(0, this._inventorySelectedIndex - 1);
       this._emitInventorySelectionChanged();
       return;
     }
-    if (JD(this.cursors.down) || JD(this.wasd.down)) {
+    if (down) {
       this._inventorySelectedIndex = Math.min(total - 1, this._inventorySelectedIndex + 1);
       this._emitInventorySelectionChanged();
       return;
@@ -1116,61 +1181,34 @@ export class GameScene extends Phaser.Scene {
 
   private _castSpell(slotIndex: 0 | 1): void {
     if (this._currentArea !== 'dungeon') return;
-    const projectile = this._spellCastingSystem.cast(
-      slotIndex, this.player, this._spellSystem, this, Date.now(),
+    const result = this._spellCastingSystem.cast(
+      slotIndex, this.player, this._spellSystem, this._enemies, Date.now(),
     );
-    if (projectile) {
-      this._projectiles.push(projectile);
+    if (!result) return;
+
+    if (result.hitEnemies.length === 0) {
+      EventBus.emit(EVENTS.UI_LOG, `${result.spellName} — nenhum alvo adjacente.`);
+      return;
     }
-  }
 
-  private _updateProjectiles(): void {
-    if (!this._dungeon) return;
-    for (let i = this._projectiles.length - 1; i >= 0; i--) {
-      const proj = this._projectiles[i];
-      if (!proj.active) { this._projectiles.splice(i, 1); continue; }
+    for (const enemy of result.hitEnemies) {
+      enemy.takeDamage(result.damage, this.events);
+      EventBus.emit(EVENTS.UI_LOG, `${result.spellName} causou ${result.damage} de dano!`);
 
-      proj.updateMovement(this._dungeon);
-
-      if (!proj.isAlive()) {
-        this._projectiles.splice(i, 1);
-        continue;
-      }
-
-      let hit = false;
-      for (const enemy of this._enemies) {
-        if (!enemy.alive || !enemy.sprite) continue;
-        if (proj.checkEnemyHit(enemy)) {
-          enemy.takeDamage(proj.damage);
-          EventBus.emit(EVENTS.UI_LOG, `Magia causou ${proj.damage} de dano!`);
-          if (!enemy.alive) {
-            const pos = enemy.getPixelPos();
-            this._showDamageText(pos, proj.damage, COLORS.XP_TEXT);
-            this._removeEnemySprite(enemy);
-            const xpGain = enemy.xpReward ?? 0;
-            if (xpGain > 0) {
-              this.xpSystem.addXP(this.player, xpGain);
-            }
-          } else {
-            this._showDamageText(enemy.getPixelPos(), proj.damage, COLORS.XP_TEXT);
-            if (enemy.sprite) this._flashSprite(enemy.sprite);
-          }
-          hit = true;
-          break;
-        }
-      }
-      if (hit && i < this._projectiles.length && this._projectiles[i] === proj) {
-        this._projectiles.splice(i, 1);
+      if (!enemy.alive) {
+        const pos = enemy.getPixelPos();
+        this._showDamageText(pos, result.damage, COLORS.XP_TEXT);
+        this._removeEnemySprite(enemy);
+        const xpGain = enemy.xpReward ?? 0;
+        if (xpGain > 0) this.xpSystem.addXP(this.player, xpGain);
+      } else {
+        this._syncEnemySprite(enemy);
+        this._showDamageText(enemy.getPixelPos(), result.damage, COLORS.XP_TEXT);
+        if (enemy.sprite) this._flashSprite(enemy.sprite);
       }
     }
   }
 
-  private _clearProjectiles(): void {
-    for (const p of this._projectiles) {
-      if (p.active) p.destroy();
-    }
-    this._projectiles = [];
-  }
 
   private _emitStatusState(): void {
     const p = this.player;
@@ -1325,6 +1363,14 @@ export class GameScene extends Phaser.Scene {
     // Responde com estado do inventário quando UIScene solicitar
     EventBus.on(EVENTS.INVENTORY_STATE_REQUESTED, () => {
       this._emitInventoryState();
+    }, this);
+
+    // Sincroniza aba local quando UIScene muda via clique
+    EventBus.on(EVENTS.INVENTORY_TAB_CHANGED, (data: { tab: 'inventory' | 'status' | 'spells'; _fromKeyboard?: boolean }) => {
+      if (!data._fromKeyboard) {
+        this._inventoryTab = data.tab;
+        this._spellsFocus = 'tabs';
+      }
     }, this);
 
     // Responde com estado de status quando solicitado

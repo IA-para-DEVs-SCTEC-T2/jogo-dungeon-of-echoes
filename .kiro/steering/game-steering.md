@@ -67,10 +67,11 @@ Dungeon of Echoes é um RPG 2D tile-based jogado no navegador. O jogador explora
 - **`BONUS_AREA_OVERRIDES` é estritamente isolado de `MANUAL_MAP_OVERRIDES`** — nunca cruzar importações entre `BonusAreaData.ts` e `TileProperties.ts`
 - **`DEV_CONFIG.godMode`** em `constants.ts` — flag de desenvolvimento; `CombatSystem` consulta antes de aplicar dano ao player; manter `false` em produção
 - **Magias são data-driven** — `spells.db.ts` é a única fonte de verdade para atributos de magia; `spell-progression.ts` define quando cada magia é desbloqueada; nunca hardcodar IDs ou dano em Systems
-- **`SpellCastingSystem` nunca importa `SpellSystem` diretamente** — recebe instância como parâmetro em `cast()`; desacoplamento total entre gestão de slots e disparo físico
-- **`Projectile` é uma entidade Phaser** — `scene.add.existing(this)` no construtor; `updateMovement()` chamado pelo `GameScene` a cada frame; destrói-se via `this.destroy()` após impacto
-- **Dois slots de magia (`equippedSpells[0]`, `equippedSpells[1]`)** — mapeados para teclas `Q` e `E`; `SpellSystem.equipSpell()` valida que o player desbloqueou a magia antes de equipar
-- **`facingDir`** em `Player` (`'up' | 'down' | 'left' | 'right'`) — atualizado pelo `GameScene` a cada movimento; `SpellCastingSystem` usa para definir direção do projétil
+- **`SpellCastingSystem` nunca importa `SpellSystem` diretamente** — recebe instância como parâmetro em `cast()`; retorna `SpellCastResult` com `hitEnemies: EnemySystem[]`
+- **Magias são melee-range** — `SpellCastingSystem.cast()` verifica os 4 tiles cardinais adjacentes ao player e aplica dano em todos os inimigos encontrados; sem projétil
+- **Dois slots de magia (`equippedSpells[0]`, `equippedSpells[1]`)** — mapeados para teclas `J` e `K` no gameplay; slots exibidos no footer (action bar), canto direito, tamanho 20×20
+- **`facingDir`** em `Player` mantido para uso futuro (direcionalidade); não é usado pelo `SpellCastingSystem` atual
+- **Navegação de magias no painel `I`** — ←/→ trocam aba; na aba Magias, ↓ entra na lista, ↑ na primeira magia volta às abas; Enter/E equipa em J, K equipa em K; `SPELLS_SELECTION_CHANGED` sincroniza seleção visual no `SpellsPanel`
 
 ## Estrutura de Pastas
 
@@ -85,7 +86,7 @@ Dungeon of Echoes é um RPG 2D tile-based jogado no navegador. O jogador explora
                    MapTransitionSystem, DungeonFloorManager, DifficultyScalingSystem
                    AutoTileResolver, DungeonRenderer, BonusAreaRenderer
                    SpellSystem, SpellCastingSystem
-  /entities     → Entidades puras (Player — gold, equipmentBonuses, facingDir, spells; Item — slotId, bonuses; Projectile — sprite autônomo)
+  /entities     → Entidades puras (Player — gold, equipmentBonuses, facingDir, spells; Item — slotId, bonuses)
   /generators   → DungeonGenerator, CityLayoutProcessor, TileVariantResolver
   /config       → constants.ts, town.config.ts, sprites-config.ts, shop.catalog.ts, spells.db.ts, spell-progression.ts
   /types        → town.ts, equipment.ts, viewmodels.ts, input.ts

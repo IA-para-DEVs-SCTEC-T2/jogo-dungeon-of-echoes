@@ -2,7 +2,7 @@
 
 ## Descrição
 
-O sistema de magias permite ao jogador desbloquear, equipar e disparar feitiços em projétil durante a exploração da dungeon. As magias são desbloqueadas automaticamente ao atingir certos níveis e equipadas em dois slots (`Q` e `E`).
+O sistema de magias permite ao jogador desbloquear, equipar e usar feitiços melee-range durante a exploração da dungeon. As magias atingem todos os inimigos adjacentes (4 tiles cardinais) ao custo de mana e respeitam cooldown por slot. São desbloqueadas automaticamente ao subir de nível e equipadas em dois slots (`J` e `K`).
 
 ---
 
@@ -11,11 +11,10 @@ O sistema de magias permite ao jogador desbloquear, equipar e disparar feitiços
 | Entidade / Sistema | Responsabilidade |
 |--------------------|-----------------|
 | `SpellSystem` | Gerencia desbloqueio, equipamento e cooldown dos slots |
-| `SpellCastingSystem` | Orquestra o disparo: valida mana, desconta custo, instancia `Projectile` |
-| `Projectile` | Sprite autônomo que se move em linha reta e detecta colisões |
+| `SpellCastingSystem` | Valida mana/cooldown, aplica dano em todos os inimigos adjacentes, retorna `SpellCastResult` |
 | `spells.db.ts` | Banco de dados data-driven das definições de magia |
 | `spell-progression.ts` | Tabela de desbloqueio por nível |
-| `SpellsPanel` | UI para equipar magias nos slots |
+| `SpellsPanel` | UI integrada ao painel `I`; navegação por teclado |
 | `StatusPanel` | UI de atributos detalhados do player |
 
 ---
@@ -35,8 +34,8 @@ O sistema de magias permite ao jogador desbloquear, equipar e disparar feitiços
 ## Slots de Magia
 
 - O player possui **dois slots** (`equippedSpells[0]` e `equippedSpells[1]`)
-- Slot 0 → tecla `Q` | Slot 1 → tecla `E`
-- Cada slot armazena o ID da magia equipada, timestamp do último cast e cooldown da magia
+- Slot 0 → tecla `J` | Slot 1 → tecla `K` (durante gameplay)
+- Slots exibidos no footer (action bar), canto direito, tamanho 20×20, com barra de cooldown azul na base
 - Uma magia só pode ser equipada se estiver em `player.unlockedSpells`
 
 ---
@@ -50,26 +49,29 @@ O sistema de magias permite ao jogador desbloquear, equipar e disparar feitiços
 
 ---
 
-## Fluxo de Disparo
+## Fluxo de Cast (Melee-Range)
 
-1. Player pressiona `Q` (slot 0) ou `E` (slot 1)
-2. `GameScene` chama `SpellCastingSystem.cast(slotIndex, player, spellSystem, scene, now)`
+1. Player pressiona `J` (slot 0) ou `K` (slot 1)
+2. `GameScene` chama `SpellCastingSystem.cast(slotIndex, player, spellSystem, enemies, now)`
 3. `SpellCastingSystem` verifica:
    - Slot tem magia equipada → senão retorna `null`
    - `spellSystem.canCast(slotIndex, now)` → cooldown zerado
    - `player.mana >= spell.manaCost` → mana suficiente
-4. Se válido: desconta mana, registra `recordCast`, emite `EVENTS.SPELL_CAST`, instancia `Projectile`
-5. `Projectile` é adicionado à cena e move-se na direção `player.facingDir`
+4. Se válido: desconta mana, registra `recordCast`, coleta todos os `EnemySystem` vivos nos 4 tiles cardinais adjacentes ao player
+5. Retorna `SpellCastResult { success, damage, spellName, hitEnemies }`
+6. `GameScene` itera `hitEnemies`: aplica dano, sincroniza barra de HP, concede XP se morreu
 
 ---
 
-## Projétil (`Projectile`)
+## Navegação no Painel de Magias (tecla `I`)
 
-- Velocidade definida por `spell.projectileSpeed` (em tiles/frame)
-- A cada frame, `updateMovement(dungeon)` verifica:
-  - Tile destino é WALL → destrói o projétil
-  - Distância até inimigo vivo < `HIT_RADIUS` (0.7 × TILE_SIZE) → aplica dano e destrói
-- Ao destruir: reproduz `spell.impactAnimKey` e emite `EVENTS.PROJECTILE_HIT`
+- **←/→** — troca de aba (Status / Inventário / Magias)
+- **↓** na aba Magias com foco nas abas → entra na lista, seleciona a primeira magia
+- **↑** na primeira magia (índice 0) → volta o foco para as abas (deseleciona)
+- **↑/↓** na lista → navega entre magias desbloqueadas
+- **Enter / E** → equipa magia selecionada no slot J (0)
+- **K** → equipa magia selecionada no slot K (1)
+- `SPELLS_SELECTION_CHANGED` é emitido por `GameScene` e ouvido por `UIScene` para atualizar seleção visual
 
 ---
 
@@ -77,7 +79,7 @@ O sistema de magias permite ao jogador desbloquear, equipar e disparar feitiços
 
 | Campo | Tipo | Descrição |
 |-------|------|-----------|
-| `facingDir` | `'up' \| 'down' \| 'left' \| 'right'` | Última direção de movimento |
+| `facingDir` | `'up' \| 'down' \| 'left' \| 'right'` | Última direção de movimento (reservado para uso futuro) |
 | `unlockedSpells` | `string[]` | IDs de magias desbloqueadas |
 | `equippedSpells` | `[string \| null, string \| null]` | IDs equipados nos dois slots |
 
@@ -87,9 +89,9 @@ O sistema de magias permite ao jogador desbloquear, equipar e disparar feitiços
 
 - R1: Magias só são equipadas se estiverem em `unlockedSpells`
 - R2: Cooldown é por slot, não global — os dois slots podem estar em cooldown simultaneamente
-- R3: `SpellCastingSystem` nunca acessa `spells.db.ts` diretamente para dados de dano — usa `Projectile.damage`
-- R4: `Projectile` não conhece `SpellSystem` — recebe `SpellDef` completo no construtor
-- R5: Se mana insuficiente, o cast é silenciosamente ignorado (sem erro no console)
+- R3: `SpellCastingSystem` usa `EnemySystem` (não `Enemy`) — `takeDamage` exige o emitter da cena
+- R4: Se nenhum inimigo adjacente, cast consome mana e cooldown e exibe mensagem no log
+- R5: Se mana insuficiente ou cooldown ativo, `cast()` retorna `null` sem consumir recursos
 - R6: `spells.db.ts` é a única fonte de verdade para atributos de magia
 
 ---
@@ -99,10 +101,10 @@ O sistema de magias permite ao jogador desbloquear, equipar e disparar feitiços
 | Situação | Comportamento Esperado |
 |----------|----------------------|
 | Slot sem magia equipada | `cast()` retorna `null` |
-| Cooldown ativo | `cast()` retorna `null` |
+| Cooldown ativo | `cast()` retorna `null`; mana inalterada |
 | Mana insuficiente | `cast()` retorna `null` |
-| ID de magia inválido em `equippedSpells` | `cast()` retorna `null` (magia não encontrada no DB) |
-| Projétil sai dos limites do grid | Destruído ao atingir tile WALL da borda |
+| ID de magia inválido em `equippedSpells` | `cast()` retorna `null` |
+| Nenhum inimigo adjacente | `hitEnemies = []`; log exibe "nenhum alvo adjacente" |
 
 ---
 
@@ -128,7 +130,7 @@ O sistema de magias permite ao jogador desbloquear, equipar e disparar feitiços
 - **Quando**: `cast(0, ...)` chamado
 - **Então**: Retorna `null`; mana do player inalterada
 
-### Cenário 5 — Projétil colide com parede
-- **Dado**: Tile à frente do projétil é WALL
-- **Quando**: `updateMovement(dungeon)` chamado
-- **Então**: Projétil destruído; `EVENTS.PROJECTILE_HIT` emitido
+### Cenário 5 — Dano em múltiplos inimigos adjacentes
+- **Dado**: Dois inimigos vivos nos tiles Norte e Leste do player; magia equipada com dano 15
+- **Quando**: `cast(0, ...)` chamado com mana e cooldown válidos
+- **Então**: `hitEnemies.length === 2`; ambos recebem 15 de dano
