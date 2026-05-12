@@ -1,10 +1,10 @@
 # PRD — Product Requirements Document
 # Dungeon of Echoes
 
-**Versão:** 5.2.0  
-**Data:** 2026-05-10  
+**Versão:** 0.5.4  
+**Data:** 2026-05-12  
 **Equipe:** Equipe 7 — IA para DEVs SCTEC T2  
-**Status:** Fase 5 entregue — Renderização semântica de dungeon, múltiplos andares, área bônus
+**Status:** v0.5.4 entregue — Sistema de Magias com projéteis, dois slots equipáveis, progressão data-driven por nível
 
 ---
 
@@ -66,12 +66,19 @@ Cada partida começa em uma dungeon nova. O jogador avança derrotando inimigos,
 
 ### 6.1 Dungeon
 
-- Grid de **40×60 tiles** (WALL ou FLOOR)
+- Grid de **40×40 tiles** (WALL ou FLOOR)
 - Geração procedural: até **8 salas** (4×4 a 10×8 tiles), conectadas por corredores em L
 - Borda sempre WALL; posição inicial do player sempre em tile FLOOR
 - Suporte a `seed` para reprodutibilidade em debug
 - **Múltiplos andares** com cache de estado por andar (`_dungeonCache`): escadas para baixo (andar N+1) e para cima (andar N-1), retorno à cidade pelo andar 1
-- **Tema visual por andar**: andares 1–2 → Dungeon, 3–4 → Mine, 5–6 → Underworld, 7+ → Underworld Boss; frames resolvidos por `AutoTileResolver` com autotiling de 4 vizinhos
+- **Tema visual por andar**: andares 1–2 → Dungeon, 3–4 → Mine, 5–6 → Underworld, 7+ → Underworld Boss
+- **Pipeline de renderização Shell-not-Volume** (v0.5.3): dungeon como espaço esculpido dentro da escuridão
+  - `SemanticClassifier.classifyGrid()` — classifica tiles em `FLOOR / WALL_EDGE / VOID` usando 4 vizinhos cardinais; garante casca de exatamente 1 tile
+  - `TileSemanticsProvider` — desacopla semântica visual (`isVisuallyOpen`) de semântica de colisão (`isWalkable`, `isSolid`); bitmask usa `isVisuallyOpen`, não `=== TILE.FLOOR`
+  - `WallVariantLUT` — tabela canônica de 256 entradas com `sanitizeMask()` (fecha diagonais sem cardinal suporte) e `classifyVariant()` pura sem chain de overwrites
+  - `AutoTileResolver` — branch wall_edge com bitmask 8-bit; fallback 4-vizinhos para temas sem `bitmaskFrames`
+  - `DungeonRenderer` — skipa VOID (câmera preta cobre); emite `RenderCommand[]` atlas-agnósticos
+  - Tooling dev: `MaskFrequencyLogger`, `DebugOverlayRenderer` (modos: semantic/variant/bitmask), `VisualRegressionScene` (layout determinístico 20×15)
 - **`DungeonRenderer`** emite `RenderCommand[]`; `GameScene` apenas cria sprites — zero lógica visual na cena
 
 ### 6.2 Player
@@ -231,7 +238,7 @@ Os requisitos abaixo são derivados diretamente das specs em `.kiro/specs/`.
 
 ## 9. Escopo
 
-### Dentro do escopo (v5.2.0 — estado atual)
+### Dentro do escopo (v0.5.3 — estado atual)
 
 - [x] Geração procedural de dungeon (salas + corredores BSP, 40×40 tiles)
 - [x] Player controlável (4 direções, turn-based real via TurnManager)
@@ -244,12 +251,15 @@ Os requisitos abaixo são derivados diretamente das specs em `.kiro/specs/`.
 - [x] Sistema de identificação roguelike de itens (nome desconhecido → real ao usar)
 - [x] Equipamentos: armas e armaduras com slots, bônus reversíveis, loja de compra/venda
 - [x] Múltiplos andares de dungeon com cache de estado e escadas bidirecionais
-- [x] Tema visual por andar: Dungeon/Mine/Underworld/Boss com autotiling de 4 vizinhos
+- [x] Tema visual por andar: Dungeon/Mine/Underworld/Boss
+- [x] **Shell-not-Volume rendering com bitmask 8-bit** (SemanticClassifier + TileSemanticsProvider + WallVariantLUT)
+- [x] Tooling de desenvolvimento: MaskFrequencyLogger, DebugOverlayRenderer, VisualRegressionScene
 - [x] Mapa da cidade (TMX) com NPCs, loja, estalajadeiro e debug de tiles
 - [x] Área bônus (30×22 tiles) com renderer próprio, debug idêntico à cidade e overrides isolados
 - [x] `DEV_CONFIG.godMode` para testes sem risco de morte
+- [x] Integração com IA generativa (AIService — descrições atmosféricas de itens e inimigos elite)
 - [x] Game Over com tela de resultado e restart
-- [x] 125 testes unitários
+- [x] 125+ testes unitários
 - [x] Dashboard estático de acompanhamento do projeto
 
 ### Fora do escopo (planejado para versões futuras)
@@ -258,11 +268,9 @@ Os requisitos abaixo são derivados diretamente das specs em `.kiro/specs/`.
 |---------|-------------------|
 | FOG of War | Complexidade visual; spec pronta em `.kiro/specs/fog-of-war.spec.md` |
 | Múltiplos tipos de inimigo | Balanceamento adiado para pós-refinamento |
-| Múltiplos andares | Depende de progressão de dificuldade não especificada |
-| IA generativa (lore, inimigos) | Requer API key e backend; fora do escopo acadêmico atual |
 | Sistema de save | Permadeath intencional; sem persistência é comportamento esperado |
-| Magia e habilidades | Mana implementada; uso em habilidades planejado para v0.4.0 |
-| Equipamentos (armas, armaduras) | Escopo post-v0.3 |
+| Magia e habilidades ativas | Mana implementada; uso em habilidades planejado para versão futura |
+| Minimap | Spec pronta em `.kiro/specs/minimap.spec.md` |
 
 ---
 
@@ -311,15 +319,62 @@ Os requisitos abaixo são derivados diretamente das specs em `.kiro/specs/`.
 - [x] Action bar visual na UIScene
 - [x] Fullscreen responsivo (FIT + parent 100vw/100vh)
 
-### v0.4.0 — Dungeon Completa (planejado)
-- [ ] FOG of War (HIDDEN / VISIBLE / REVEALED)
-- [ ] Múltiplos tipos de inimigo com atributos distintos
-- [ ] Escadas para próximo andar com dificuldade crescente
+### v0.4.0 — Cidade + Equipamentos (entregue em 2026-05-07)
+- [x] Mapa da cidade (TMX) com NPCs deambulatórios, loja e estalajadeiro
+- [x] `EquipmentSystem`: slots de arma/armadura, bônus reversíveis
+- [x] `ShopSystem`: compra/venda com gold, catálogo configurável
+- [x] `InputModeManager`: push/pop de modos de input (GAMEPLAY / DIALOG / INVENTORY / SHOP)
+- [x] Painéis de UI: `InventoryPanel`, `ShopPanel`, `DialogPanel`, `LogPanel`, `ActionBarPanel`
+- [x] `WorldSystem`: persistência de estado entre dungeon e cidade dentro da sessão
+- [x] `MapTransitionSystem`: transição cidade ↔ dungeon com posição preservada
 
-### v1.0.0 — IA Generativa (planejado)
-- [ ] Integração com LLM (Claude Haiku) para lore dinâmica
-- [ ] Inimigos elite com variações geradas por IA
+### v0.5.0 — Múltiplos Andares + Dificuldade (entregue em 2026-05-08)
+- [x] `DungeonFloorManager`: múltiplos andares com cache de estado por andar
+- [x] `DifficultyScalingSystem`: atributos de inimigos escalam por andar
+- [x] Escadas bidirecionais (andar N+1 / N-1 / retorno à cidade)
+- [x] Temas visuais por andar: Dungeon → Mine → Underworld → Boss
+
+### v0.5.1 — Área Bônus (entregue em 2026-05-09)
+- [x] `BonusAreaRenderer`: renderer dedicado para área bônus 30×22 tiles
+- [x] `BONUS_AREA_OVERRIDES` isolado de `MANUAL_MAP_OVERRIDES`
+- [x] Debug visual idêntico ao da cidade (modo dev)
+- [x] `DEV_CONFIG.godMode` em `constants.ts`
+
+### v0.5.2 — IA Generativa (entregue em 2026-05-10)
+- [x] `AIService`: integração com LLM (OpenAI-compatible) para narrativa procedural
+- [x] Descrições atmosféricas de itens raros geradas em background (não-bloqueante)
+- [x] Variantes de inimigos elite com atributos e nome gerados por IA
+- [x] Fallback gracioso quando API key ausente ou serviço indisponível
+- [x] Cache de respostas por sessão
+
+### v0.5.3 — Shell-not-Volume Rendering (entregue em 2026-05-11)
+- [x] `SemanticClassifier`: FLOOR / WALL_EDGE / VOID com 4 vizinhos cardinais (casca de 1 tile)
+- [x] `TileSemanticsProvider`: `isVisuallyOpen` / `isWalkable` / `isSolid` desacoplados
+- [x] `WallVariantLUT`: LUT canônica 256 entradas + `sanitizeMask()` + `classifyVariant()` puro
+- [x] `AutoTileResolver`: bitmask 8-bit com fallback 4-vizinhos para temas sem `bitmaskFrames`
+- [x] `DungeonRenderer`: skipa VOID; câmera preta cobre massa de parede
+- [x] `MaskFrequencyLogger`, `DebugOverlayRenderer`, `VisualRegressionScene` (dev-only)
+- [x] Todos os 4 temas de dungeon migrados para `bitmaskFrames`
+
+### v0.5.4 — Sistema de Magias (entregue em 2026-05-12)
+- [x] `SpellSystem`: desbloqueio de magias por nível, dois slots equipáveis, cooldown por slot
+- [x] `SpellCastingSystem`: disparo com verificação de mana e cooldown; instancia `Projectile`
+- [x] `Projectile`: sprite com movimento autônomo, colisão com paredes e inimigos, animação de impacto
+- [x] `SpellsPanel`: painel de UI para equipar magias com navegação por teclado
+- [x] `StatusPanel`: painel de atributos detalhados (STR/INT/DEX/CON/WIS/CHA, HP, Mana)
+- [x] `spells.db.ts`: 5 magias data-driven (fire_bolt, ice_shard, wind_cyclone, fire_explosion, blizzard)
+- [x] `spell-progression.ts`: tabela de desbloqueio por nível extendível
+- [x] Player com `facingDir`, `unlockedSpells` e `equippedSpells`
+- [x] XPSystem integrado: desbloqueia magias automaticamente ao subir de nível
+
+### v0.6.0 — FOG of War (planejado)
+- [ ] FOG of War: HIDDEN / VISIBLE / REVEALED por tile
+- [ ] Minimap com estado de exploração
+
+### v1.0.0 — IA Generativa Avançada (planejado)
 - [ ] Narrativa emergente baseada no histórico da partida
+- [ ] Múltiplos tipos de inimigo com comportamentos distintos
+- [ ] Pathfinding A* para inimigos
 
 ---
 
@@ -329,7 +384,7 @@ Os requisitos abaixo são derivados diretamente das specs em `.kiro/specs/`.
 |---------|-------------------|
 | Jogabilidade | Partida completa possível do boot ao game over sem erros no console |
 | Estabilidade | Zero crashes reportados em sessão de 10 minutos de jogo |
-| Testes | 100% dos testes unitários passando em `npm test` (108/108 em v0.3.0) |
+| Testes | 100% dos testes unitários passando em `npm test` |
 | Build | `npm run build` produz bundle funcional sem warnings críticos |
 | Commits | 100% dos commits na branch `main` e `staging` validados pelo Commitlint |
 | Cobertura de specs | Cada sistema implementado possui spec correspondente em `.kiro/specs/` |

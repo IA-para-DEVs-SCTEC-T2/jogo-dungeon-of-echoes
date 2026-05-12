@@ -27,13 +27,13 @@ describe('Item — getDisplayName', () => {
   });
 
   it('retorna nome real quando tipo já foi identificado na partida', () => {
-    const item = makeItem('potion_poison');
-    expect(item.getDisplayName({ potion_poison: true })).toBe(REAL_NAMES.potion_poison);
+    const item = makeItem('potion_mana');
+    expect(item.getDisplayName({ potion_mana: true })).toBe(REAL_NAMES.potion_mana);
   });
 
   it('nomes genéricos são diferentes dos nomes reais', () => {
     expect(UNKNOWN_NAMES.potion_heal).not.toBe(REAL_NAMES.potion_heal);
-    expect(UNKNOWN_NAMES.potion_poison).not.toBe(REAL_NAMES.potion_poison);
+    expect(UNKNOWN_NAMES.potion_mana).not.toBe(REAL_NAMES.potion_mana);
   });
 });
 
@@ -109,7 +109,7 @@ describe('InventorySystem — useItem (poção de cura)', () => {
     const item = makeItem('potion_heal');
     inv.addItem(item);
 
-    const result = inv.useItem(0, {}, 80, 100);
+    const result = inv.useItem(0, {}, 70, 100);
 
     expect(result.success).toBe(true);
     expect(result.hpDelta).toBe(INVENTORY.POTION_HEAL_AMOUNT);
@@ -163,19 +163,19 @@ describe('InventorySystem — useItem (poção de cura)', () => {
   });
 });
 
-describe('InventorySystem — useItem (poção de veneno)', () => {
-  it('aplica dano ao player', () => {
+describe('InventorySystem — useItem (poção de mana)', () => {
+  it('aplica mana ao player', () => {
     const inv  = new InventorySystem();
-    inv.addItem(makeItem('potion_poison'));
-    const result = inv.useItem(0, {}, 80, 100);
-    expect(result.hpDelta).toBe(-INVENTORY.POTION_POISON_AMOUNT);
+    inv.addItem(makeItem('potion_mana'));
+    const result = inv.useItem(0, {}, 80, 100, 20, 60);
+    expect(result.manaDelta).toBe(Math.min(INVENTORY.POTION_MANA_AMOUNT, 60 - 20));
   });
 
-  it('mensagem "Você foi envenenado" ao usar poção de veneno', () => {
+  it('mensagem inclui "Mana" ao usar poção de mana', () => {
     const inv  = new InventorySystem();
-    inv.addItem(makeItem('potion_poison'));
-    const result = inv.useItem(0, {}, 80, 100);
-    expect(result.messages.some((m) => m.includes('envenenado'))).toBe(true);
+    inv.addItem(makeItem('potion_mana'));
+    const result = inv.useItem(0, {}, 80, 100, 20, 60);
+    expect(result.messages.some((m) => m.includes('Mana') || m.includes('mana'))).toBe(true);
   });
 });
 

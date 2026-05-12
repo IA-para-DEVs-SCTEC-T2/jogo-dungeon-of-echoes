@@ -9,7 +9,26 @@
 
 // ── Categorias de tile semântico ─────────────────────────────────────────────
 // Expansível sem alterar AutoTileResolver ou DungeonRenderer.
-export type TileCategory = 'wall' | 'floor' | 'door' | 'water' | 'lava' | 'chasm' | 'pillar';
+export type TileCategory =
+  | 'wall'      // legado — mantido para retrocompatibilidade
+  | 'wall_edge' // parede adjacente ao piso — recebe bitmask 8-bit
+  | 'void'      // parede profunda inacessível — sem render (fundo preto)
+  | 'floor'
+  | 'door' | 'water' | 'lava' | 'chasm' | 'pillar'
+  | string;     // extensível para biomas futuros
+
+// ── BitmaskFrameSet ───────────────────────────────────────────────────────────
+// Frames para cada variante do autotiling 8-bit.
+// Todos os campos são frames no spritesheet 'wall'.
+export interface BitmaskFrameSet {
+  face:     number;  // borda reta frontal (sul aberto)
+  faceEndW: number;  // extremidade esquerda (sul+oeste abertos)
+  faceEndE: number;  // extremidade direita (sul+leste abertos)
+  faceT:    number;  // T-junction sul (sul+leste+oeste abertos)
+  innerNW:  number;  // canto côncavo NW (sul fechado, leste+SE abertos)
+  innerNE:  number;  // canto côncavo NE (sul fechado, oeste+SW abertos)
+  body:     number;  // corpo sólido — 1 frame fixo, sem variação
+}
 
 // ── AutoTileSet ───────────────────────────────────────────────────────────────
 // Frames organizados por tipo de borda. Cada categoria em cada tema define seu set.
@@ -21,6 +40,8 @@ export interface AutoTileSet {
   cornerInner_TL?:  number;    // canto côncavo TL (sul=fechado, leste=aberto, diag SE=aberto)
   cornerInner_TR?:  number;    // canto côncavo TR (sul=fechado, oeste=aberto, diag SO=aberto)
   isolated?:        number;    // tile sem vizinhos do mesmo tipo (fallback para face)
+  bitmaskFrames?:   BitmaskFrameSet; // usado quando category === 'wall_edge'
+  voidFrame?:       number;    // undefined = DungeonRenderer não emite RenderCommand
 }
 
 // ── DungeonTheme ──────────────────────────────────────────────────────────────
@@ -55,6 +76,29 @@ const THEMES: Record<string, DungeonTheme> = {
         bodyFrames:     [200, 201],   // linha 10 col 0–1
         ...SHARED_INNER,
       },
+      wall_edge: {
+        face:           181,
+        cornerOuter_TL: 180,
+        cornerOuter_TR: 182,
+        bodyFrames:     [200],        // 1 frame — silhouette priority, sem variação
+        ...SHARED_INNER,
+        bitmaskFrames: {
+          face:     181,              // linha 9 col 1
+          faceEndW: 180,              // linha 9 col 0
+          faceEndE: 182,              // linha 9 col 2
+          faceT:    181,              // colapsa em face — T-junctions raros em BSP
+          innerNW:  362,              // linha 18 col 2 (SHARED_INNER)
+          innerNE:  360,              // linha 18 col 0 (SHARED_INNER)
+          body:     200,              // linha 10 col 0 — 1 frame fixo
+        },
+      },
+      void: {
+        face:           0,
+        cornerOuter_TL: 0,
+        cornerOuter_TR: 0,
+        bodyFrames:     [],
+        // voidFrame ausente → DungeonRenderer skipa sem emitir RenderCommand
+      },
       floor: {
         face:           210,          // (fallback; floor usa bodyFrames)
         cornerOuter_TL: 210,
@@ -74,6 +118,28 @@ const THEMES: Record<string, DungeonTheme> = {
         cornerOuter_TR: 137,          // linha 6 col 17
         bodyFrames:     [155, 175],   // linha 7 col 15 + linha 8 col 15
         ...SHARED_INNER,
+      },
+      wall_edge: {
+        face:           136,
+        cornerOuter_TL: 135,
+        cornerOuter_TR: 137,
+        bodyFrames:     [155],
+        ...SHARED_INNER,
+        bitmaskFrames: {
+          face:     136,
+          faceEndW: 135,
+          faceEndE: 137,
+          faceT:    136,
+          innerNW:  362,
+          innerNE:  360,
+          body:     155,
+        },
+      },
+      void: {
+        face:           0,
+        cornerOuter_TL: 0,
+        cornerOuter_TR: 0,
+        bodyFrames:     [],
       },
       floor: {
         face:           378,
@@ -95,6 +161,28 @@ const THEMES: Record<string, DungeonTheme> = {
         bodyFrames:     [260, 261],   // linha 13 col 0–1
         ...SHARED_INNER,
       },
+      wall_edge: {
+        face:           261,
+        cornerOuter_TL: 240,
+        cornerOuter_TR: 242,
+        bodyFrames:     [260],
+        ...SHARED_INNER,
+        bitmaskFrames: {
+          face:     261,
+          faceEndW: 240,
+          faceEndE: 242,
+          faceT:    261,
+          innerNW:  362,
+          innerNE:  360,
+          body:     260,
+        },
+      },
+      void: {
+        face:           0,
+        cornerOuter_TL: 0,
+        cornerOuter_TR: 0,
+        bodyFrames:     [],
+      },
       floor: {
         face:           441,
         cornerOuter_TL: 441,
@@ -113,6 +201,28 @@ const THEMES: Record<string, DungeonTheme> = {
         cornerOuter_TR: 242,
         bodyFrames:     [260, 280],   // linha 13 col 0 + linha 14 col 0 (mais escuro)
         ...SHARED_INNER,
+      },
+      wall_edge: {
+        face:           261,
+        cornerOuter_TL: 240,
+        cornerOuter_TR: 242,
+        bodyFrames:     [280],        // linha 14 col 0 — tom mais escuro para boss floor
+        ...SHARED_INNER,
+        bitmaskFrames: {
+          face:     261,
+          faceEndW: 240,
+          faceEndE: 242,
+          faceT:    261,
+          innerNW:  362,
+          innerNE:  360,
+          body:     280,              // mais escuro que underworld normal
+        },
+      },
+      void: {
+        face:           0,
+        cornerOuter_TL: 0,
+        cornerOuter_TR: 0,
+        bodyFrames:     [],
       },
       floor: {
         face:           441,

@@ -161,12 +161,14 @@ export class EnemySystem {
 export function createEnemies(
   dungeon: DungeonGenerator,
   playerPos: GridPos,
-  difficulty?: FloorDifficulty & { aggressionLevel?: number },
+  difficulty?: FloorDifficulty & { aggressionLevel?: number; floor?: number },
 ): EnemySystem[] {
   const count      = difficulty?.enemyCount ?? ENEMY.COUNT;
   const hpScale    = difficulty?.enemyHpMultiplier  ?? 1;
   const atkScale   = difficulty?.enemyAtkMultiplier ?? 1;
   const aggression = (difficulty as { aggressionLevel?: number } | undefined)?.aggressionLevel ?? 0.5;
+  const floor      = (difficulty as { floor?: number } | undefined)?.floor ?? 1;
+  const xpScale    = 1 + (floor - 1) * 0.5; // +50% XP por andar
 
   const enemies: EnemySystem[] = [];
   const occupied = new Set<string>();
@@ -183,9 +185,10 @@ export function createEnemies(
     if (!occupied.has(`${pos.x},${pos.y}`)) {
       occupied.add(`${pos.x},${pos.y}`);
       const enemy = new EnemySystem(pos.x, pos.y, i);
-      enemy.hp             = Math.round(ENEMY.HP     * hpScale);
-      enemy.maxHp          = Math.round(ENEMY.HP     * hpScale);
-      enemy.attack         = Math.round(ENEMY.ATTACK * atkScale);
+      enemy.hp             = Math.round(ENEMY.HP        * hpScale);
+      enemy.maxHp          = Math.round(ENEMY.HP        * hpScale);
+      enemy.attack         = Math.round(ENEMY.ATTACK    * atkScale);
+      enemy.xpReward       = Math.round(ENEMY.XP_REWARD * xpScale);
       enemy.aggressionLevel = aggression;
       enemies.push(enemy);
     }

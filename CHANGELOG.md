@@ -50,7 +50,59 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ## [Unreleased]
 
-## [5.2.0] — 2026-05-10
+## [0.5.4] — 2026-05-12
+
+### Added
+
+#### Sistema de Magias (Spells)
+
+- **`SpellSystem`** (`src/systems/SpellSystem.ts`): gerencia desbloqueio e equipamento de magias; dois slots de magia (`equippedSpells[0]` e `[1]`); `unlockSpellsForLevel()` consulta `SPELL_PROGRESSION` data-driven; `canCast()` verifica cooldown; `recordCast()` registra timestamp
+- **`SpellCastingSystem`** (`src/systems/SpellCastingSystem.ts`): orquestra o disparo — verifica cooldown, desconta mana, emite `EVENTS.SPELL_CAST` e instancia `Projectile`; desacoplado de `SpellSystem` e `Player`
+- **`Projectile`** (`src/entities/Projectile.ts`): `Phaser.GameObjects.Sprite` com movimento autônomo por tile; detecta colisão com paredes (via `DungeonGenerator`) e inimigos (raio `TILE_SIZE × 0.7`); destrói-se ao impactar e emite `EVENTS.PROJECTILE_HIT`; reproduz animação de impacto antes de destruir o sprite
+- **`SpellsPanel`** (`src/ui/SpellsPanel.ts`): painel de UI para equipar magias nos dois slots — abre via `EVENTS.SPELLS_OPENED`; navegação por teclado; exibe nome, elemento, dano, custo de mana e cooldown
+- **`StatusPanel`** (`src/ui/StatusPanel.ts`): painel de atributos detalhados do player (STR/INT/DEX/CON/WIS/CHA, HP, Mana, nível) — abre via tecla `C`
+- **`spells.db.ts`** (`src/config/spells.db.ts`): banco de dados data-driven com 5 magias — `fire_bolt` (nv 1), `ice_shard` (nv 5), `wind_cyclone` (nv 10), `fire_explosion` (nv 15), `blizzard` (nv 20); campos: `damage`, `manaCost`, `cooldownMs`, `projectileSpeed`, `animKey`, `impactAnimKey`
+- **`spell-progression.ts`** (`src/config/spell-progression.ts`): tabela de desbloqueio por nível — extendível sem alterar `SpellSystem`
+- **`types/spells.ts`**: interfaces `SpellDef`, `SpellSlotState`, `SpellElement`, `Direction`
+- `EVENTS.SPELL_CAST`, `EVENTS.SPELL_EQUIPPED`, `EVENTS.PROJECTILE_HIT`, `EVENTS.SPELLS_OPENED`, `EVENTS.PLAYER_MANA_CHANGED` adicionados a `constants.ts`
+
+### Changed
+
+- `Player`: campos `facingDir: Direction`, `unlockedSpells: string[]`, `equippedSpells: [string | null, string | null]` adicionados à entidade
+- `UIScene`: exibe cooldown dos slots de magia e barra de mana atualizada em tempo real via `PLAYER_MANA_CHANGED`
+- `XPSystem`: chama `SpellSystem.unlockSpellsForLevel()` ao subir de nível — desbloqueia magias automaticamente
+
+---
+
+## [0.5.3] — 2026-05-11
+
+### Added
+
+#### Renderização de dungeon — Shell-not-Volume (8-bit bitmask autotiling)
+
+- **`TileSemanticsProvider`** (`src/systems/TileSemanticsProvider.ts`): desacopla semântica visual (`isVisuallyOpen`) de semântica de colisão (`isWalkable`, `isSolid`) — o bitmask não hardcoda `=== TILE.FLOOR`; extensível para water/lava/chasm sem alterar o resolver
+- **`SemanticClassifier`** (`src/systems/SemanticClassifier.ts`): classifica cada tile como `FLOOR`, `WALL_EDGE` ou `VOID`; shell de exatamente **1 tile de espessura** usando apenas 4 vizinhos cardinais — sem silhuetas diagonais grossas
+- **`WallVariantLUT`** (`src/systems/WallVariantLUT.ts`): LUT canônica de 256 entradas; `sanitizeMask()` fecha diagonais sem suporte cardinal (evita artefatos); `classifyVariant()` pura sem chain de overwrites; 7 variantes confirmadas no atlas DawnLike: `FACE`, `FACE_END_W`, `FACE_END_E`, `FACE_T`, `INNER_NW`, `INNER_NE`, `BODY`
+- **`BitmaskFrameSet`** em `dungeon-themes.ts`: interface com campos semânticos por variante; nenhum frame hardcoded no resolver (atlas-agnostic)
+- **`wall_edge`** como nova `TileCategory` em todos os 4 temas (dungeon, mine, underworld, underworld_boss): bitmask frames mapeados para sprites corretos de Wall.png
+- **`void`** como nova `TileCategory`: tiles de parede profunda sem contato com piso não emitem `RenderCommand` — câmera preta preenche o vazio
+- Variação de body walls reduzida a **1 frame fixo** por tema — silhueta tem prioridade sobre detalhe; floors mantêm pool de variação intacto
+- Background da câmera definido como `0x000000` em `_loadDungeonFloor()` — nenhuma área de void fica transparente
+
+#### Ferramental de debug visual (dev-only, tree-shakeable)
+
+- **`DebugOverlayRenderer`** (`src/systems/DebugOverlayRenderer.ts`): substitui output do `DungeonRenderer` em modos `semantic` (categorias), `variant` (LUT result) e `bitmask` (valor numérico da mask)
+- **`MaskFrequencyLogger`** (`src/systems/MaskFrequencyLogger.ts`): loga frequência de masks e variantes após `buildCommands()` — identifica masks dominantes, detecta estados impossíveis, verifica que `BODY` aparece raramente
+- **`VisualRegressionScene`** (`src/scenes/VisualRegressionScene.ts`): cena determinística com grid hardcoded cobrindo todos os casos críticos (paredes retas, cantos externos/côncavos, corredor de 1 tile, T-junction, sala aberta); teclas `1–4` alternam modos de visualização, `L` dispara log de frequências
+
+### Changed
+
+- `DungeonRenderer.buildCommands()`: integra `classifyGrid()` como primeiro passo; tiles `VOID` são skippados sem emitir `RenderCommand` (~50% menos sprites em dungeons típicas BSP); `AutoTileResolver.resolve()` recebe `SemanticGrid` como novo parâmetro
+- `AutoTileResolver.resolve()`: nova assinatura `(grid, sem, x, y, theme, floorNum)` — usa `SemanticGrid` para resolveCategory; branch `wall_edge` usa bitmask 8-bit quando `bitmaskFrames` presente no tema; fallback legado preservado para temas sem migração
+- `dungeon-themes.ts`: `TileCategory` estendido com `'wall_edge'`, `'void'` e `string` (biomas futuros); `AutoTileSet` com campos opcionais `bitmaskFrames?` e `voidFrame?`
+- `GameScene._loadDungeonFloor()`: adicionado `cameras.main.setBackgroundColor(0x000000)` antes do loop de sprites
+
+## [0.5.2] — 2026-05-10
 
 ### Added
 
@@ -82,7 +134,7 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 - Removidos arquivos de resumo/documentação obsoletos da raiz do repositório: `KIRO_RESUMO.md`, `IMPLEMENTATION_SUMMARY.md`, `fase_3.md`, `fase_5.md` — conteúdo migrado para `.kiro/` e `docs/`
 
-## [5.1.0] — 2026-05-10
+## [0.5.1] — 2026-05-10
 
 ### Added
 
@@ -525,7 +577,11 @@ procedural de masmorras, combate turno-a-turno e progressão de personagem.
 
 ---
 
-[Unreleased]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.5.4...HEAD
+[0.5.4]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.5.3...v0.5.4
+[0.5.3]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.5.2...v0.5.3
+[0.5.2]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.5.1...v0.5.2
+[0.5.1]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.3.0...v0.5.1
 [0.3.0]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.1.1...v0.1.2

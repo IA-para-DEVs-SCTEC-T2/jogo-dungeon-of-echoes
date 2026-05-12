@@ -28,9 +28,11 @@ const TEXT_GOLD: Phaser.Types.GameObjects.Text.TextStyle = {
 };
 
 const RARITY_COLORS: Record<string, string> = {
-  common:   '#aaaaaa',
-  uncommon: '#55ff55',
-  rare:     '#aaaaff',
+  common:    '#aaaaaa',
+  uncommon:  '#55ff55',
+  rare:      '#aaaaff',
+  epic:      '#cc44ff',
+  legendary: '#ffaa00',
 };
 
 export class ShopPanel {

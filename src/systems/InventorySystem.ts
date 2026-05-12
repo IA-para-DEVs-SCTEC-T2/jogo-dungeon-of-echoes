@@ -15,6 +15,7 @@ export interface UseItemResult {
   success: boolean;
   messages: string[];
   hpDelta: number;       // positivo = cura, negativo = dano
+  manaDelta: number;     // positivo = restaura mana
   identified: boolean;   // se este uso identificou o item pela primeira vez
 }
 
@@ -81,33 +82,49 @@ export class InventorySystem {
    * @param identifiedItems - Mapa de identificação do player (mutado in-place)
    * @param currentHp - HP atual do player (para calcular cura sem ultrapassar máximo)
    * @param maxHp - HP máximo do player
+   * @param currentMana - Mana atual do player
+   * @param maxMana - Mana máxima do player
    */
   useItem(
     index: number,
     identifiedItems: Record<string, boolean>,
     currentHp: number,
     maxHp: number,
+    currentMana = 0,
+    maxMana = 0,
   ): UseItemResult {
     const item = this._items[index];
 
     if (!item) {
-      return { success: false, messages: ['Slot vazio.'], hpDelta: 0, identified: false };
+      return { success: false, messages: ['Slot vazio.'], hpDelta: 0, manaDelta: 0, identified: false };
     }
 
     const displayName = item.getDisplayName(identifiedItems);
     const messages: string[] = [];
     let hpDelta = 0;
+    let manaDelta = 0;
 
     messages.push(`Você usou ${displayName}`);
 
     // ─── Efeito do item ──────────────────────────────────────────────────
-    if (item.type === 'potion_heal') {
-      const heal = Math.min(INVENTORY.POTION_HEAL_AMOUNT, maxHp - currentHp);
-      hpDelta = heal;
+    if (item.type === 'potion_heal_light') {
+      hpDelta = Math.min(INVENTORY.POTION_HEAL_LIGHT_AMOUNT, maxHp - currentHp);
+      messages.push('Você se sente um pouco melhor');
+    } else if (item.type === 'potion_heal') {
+      hpDelta = Math.min(INVENTORY.POTION_HEAL_AMOUNT, maxHp - currentHp);
       messages.push('Você se sente melhor');
-    } else if (item.type === 'potion_poison') {
-      hpDelta = -INVENTORY.POTION_POISON_AMOUNT;
-      messages.push('Você foi envenenado');
+    } else if (item.type === 'potion_heal_high') {
+      hpDelta = Math.min(INVENTORY.POTION_HEAL_HIGH_AMOUNT, maxHp - currentHp);
+      messages.push('Você se sente muito melhor!');
+    } else if (item.type === 'potion_mana_light') {
+      manaDelta = Math.min(INVENTORY.POTION_MANA_LIGHT_AMOUNT, maxMana - currentMana);
+      messages.push('Sua mana é levemente restaurada');
+    } else if (item.type === 'potion_mana') {
+      manaDelta = Math.min(INVENTORY.POTION_MANA_AMOUNT, maxMana - currentMana);
+      messages.push('Sua mana é restaurada');
+    } else if (item.type === 'potion_mana_high') {
+      manaDelta = Math.min(INVENTORY.POTION_MANA_HIGH_AMOUNT, maxMana - currentMana);
+      messages.push('Sua mana é completamente restaurada!');
     }
 
     // ─── Identificação ───────────────────────────────────────────────────
@@ -123,7 +140,7 @@ export class InventorySystem {
     // ─── Remover do inventário ───────────────────────────────────────────
     this._items[index] = null;
 
-    return { success: true, messages, hpDelta, identified: justIdentified };
+    return { success: true, messages, hpDelta, manaDelta, identified: justIdentified };
   }
 
   // ─── Log do inventário ───────────────────────────────────────────────────

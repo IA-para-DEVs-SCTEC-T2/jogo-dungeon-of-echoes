@@ -51,10 +51,16 @@ export class BootScene extends Phaser.Scene {
     this.load.spritesheet('chest0', `${base}/Items/Chest0.png`,            { frameWidth: 16, frameHeight: 16 });
     this.load.spritesheet('quad0',  `${base}/Characters/Quadraped0.png`,   { frameWidth: 16, frameHeight: 16 });
 
+    // Efeitos de magia
+    this.load.spritesheet('effect0', `${base}/Objects/Effect0.png`, { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('effect1', `${base}/Objects/Effect1.png`, { frameWidth: 16, frameHeight: 16 });
+
     this._setupLoadingBar();
   }
 
   create(): void {
+    this._registerSpellAnims();
+
     const { width, height } = this.scale;
 
     this.add
@@ -68,6 +74,30 @@ export class BootScene extends Phaser.Scene {
     this.time.delayedCall(200, () => {
       this.scene.start('GameScene');
     });
+  }
+
+  private _registerSpellAnims(): void {
+    // Effect0.png: 20 colunas × N linhas @ 16px
+    // Linha 0 (frames 0-19): fogo; linha 1 (20-39): gelo; linha 2 (40-59): raio/arcano
+    // Effect1.png: linha 0 (0-19): vento/verde
+    // Os índices exatos dependem do atlas — ajustar após inspeção visual se necessário.
+    const safe = (key: string, texture: string, start: number, end: number, rate: number, repeat: number) => {
+      if (!this.anims.exists(key)) {
+        this.anims.create({
+          key,
+          frames: this.anims.generateFrameNumbers(texture, { start, end }),
+          frameRate: rate,
+          repeat,
+        });
+      }
+    };
+
+    safe('spell_fire_fly',    'effect0', 0,  3,  10, -1);
+    safe('spell_fire_impact', 'effect0', 4,  7,  14,  0);
+    safe('spell_ice_fly',     'effect0', 20, 23,  8, -1);
+    safe('spell_ice_impact',  'effect0', 24, 27, 14,  0);
+    safe('spell_wind_fly',    'effect1', 0,  3,  12, -1);
+    safe('spell_wind_impact', 'effect1', 4,  7,  14,  0);
   }
 
   private _setupLoadingBar(): void {

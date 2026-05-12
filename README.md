@@ -37,6 +37,8 @@ https://ia-para-devs-sctec-t2.github.io/jogo-dungeon-of-echoes/dashboard/
 | Movimento contínuo ao segurar direcional | ✅ Implementado |
 | Inventário e itens | ✅ Implementado |
 | **Integração com IA Generativa (LLM)** | ✅ **Implementado** |
+| **Renderização Shell-not-Volume (bitmask 8-bit)** | ✅ **Implementado** |
+| **Sistema de Magias com projéteis** | ✅ **Implementado** |
 | FOG of War | 🔜 Planejado |
 
 ---
@@ -69,12 +71,18 @@ Input do jogador → Resolve ação (mover / atacar) → Turno dos inimigos → 
 |---------|-----------------|
 | `Player` (entity) | Atributos base (STR/INT/DEX/CON/WIS/CHA), HP, Mana, movimento no grid |
 | `DungeonGenerator` | Geração procedural BSP, mapa de tiles 40×40 |
+| `SemanticClassifier` | Classifica tiles como FLOOR / WALL_EDGE / VOID (shell de 1 tile) |
+| `AutoTileResolver` | Bitmask 8-bit → WallVariant → frame DawnLike; puro, sem Phaser |
+| `DungeonRenderer` | Itera grid, delega ao resolver, emite `RenderCommand[]` |
 | `EnemySystem` | Spawn, IA com estados IDLE → CHASING → ATTACKING, detecção por sala e raio |
 | `CombatSystem` | Resolução de ataque, cálculo de dano fixo, morte e concessão de XP |
 | `XPSystem` | Acúmulo de XP, level up com múltiplos saltos, recálculo de atributos |
 | `UIScene` | HUD overlay com barras HP/Mana, labels Nível/ATK/XP e log de mensagens |
 | `EventBus` | Canal de eventos cross-cena (singleton, sem dependência de Phaser) |
 | **`AIService`** | **Integração com LLM para narrativa procedural (descrições, variantes, eventos)** |
+| **`SpellSystem`** | **Desbloqueio/equipamento de magias por nível; 2 slots; cooldown por slot** |
+| **`SpellCastingSystem`** | **Orquestra disparo: verifica cooldown, desconta mana, instancia `Projectile`** |
+| **`Projectile`** | **Sprite com movimento autônomo; detecta paredes e inimigos; animação de impacto** |
 
 ---
 

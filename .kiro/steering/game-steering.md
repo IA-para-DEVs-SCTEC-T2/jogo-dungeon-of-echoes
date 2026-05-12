@@ -58,10 +58,19 @@ Dungeon of Echoes é um RPG 2D tile-based jogado no navegador. O jogador explora
 - **`INVENTORY_OPENED` é o único evento que autoriza `_inventoryPanel.show()`** — `INVENTORY_STATE_RESPONSE` apenas atualiza dados; nunca abre o painel
 - **Bônus de equipamento são reversíveis** — `Player.applyEquipmentBonuses()` / `removeEquipmentBonuses()` acumulam em `_equipmentBonuses`; `recalcStats()` é a fonte de verdade dos stats derivados
 - **Renderização de dungeon é delegada ao `DungeonRenderer`** — `GameScene` apenas itera `RenderCommand[]` e cria sprites; zero lógica de autotiling na cena
-- **`AutoTileResolver` nunca instancia objetos Phaser** — opera sobre grid[][] e retorna `TileRenderData`; extensão futura: adicionar case em `resolveCategory()` e `AutoTileSet` no tema
-- **Temas visuais em `dungeon-themes.ts`** — `TileCategory` extensível; frames organizados por `AutoTileSet` (face, cornerOuter_TL/TR, bodyFrames, cornerInner_TL/TR); `themeForFloor()` mapeia andar → tema
+- **`AutoTileResolver` nunca instancia objetos Phaser** — opera sobre `grid[][]` + `SemanticGrid` e retorna `TileRenderData`; extensão futura: adicionar entrada em `TileSemanticsProvider` + `TileCategory` + `AutoTileSet` no tema
+- **Temas visuais em `dungeon-themes.ts`** — `TileCategory` extensível (inclui `wall_edge`, `void`, `string` para biomas); frames organizados por `AutoTileSet` (campos legados) e `BitmaskFrameSet` (campos de bitmask); `themeForFloor()` mapeia andar → tema
+- **Pipeline de renderização dungeon = 3 etapas em ordem**: (1) `classifyGrid(grid)` → `SemanticGrid`, (2) `DungeonRenderer.buildCommands()` skipa VOID e delega ao resolver, (3) `GameScene` cria sprites e define `cameras.main.setBackgroundColor(0x000000)`
+- **`SemanticClassifier` usa apenas 4 vizinhos cardinais** para classificar a shell — diagonais participam apenas no bitmask; isso garante `WALL_EDGE` de exatamente 1 tile de espessura e evita silhuetas diagonais grossas
+- **`TileSemanticsProvider` é a fonte de verdade de abertura visual** — bitmask usa `isVisuallyOpen`, não `=== TILE.FLOOR`; futuras categorias (water, lava, chasm) registram suas flags aqui sem alterar o resolver
+- **Variação de body walls deve ser mínima** — `bodyFrames` de `wall_edge` contém 1 frame; silhueta legível tem prioridade absoluta sobre detalhe de textura
 - **`BONUS_AREA_OVERRIDES` é estritamente isolado de `MANUAL_MAP_OVERRIDES`** — nunca cruzar importações entre `BonusAreaData.ts` e `TileProperties.ts`
 - **`DEV_CONFIG.godMode`** em `constants.ts` — flag de desenvolvimento; `CombatSystem` consulta antes de aplicar dano ao player; manter `false` em produção
+- **Magias são data-driven** — `spells.db.ts` é a única fonte de verdade para atributos de magia; `spell-progression.ts` define quando cada magia é desbloqueada; nunca hardcodar IDs ou dano em Systems
+- **`SpellCastingSystem` nunca importa `SpellSystem` diretamente** — recebe instância como parâmetro em `cast()`; desacoplamento total entre gestão de slots e disparo físico
+- **`Projectile` é uma entidade Phaser** — `scene.add.existing(this)` no construtor; `updateMovement()` chamado pelo `GameScene` a cada frame; destrói-se via `this.destroy()` após impacto
+- **Dois slots de magia (`equippedSpells[0]`, `equippedSpells[1]`)** — mapeados para teclas `Q` e `E`; `SpellSystem.equipSpell()` valida que o player desbloqueou a magia antes de equipar
+- **`facingDir`** em `Player` (`'up' | 'down' | 'left' | 'right'`) — atualizado pelo `GameScene` a cada movimento; `SpellCastingSystem` usa para definir direção do projétil
 
 ## Estrutura de Pastas
 
@@ -75,12 +84,13 @@ Dungeon of Echoes é um RPG 2D tile-based jogado no navegador. O jogador explora
                    NPCController, InteractiveObjectSystem, CityDecorationSystem
                    MapTransitionSystem, DungeonFloorManager, DifficultyScalingSystem
                    AutoTileResolver, DungeonRenderer, BonusAreaRenderer
-  /entities     → Entidades puras (Player — gold, equipmentBonuses; Item — slotId, bonuses)
+                   SpellSystem, SpellCastingSystem
+  /entities     → Entidades puras (Player — gold, equipmentBonuses, facingDir, spells; Item — slotId, bonuses; Projectile — sprite autônomo)
   /generators   → DungeonGenerator, CityLayoutProcessor, TileVariantResolver
-  /config       → constants.ts, town.config.ts, sprites-config.ts, shop.catalog.ts
+  /config       → constants.ts, town.config.ts, sprites-config.ts, shop.catalog.ts, spells.db.ts, spell-progression.ts
   /types        → town.ts, equipment.ts, viewmodels.ts, input.ts
   /utils        → EventBus
-  /ui           → InventoryPanel, ShopPanel, DialogPanel, LogPanel, ActionBarPanel
+  /ui           → InventoryPanel, ShopPanel, DialogPanel, LogPanel, ActionBarPanel, SpellsPanel, StatusPanel
 .kiro/
   /steering     → Diretrizes do projeto (este arquivo)
   /specs        → Especificações de cada sistema

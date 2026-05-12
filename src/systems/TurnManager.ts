@@ -1,4 +1,4 @@
-import { TILE_SIZE, EVENTS, INVENTORY } from '../utils/constants';
+import { TILE_SIZE, EVENTS, INVENTORY, DEV_CONFIG } from '../utils/constants';
 import { EventBus } from '../utils/EventBus';
 import type { Player } from '../entities/Player';
 import type { EnemySystem } from './EnemySystem';
@@ -79,6 +79,8 @@ export class TurnManager {
         player.identifiedItems,
         player.hp,
         player.maxHp,
+        player.mana,
+        player.maxMana,
       );
 
       if (useResult.success) {
@@ -89,6 +91,10 @@ export class TurnManager {
             result.playerDied = true;
             result.messages.push('Você morreu');
           }
+        }
+        if (useResult.manaDelta !== 0) {
+          player.mana = Math.max(0, Math.min(player.maxMana, player.mana + useResult.manaDelta));
+          EventBus.emit(EVENTS.PLAYER_MANA_CHANGED, { mana: player.mana, maxMana: player.maxMana });
         }
         metrics?.recordItemUsed();
         result.messages.push(...useResult.messages);
@@ -107,7 +113,7 @@ export class TurnManager {
       if (ai.attacked) {
         const atk = combat.attack(enemy, player);
         if (atk.hit) {
-          player.hp = Math.max(0, player.hp - atk.damage);
+          if (!DEV_CONFIG.godMode) player.hp = Math.max(0, player.hp - atk.damage);
           metrics?.recordDamageTaken(atk.damage);
           EventBus.emit(EVENTS.PLAYER_HP_CHANGED, { hp: player.hp, maxHp: player.maxHp });
           result.messages.push(`Inimigo atacou você por ${atk.damage}`);

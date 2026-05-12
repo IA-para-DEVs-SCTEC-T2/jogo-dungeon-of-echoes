@@ -4,6 +4,7 @@ import { EventBus } from '../utils/EventBus';
 import { InventorySystem } from '../systems/InventorySystem';
 import type { DungeonGenerator } from '../generators/DungeonGenerator';
 import type { StatBonuses } from '../types/equipment';
+import type { Direction } from '../types/spells';
 
 export class Player extends Phaser.GameObjects.Sprite {
   // Posição no grid (tile-based)
@@ -33,6 +34,12 @@ export class Player extends Phaser.GameObjects.Sprite {
 
   // Moedas
   gold: number;
+
+  // Progressão de magias
+  freePoints:     number;
+  unlockedSpells: string[];
+  equippedSpells: [string | null, string | null];
+  facingDir:      Direction;
 
   private _lastMoveTime: number;
   private _emitter: Phaser.Events.EventEmitter;
@@ -77,6 +84,12 @@ export class Player extends Phaser.GameObjects.Sprite {
     this.identifiedItems = {};
 
     this.gold = 500;
+
+    // Magias e pontos livres
+    this.freePoints     = 0;
+    this.unlockedSpells = [];
+    this.equippedSpells = [null, null];
+    this.facingDir      = 'down';
   }
 
   /** Recalcula maxHp, maxMana e attack a partir dos atributos base, nível e bônus de equipamento. */
@@ -133,6 +146,11 @@ export class Player extends Phaser.GameObjects.Sprite {
     this.gridY = targetY;
     this._lastMoveTime = now;
 
+    if (dx > 0)      this.facingDir = 'right';
+    else if (dx < 0) this.facingDir = 'left';
+    else if (dy > 0) this.facingDir = 'down';
+    else if (dy < 0) this.facingDir = 'up';
+
     this.setPosition(
       this.gridX * TILE_SIZE + TILE_SIZE / 2,
       this.gridY * TILE_SIZE + TILE_SIZE / 2,
@@ -148,6 +166,15 @@ export class Player extends Phaser.GameObjects.Sprite {
     if (this.hp <= 0) {
       this._emitter.emit(EVENTS.PLAYER_DIED, this);
     }
+  }
+
+  spendStatPoint(stat: 'str' | 'intel' | 'dex' | 'con' | 'wis'): boolean {
+    if (this.freePoints <= 0) return false;
+    this[stat] += 1;
+    this.freePoints -= 1;
+    this.recalcStats();
+    EventBus.emit(EVENTS.STAT_POINT_SPENT, { stat, value: this[stat], freePoints: this.freePoints });
+    return true;
   }
 
   useMana(amount: number): boolean {
@@ -179,6 +206,12 @@ export class Player extends Phaser.GameObjects.Sprite {
     this.identifiedItems   = {};
     this._equipmentBonuses = {};
     this.gold = 500;
+
+    // Resetar progressão de magias
+    this.freePoints     = 0;
+    this.unlockedSpells = [];
+    this.equippedSpells = [null, null];
+    this.facingDir      = 'down';
 
     this.setPosition(
       gridX * TILE_SIZE + TILE_SIZE / 2,
