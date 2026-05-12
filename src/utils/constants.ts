@@ -193,9 +193,10 @@ export const EVENTS = {
   STATUS_STATE_REQUESTED: 'status-state-requested',
   STATUS_STATE_RESPONSE:  'status-state-response',
   // Magias
-  SPELLS_STATE_REQUESTED: 'spells-state-requested',
-  SPELLS_STATE_RESPONSE:  'spells-state-response',
-  SPELL_EQUIP_REQUEST:    'spell-equip-request',
+  SPELLS_STATE_REQUESTED:   'spells-state-requested',
+  SPELLS_STATE_RESPONSE:    'spells-state-response',
+  SPELL_EQUIP_REQUEST:      'spell-equip-request',
+  SPELLS_SELECTION_CHANGED: 'spells-selection-changed',
 } as const;
 
 // --- Loja ---

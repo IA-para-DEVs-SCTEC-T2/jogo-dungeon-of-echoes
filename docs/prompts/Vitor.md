@@ -1008,3 +1008,58 @@ Arquivos modificados:
 - `.kiro/steering/game-steering.md`
 - `.kiro/specs/dungeon.spec.md`
 - `docs/prompts/Vitor.md`
+
+---
+
+## Prompt 30 — PR: feat(spells): sistema de magias melee-range v0.5.4
+Autor: Vitor
+Data: 2026-05-12
+
+Contexto:
+Branch `feature/game-structure-fixes`. Implementação do sistema de magias integrado ao jogo, com múltiplas iterações de correção durante a sessão.
+
+Objetivo:
+Adicionar sistema de magias jogável: desbloqueio por nível, dois slots equipáveis (J/K), mecânica melee-range (sem projétil), painel de magias integrado ao `I`, slots no footer e navegação por teclado.
+
+Decisões técnicas tomadas com IA:
+- Magias melee-range (4 cardinais adjacentes) em vez de projétil — eliminado `Projectile` para evitar bugs de ciclo de vida do sprite fora da cena
+- `SpellCastingSystem` tipado com `EnemySystem` (não `Enemy`) para compatibilidade com `takeDamage(amount, emitter)`
+- `hitEnemies: EnemySystem[]` em vez de `hitEnemy | null` — dano em todos os adjacentes simultâneo
+- Slots J/K movidos para dentro do footer (action bar), tamanho 20×20, mesmo padrão dos slots de poção
+- Navegação por teclado no painel de magias: estado `_spellsFocus: 'tabs' | 'list'` em GameScene; `SPELLS_SELECTION_CHANGED` sincroniza visual no SpellsPanel
+- `INVENTORY_TAB_CHANGED` com flag `_fromKeyboard` para distinguir origem teclado vs clique e evitar loop de eventos
+
+Tarefas realizadas:
+1. `SpellSystem.ts` (novo): desbloqueio, equipamento, cooldown por slot
+2. `SpellCastingSystem.ts` (novo/reescrito): cast melee — 4 tiles cardinais, retorna `SpellCastResult` com `hitEnemies[]`
+3. `SpellsPanel.ts` (novo): painel integrado ao `I`, 85%×80%, `clearSelection()` adicionado
+4. `StatusPanel.ts` (novo): atributos detalhados do player
+5. `spells.db.ts` + `spell-progression.ts` + `types/spells.ts` (novos): definições data-driven
+6. `GameScene.ts` (modificado): `_castSpell()` melee, `_inventoryTab`, `_spellsFocus`, `_spellsSelectedIndex`, navegação ←/→/↑/↓ no painel
+7. `UIScene.ts` (modificado): slots J/K no footer (20×20), `SPELLS_SELECTION_CHANGED` ouvido, `INVENTORY_TAB_CHANGED` com `_fromKeyboard`
+8. `constants.ts` (modificado): `SPELLS_SELECTION_CHANGED` adicionado
+9. Testes corrigidos: `potion_poison` → `potion_mana`; HP ajustado para cap de `POTION_HEAL_AMOUNT=25`; gold do shop 470→460
+
+Arquivos criados:
+- `src/systems/SpellSystem.ts`
+- `src/systems/SpellCastingSystem.ts`
+- `src/ui/SpellsPanel.ts`
+- `src/ui/StatusPanel.ts`
+- `src/config/spells.db.ts`
+- `src/config/spell-progression.ts`
+- `src/types/spells.ts`
+- `.kiro/specs/spells.spec.md`
+
+Arquivos modificados:
+- `src/scenes/GameScene.ts`
+- `src/scenes/UIScene.ts`
+- `src/entities/Player.ts`
+- `src/utils/constants.ts`
+- `tests/inventory.test.js`
+- `tests/shop.test.js`
+- `CHANGELOG.md`
+- `docs/PRD.md`
+- `README.md`
+- `.kiro/steering/game-steering.md`
+- `docs/prompts/Vitor.md`
+

@@ -56,21 +56,28 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 #### Sistema de Magias (Spells)
 
-- **`SpellSystem`** (`src/systems/SpellSystem.ts`): gerencia desbloqueio e equipamento de magias; dois slots de magia (`equippedSpells[0]` e `[1]`); `unlockSpellsForLevel()` consulta `SPELL_PROGRESSION` data-driven; `canCast()` verifica cooldown; `recordCast()` registra timestamp
-- **`SpellCastingSystem`** (`src/systems/SpellCastingSystem.ts`): orquestra o disparo — verifica cooldown, desconta mana, emite `EVENTS.SPELL_CAST` e instancia `Projectile`; desacoplado de `SpellSystem` e `Player`
-- **`Projectile`** (`src/entities/Projectile.ts`): `Phaser.GameObjects.Sprite` com movimento autônomo por tile; detecta colisão com paredes (via `DungeonGenerator`) e inimigos (raio `TILE_SIZE × 0.7`); destrói-se ao impactar e emite `EVENTS.PROJECTILE_HIT`; reproduz animação de impacto antes de destruir o sprite
-- **`SpellsPanel`** (`src/ui/SpellsPanel.ts`): painel de UI para equipar magias nos dois slots — abre via `EVENTS.SPELLS_OPENED`; navegação por teclado; exibe nome, elemento, dano, custo de mana e cooldown
-- **`StatusPanel`** (`src/ui/StatusPanel.ts`): painel de atributos detalhados do player (STR/INT/DEX/CON/WIS/CHA, HP, Mana, nível) — abre via tecla `C`
-- **`spells.db.ts`** (`src/config/spells.db.ts`): banco de dados data-driven com 5 magias — `fire_bolt` (nv 1), `ice_shard` (nv 5), `wind_cyclone` (nv 10), `fire_explosion` (nv 15), `blizzard` (nv 20); campos: `damage`, `manaCost`, `cooldownMs`, `projectileSpeed`, `animKey`, `impactAnimKey`
-- **`spell-progression.ts`** (`src/config/spell-progression.ts`): tabela de desbloqueio por nível — extendível sem alterar `SpellSystem`
+- **`SpellSystem`** (`src/systems/SpellSystem.ts`): gerencia desbloqueio e equipamento de magias; dois slots (`equippedSpells[0]` e `[1]`); `unlockSpellsForLevel()` consulta `SPELL_PROGRESSION` data-driven; `canCast()` verifica cooldown; `recordCast()` registra timestamp
+- **`SpellCastingSystem`** (`src/systems/SpellCastingSystem.ts`): verifica cooldown e mana, desconta custo, aplica dano em **todos** os inimigos adjacentes (4 cardinais); retorna `SpellCastResult` com a lista de `hitEnemies`; sem projétil — mecânica melee-range igual ao ataque normal
+- **`SpellsPanel`** (`src/ui/SpellsPanel.ts`): painel de magias integrado ao painel `I`; mesmas dimensões do inventário (85%×80%); navegação por teclado — ↓ entra na lista, ↑ na primeira magia volta para as abas, **Enter/E** equipa no slot J, **K** equipa no slot K
+- **`StatusPanel`** (`src/ui/StatusPanel.ts`): painel de atributos detalhados do player (STR/INT/DEX/CON/WIS/CHA, HP, Mana, nível)
+- **`spells.db.ts`** (`src/config/spells.db.ts`): 5 magias data-driven — `fire_bolt` (nv 1), `ice_shard` (nv 5), `wind_cyclone` (nv 10), `fire_explosion` (nv 15), `blizzard` (nv 20)
+- **`spell-progression.ts`** (`src/config/spell-progression.ts`): tabela de desbloqueio por nível, extendível sem alterar `SpellSystem`
 - **`types/spells.ts`**: interfaces `SpellDef`, `SpellSlotState`, `SpellElement`, `Direction`
-- `EVENTS.SPELL_CAST`, `EVENTS.SPELL_EQUIPPED`, `EVENTS.PROJECTILE_HIT`, `EVENTS.SPELLS_OPENED`, `EVENTS.PLAYER_MANA_CHANGED` adicionados a `constants.ts`
+- Slots J/K movidos para dentro da action bar (footer), canto direito — mesmo tamanho dos slots de poção (20×20); barra de cooldown azul na base de cada slot
+- `EVENTS.SPELL_CAST`, `EVENTS.SPELL_EQUIPPED`, `EVENTS.SPELLS_SELECTION_CHANGED`, `EVENTS.PLAYER_MANA_CHANGED` adicionados a `constants.ts`
 
 ### Changed
 
 - `Player`: campos `facingDir: Direction`, `unlockedSpells: string[]`, `equippedSpells: [string | null, string | null]` adicionados à entidade
-- `UIScene`: exibe cooldown dos slots de magia e barra de mana atualizada em tempo real via `PLAYER_MANA_CHANGED`
+- `UIScene`: slots J/K no footer com cooldown visual; mana atualizada em tempo real via `PLAYER_MANA_CHANGED`
 - `XPSystem`: chama `SpellSystem.unlockSpellsForLevel()` ao subir de nível — desbloqueia magias automaticamente
+- `_handleInventoryInput` (GameScene): ←/→ trocam de aba; na aba Magias, ↓ entra na lista e ↑ na primeira magia retorna às abas
+- Barra de HP do inimigo sincronizada imediatamente após dano de magia (`_syncEnemySprite` chamado em `_castSpell`)
+
+### Fixed
+
+- `SpellCastingSystem` tipado com `EnemySystem` (não `Enemy`) — corrige `takeDamage` chamado sem o `emitter` obrigatório, eliminando o `TypeError: can't access property "emit", emitter is undefined`
+- Testes atualizados: `potion_poison` removido de `Item.ts` → substituído por `potion_mana`; HP no teste de cura ajustado para não ultrapassar o cap com `POTION_HEAL_AMOUNT = 25`; gold esperado no shop corrigido (preço 30→40)
 
 ---
 

@@ -66,7 +66,7 @@ export class UIScene extends Phaser.Scene {
   private _tabBtnBgs:  Phaser.GameObjects.Rectangle[] = [];
   private _tabBtnTxts: Phaser.GameObjects.Text[]      = [];
 
-  // Barra de magias (lado direito)
+  // Barra de magias no footer (canto direito)
   private _spellBarContainer: Phaser.GameObjects.Container | null = null;
   private _spellBarSlots: Array<{
     bg: Phaser.GameObjects.Rectangle;
@@ -161,16 +161,17 @@ export class UIScene extends Phaser.Scene {
     EventBus.off(EVENTS.SPELL_CAST,                 undefined,            this);
   }
 
-  // ─── Spell Bar (lado direito) ─────────────────────────────────────────────
+  // ─── Spell Bar no footer (canto direito) ────────────────────────────────
 
   private _buildSpellBar(): void {
-    const sw = this.scale.width;
-    const sh = this.scale.height;
-    const barH   = this._actionBar.getHeight();
-    const slotH  = 28;
-    const slotW  = 110;
-    const pad    = 6;
-    const x      = sw - slotW - 8;
+    const sw       = this.scale.width;
+    const sh       = this.scale.height;
+    const barH     = this._actionBar.getHeight();   // 36
+    const slotSize = 20;
+    const slotGap  = 3;
+    const barY     = sh - barH;
+    const slotY    = barY + Math.floor((barH - slotSize) / 2);
+    const rightEdge = sw - 8;
     const DEPTH_SPELL_BAR = 205;
 
     this._spellBarContainer = this.add
@@ -181,33 +182,32 @@ export class UIScene extends Phaser.Scene {
     const slotKeys = ['J', 'K'] as const;
     this._spellBarSlots = [];
 
+    // Slots da direita para a esquerda: K é mais à direita, J fica à sua esquerda
     slotKeys.forEach((key, i) => {
-      const y = sh - barH - (slotKeys.length - i) * (slotH + 4) - 4;
+      const slotX = rightEdge - (slotKeys.length - i) * (slotSize + slotGap);
 
-      // Fundo do slot
       const bg = this.add
-        .rectangle(x, y, slotW, slotH, 0x111122, 0.92)
+        .rectangle(slotX, slotY, slotSize, slotSize, 0x222244)
         .setOrigin(0, 0)
         .setStrokeStyle(1, 0x334466);
 
-      // Tecla de atalho (J / K)
-      const keyTxt = this.add.text(x + pad, y + slotH / 2, `[${key}]`, {
-        fontSize: '9px', color: '#4499ff', fontFamily: 'monospace', fontStyle: 'bold',
-      }).setOrigin(0, 0.5);
+      // Tecla no canto superior esquerdo do slot
+      const keyTxt = this.add.text(slotX + 2, slotY + 1, key, {
+        fontSize: '6px', color: '#4499ff', fontFamily: 'monospace', fontStyle: 'bold',
+      });
 
-      // Nome da magia
-      const nameTxt = this.add.text(x + pad + 24, y + slotH / 2 - 4, '—', {
-        fontSize: '8px', color: '#667799', fontFamily: 'monospace',
-      }).setOrigin(0, 0.5);
+      // Nome abreviado da magia (max ~8 chars) centralizado
+      const nameTxt = this.add.text(slotX + slotSize / 2, slotY + 11, '—', {
+        fontSize: '6px', color: '#667799', fontFamily: 'monospace',
+      }).setOrigin(0.5, 0);
 
-      // Barra de cooldown (fundo)
+      // Barra de cooldown na base do slot
       const cdBar = this.add
-        .rectangle(x + pad, y + slotH - 6, slotW - pad * 2, 3, 0x222244)
+        .rectangle(slotX, slotY + slotSize - 3, slotSize, 3, 0x222244)
         .setOrigin(0, 0);
 
-      // Barra de cooldown (preenchimento)
       const cdBarFill = this.add
-        .rectangle(x + pad, y + slotH - 6, 0, 3, 0x4499ff)
+        .rectangle(slotX, slotY + slotSize - 3, 0, 3, 0x4499ff)
         .setOrigin(0, 0);
 
       this._spellBarContainer!.add([bg, keyTxt, nameTxt, cdBar, cdBarFill]);
@@ -217,17 +217,19 @@ export class UIScene extends Phaser.Scene {
 
   updateSpellBar(slots: Array<{ spellId: string | null; spellName: string; cooldownRatio: number }>): void {
     if (!this._spellBarContainer) return;
-    const maxW = 110 - 12; // slotW - pad*2
+    const slotSize = 20;
     slots.forEach((slot, i) => {
       const s = this._spellBarSlots[i];
       if (!s) return;
 
       const hasSpell = !!slot.spellId;
-      s.nameTxt.setText(hasSpell ? slot.spellName : '—');
+      // Abreviar nome para caber no slot 20px
+      const shortName = hasSpell ? slot.spellName.split(' ')[0].substring(0, 6) : '—';
+      s.nameTxt.setText(shortName);
       s.nameTxt.setStyle({ ...s.nameTxt.style, color: hasSpell ? '#aaddff' : '#445566' });
 
       const fillW = hasSpell && slot.cooldownRatio > 0
-        ? Math.round(maxW * slot.cooldownRatio)
+        ? Math.round(slotSize * slot.cooldownRatio)
         : 0;
       s.cdBarFill.setSize(fillW, 3);
       const ready = !hasSpell || slot.cooldownRatio === 0;
@@ -488,6 +490,11 @@ export class UIScene extends Phaser.Scene {
     EventBus.on(EVENTS.ITEM_EQUIPPED,   () => { this._inventoryPanel.markDirty(); }, this);
     EventBus.on(EVENTS.ITEM_UNEQUIPPED, () => { this._inventoryPanel.markDirty(); }, this);
 
+    EventBus.on(EVENTS.INVENTORY_TAB_CHANGED, (data: { tab: 'inventory' | 'status' | 'spells'; _fromKeyboard?: boolean }) => {
+      if (!this.sys.isActive() || !this._tabContainer?.visible || !data._fromKeyboard) return;
+      this._switchTab(data.tab);
+    }, this);
+
     EventBus.on(EVENTS.PLAYER_GOLD_CHANGED, (data: { gold: number }) => {
       if (!this.sys.isActive() || !this._goldLabel?.active) return;
       this._goldLabel.setText(`Ouro: ${data.gold}`);
@@ -544,6 +551,16 @@ export class UIScene extends Phaser.Scene {
       if (!this.sys.isActive()) return;
       if (this._spellsPanel.isVisible()) {
         EventBus.emit(EVENTS.SPELLS_STATE_REQUESTED, { timestamp: Date.now() });
+      }
+      this._spellsPanel.markDirty();
+    }, this);
+
+    EventBus.on(EVENTS.SPELLS_SELECTION_CHANGED, (data: { index: number }) => {
+      if (!this.sys.isActive() || !this._spellsPanel.isVisible() || !this._spellsData) return;
+      if (data.index >= 0) {
+        this._spellsPanel.selectByIndex(data.index, this._spellsData);
+      } else {
+        this._spellsPanel.clearSelection();
       }
       this._spellsPanel.markDirty();
     }, this);
