@@ -1063,3 +1063,21 @@ Arquivos modificados:
 - `.kiro/steering/game-steering.md`
 - `docs/prompts/Vitor.md`
 
+---
+
+## Prompt 31
+Autor: Vitor
+Data: 2026-05-12
+
+Contexto:
+Correção de bug visual: sprites de itens no chão da dungeon não desapareciam após o jogador coletá-los. O item era adicionado ao inventário corretamente (lógica de coleta funcionando), mas o sprite permanecia visível na dungeon.
+
+Decisões tomadas:
+1. **Causa raiz identificada**: as chamadas `setVisible(false).setActive(false)` antes de `destroy()` em `_checkItemPickup` eram problemáticas no Phaser 4 — desativar o sprite antes de destruí-lo pode impedir que o objeto seja removido corretamente da display list do Phaser. A correção foi usar `item.sprite.destroy()` diretamente, sem as chamadas intermediárias.
+2. **Cache sincronizado**: após `this._items = this._items.filter(i => i.gridX !== null)`, o cache do andar (`_dungeonCache`) agora é atualizado com a referência filtrada (`cached.items = this._items`). Isso garante que ao re-entrar no mesmo andar, apenas os itens ainda no chão tenham sprites recriados.
+3. Em Phaser 4, `destroy()` é síncrono e remove o objeto da display list imediatamente — não requer `setVisible(false)` ou `setActive(false)` préviamente.
+
+Arquivos modificados:
+- `src/scenes/GameScene.ts`: `_checkItemPickup()` — removidos `setVisible(false).setActive(false)` antes de `destroy()` em ambos os branches (gold e regular items); cache atualizado após o filtro
+- `CHANGELOG.md`: entrada na seção `[Unreleased]` descrevendo a correção
+

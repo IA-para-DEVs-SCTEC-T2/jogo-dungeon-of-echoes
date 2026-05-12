@@ -50,6 +50,12 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ## [Unreleased]
 
+### Fixed
+
+- Sprites de itens no chão da dungeon agora desaparecem corretamente após o jogador coletá-los: removidos os calls `setVisible(false).setActive(false)` antes de `destroy()` — em Phaser 4 desativar o sprite antes de destruí-lo impedia a remoção da display list; cache do andar (`_dungeonCache`) agora é atualizado após o filtro de coleta para manter consistência ao re-entrar no mesmo andar
+
+---
+
 ## [0.5.4] — 2026-05-12
 
 ### Added
