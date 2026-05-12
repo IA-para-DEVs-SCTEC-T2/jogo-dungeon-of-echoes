@@ -12,6 +12,16 @@ A Dungeon é o mapa onde o jogo acontece. É gerada proceduralmente usando um al
 | WALL  | 0     | Parede — bloqueia movimento      |
 | FLOOR | 1     | Chão — permite movimento         |
 
+> **Semântica visual derivada** (calculada pelo `SemanticClassifier`, nunca armazenada no grid):
+>
+> | SemanticValue | Critério | Renderização |
+> |---|---|---|
+> | `FLOOR` | tile com `isVisuallyOpen = true` | tiles de chão com variação determinística |
+> | `WALL_EDGE` | tile WALL com ao menos 1 vizinho cardinal FLOOR | bitmask 8-bit → sprite de borda |
+> | `VOID` | tile WALL sem nenhum vizinho cardinal FLOOR | sem sprite (câmera preta) |
+>
+> O grid permanece imutável (`WALL = 0`, `FLOOR = 1`). A classificação é uma view derivada descartável.
+
 ---
 
 ## Atributos da Dungeon

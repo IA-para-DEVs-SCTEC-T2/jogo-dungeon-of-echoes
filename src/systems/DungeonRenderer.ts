@@ -1,5 +1,6 @@
 import { TILE_SIZE } from '../utils/constants';
 import { AutoTileResolver } from './AutoTileResolver';
+import { classifyGrid, SemanticGrid, SemanticValue } from './SemanticClassifier';
 import type { DungeonTheme } from '../config/dungeon-themes';
 
 export interface RenderCommand {
@@ -16,6 +17,11 @@ export interface RenderCommand {
  *
  * Não conhece Phaser.Scene — não instancia GameObjects.
  * GameScene consome os comandos e cria os sprites.
+ *
+ * Pipeline:
+ *   1. classifyGrid() → SemanticGrid (FLOOR / WALL_EDGE / VOID)
+ *   2. VOID tiles são skippados — sem RenderCommand (câmera preta preenche)
+ *   3. WALL_EDGE e FLOOR → AutoTileResolver.resolve()
  */
 export class DungeonRenderer {
   private _resolver = new AutoTileResolver();
@@ -26,13 +32,19 @@ export class DungeonRenderer {
     floor:     number,
     baseDepth: number = 0,
   ): RenderCommand[] {
+    const sem = classifyGrid(grid);
     const commands: RenderCommand[] = [];
     const H = grid.length;
     const W = grid[0]?.length ?? 0;
 
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
-        const data = this._resolver.resolve(grid, x, y, theme, floor);
+        // VOID: parede profunda sem contato com piso — fundo preto, sem sprite
+        if (sem[y][x] === SemanticValue.VOID) continue;
+
+        const data = this._resolver.resolve(grid, sem, x, y, theme, floor);
+        if (!data) continue;
+
         commands.push({
           x:       x * TILE_SIZE + TILE_SIZE / 2,
           y:       y * TILE_SIZE + TILE_SIZE / 2,
@@ -44,5 +56,10 @@ export class DungeonRenderer {
     }
 
     return commands;
+  }
+
+  // Exposto para uso pelo MaskFrequencyLogger e DebugOverlayRenderer
+  classifyGrid(grid: number[][]): SemanticGrid {
+    return classifyGrid(grid);
   }
 }

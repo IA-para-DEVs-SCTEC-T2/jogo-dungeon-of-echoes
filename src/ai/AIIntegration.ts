@@ -129,7 +129,7 @@ export class AIIntegration {
   private getItemName(type: string): string {
     const names: Record<string, string> = {
       potion_heal: 'Poção de Cura',
-      potion_poison: 'Poção de Veneno',
+      potion_mana: 'Poção de Mana',
       gold: 'Moeda de Ouro',
     };
     return names[type] || 'Item Desconhecido';
@@ -138,7 +138,7 @@ export class AIIntegration {
   private getItemTypeDescription(type: string): string {
     const types: Record<string, string> = {
       potion_heal: 'Poção',
-      potion_poison: 'Poção',
+      potion_mana: 'Poção',
       gold: 'Moeda',
     };
     return types[type] || 'Item';
@@ -147,7 +147,7 @@ export class AIIntegration {
   private getItemEffect(type: string): string {
     const effects: Record<string, string> = {
       potion_heal: 'restaura vida',
-      potion_poison: 'causa dano',
+      potion_mana: 'restaura mana',
       gold: 'moeda de troca',
     };
     return effects[type] || 'efeito desconhecido';

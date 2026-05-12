@@ -920,7 +920,7 @@ Arquivos modificados:
 
 ---
 
-## Prompt 28 — docs: atualização pós-v5.2.0
+## Prompt 28 — docs: atualização pós-v0.5.2
 
 Contexto:
 Após implementação do autotiling semântico, godMode e correções de bugs, atualizar toda a documentação.
@@ -929,9 +929,9 @@ Objetivo:
 Manter documentação sincronizada com o estado atual do código.
 
 Tarefas realizadas:
-1. `CHANGELOG.md`: nova seção `[5.2.0]` com Added, Fixed e Changed
+1. `CHANGELOG.md`: nova seção `[0.5.2]` com Added, Fixed e Changed
 2. `docs/guia-sprites.md`: seção de dungeon reescrita para API de autotiling; tabela resumo atualizada
-3. `docs/PRD.md`: versão 5.2.0, status atualizado, seção dungeon com múltiplos andares/temas, escopo expandido
+3. `docs/PRD.md`: versão 0.5.2, status atualizado, seção dungeon com múltiplos andares/temas, escopo expandido
 4. `.kiro/steering/game-steering.md`: estrutura de pastas e 6 novas restrições arquiteturais
 5. `.kiro/specs/product.md`: tabela de sistemas e seção Dungeon atualizadas; área bônus documentada
 6. `.kiro/specs/world.spec.md`: tabela de áreas e transições expandida com área bônus e múltiplos andares
@@ -943,3 +943,68 @@ Arquivos modificados:
 - `.kiro/steering/game-steering.md`
 - `.kiro/specs/product.md`
 - `.kiro/specs/world.spec.md`
+
+---
+
+## Prompt 29 — feat(render): Shell-not-Volume Wall System com 8-bit Bitmask Autotiling (v0.5.3)
+Autor: Vitor
+Data: 2026-05-11
+
+Contexto:
+O renderer atual (v0.5.2) tratava toda a massa de parede como volume sólido — body tiles variados em toda área inacessível. Isso gerava ruído visual, quebrando a leitura espacial e não distinguindo "parede que importa" (adjacente ao piso) de "fundo profundo" (inacessível). O objetivo foi migrar para o estilo visual de roguelikes modernos (Caves of Qud, Stoneshard, Soulash): espaço esculpido dentro da escuridão, não massa texturizada de paredes.
+
+Objetivo:
+Implementar o sistema Shell-not-Volume completo com bitmask 8-bit canônico, mantendo arquitetura pura e todas as garantias arquiteturais existentes.
+
+Requisitos principais submetidos ao agente:
+- Parede é casca, não volume: apenas tiles adjacentes ao piso recebem sprite; interior vira VOID (preto)
+- SemanticClassifier usando 4 vizinhos cardinais para shell (não diagonais) — espessura exata de 1 tile
+- Bitmask de 8 vizinhos com sanitizeMask() que fecha diagonais sem suporte cardinal
+- LUT canônica com classifyVariant() pura (sem chain de overwrites) — determinístico e debuggável
+- TileSemanticsProvider desacoplando isVisuallyOpen de isWalkable (extensível para water/lava)
+- Variação de body walls = 1 frame fixo (silhouette first, não detalhe)
+- Retrocompatibilidade: fallback legado para temas sem bitmaskFrames
+- Ferramental dev: DebugOverlayRenderer (semantic/variant/bitmask), MaskFrequencyLogger, VisualRegressionScene
+- Filosofia: validação visual iterativa > completude teórica; quando em dúvida, remover variação
+
+Constraints técnicas adicionais (refinamentos iterativos durante o planejamento):
+- LUT não pode ser chain de set() com overwrites — deve ser classifyVariant() pura
+- Diagonais sem cardinais de suporte devem ser sanitizadas (fechadas)
+- WALL_EDGE deve ter espessura de exatamente 1 tile (cardinais apenas para classificação)
+- Silhueta tem prioridade sobre correção local de autotiling
+- VOID deve cobrir fundo com cor sólida (setBackgroundColor), nunca transparente
+- Variantes raras (PILLAR, CROSS) colapsadas em equivalentes visuais sem sprite dedicado
+- MaskFrequencyLogger para diagnóstico de distribuição de masks em runtime
+- VisualRegressionScene determinística para screenshot comparison após mudanças
+
+Tarefas realizadas:
+1. `TileSemanticsProvider.ts` (novo): interface TileSemantics, tabela extensível, getTileSemantics()
+2. `SemanticClassifier.ts` (novo): classifyGrid() com 4 vizinhos cardinais, SemanticValue enum, SemanticGrid type
+3. `WallVariantLUT.ts` (novo): BIT constants, sanitizeMask(), WallVariant enum (7 variantes), classifyVariant() pura, buildWallVariantLUT(), computeRawMask()
+4. `dungeon-themes.ts` (modificado): TileCategory estendido com wall_edge/void/string; BitmaskFrameSet interface; AutoTileSet com bitmaskFrames?/voidFrame?; wall_edge + bitmaskFrames para todos os 4 temas; body = 1 frame por tema
+5. `AutoTileResolver.ts` (modificado): nova assinatura resolve(grid, sem, ...); resolveCategory usa SemanticGrid; branch wall_edge com bitmask; fallback legado preservado; _computeRawMask, _frameForVariant adicionados
+6. `DungeonRenderer.ts` (modificado): integra classifyGrid(); skip VOID sem RenderCommand; passa sem para resolver
+7. `GameScene.ts` (modificado): setBackgroundColor(0x000000) em _loadDungeonFloor()
+8. `DebugOverlayRenderer.ts` (novo): modos semantic/variant/bitmask, atlas-agnostic via DEBUG_FRAMES
+9. `MaskFrequencyLogger.ts` (novo): record() por tile, report() com top masks + variant totals + unused count
+10. `VisualRegressionScene.ts` (novo): grid hardcoded 20×15 cobrindo casos críticos, toggle de modos via teclas 1–4, L para log
+
+Arquivos criados:
+- `src/systems/TileSemanticsProvider.ts`
+- `src/systems/SemanticClassifier.ts`
+- `src/systems/WallVariantLUT.ts`
+- `src/systems/DebugOverlayRenderer.ts`
+- `src/systems/MaskFrequencyLogger.ts`
+- `src/scenes/VisualRegressionScene.ts`
+
+Arquivos modificados:
+- `src/config/dungeon-themes.ts`
+- `src/systems/AutoTileResolver.ts`
+- `src/systems/DungeonRenderer.ts`
+- `src/scenes/GameScene.ts`
+- `docs/dungeon-sprite-rendering.md`
+- `CHANGELOG.md`
+- `README.md`
+- `.kiro/steering/game-steering.md`
+- `.kiro/specs/dungeon.spec.md`
+- `docs/prompts/Vitor.md`

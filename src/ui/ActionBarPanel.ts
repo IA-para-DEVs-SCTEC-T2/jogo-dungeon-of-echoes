@@ -80,9 +80,13 @@ export class ActionBarPanel {
 
   private _getItemVisual(type: ItemType): { texture: string; frame: number } {
     switch (type) {
-      case 'potion_heal':   return { texture: SPRITES.POTION, frame: DAWNLIKE_FRAMES.POTION_HEAL };
-      case 'potion_poison': return { texture: SPRITES.POTION, frame: DAWNLIKE_FRAMES.POTION_POISON };
-      case 'gold':          return { texture: SPRITES.MONEY,  frame: DAWNLIKE_FRAMES.GOLD };
+      case 'potion_heal_light':
+      case 'potion_heal':
+      case 'potion_heal_high':  return { texture: SPRITES.POTION, frame: DAWNLIKE_FRAMES.POTION_HEAL };
+      case 'potion_mana_light':
+      case 'potion_mana':
+      case 'potion_mana_high':  return { texture: SPRITES.POTION, frame: DAWNLIKE_FRAMES.POTION_MANA };
+      case 'gold':              return { texture: SPRITES.MONEY,  frame: DAWNLIKE_FRAMES.GOLD };
     }
   }
 }
