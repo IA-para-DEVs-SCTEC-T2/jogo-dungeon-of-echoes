@@ -67,8 +67,7 @@ describe('LogSystem — adicionar mensagens', () => {
 
     // DICA: acesse mensagens[0].timestamp
     // DICA: use expect(...).toBeGreaterThan(0)
-    // ESCREVA SEU CÓDIGO AQUI:
-
+    expect(mensagens[0].timestamp).toBeGreaterThan(0);
   });
 
   // ✏️ EXERCÍCIO 2 — Complete este teste:
@@ -78,8 +77,7 @@ describe('LogSystem — adicionar mensagens', () => {
     const mensagens = log.getVisible(10);
 
     // DICA: acesse mensagens[0].category
-    // ESCREVA SEU CÓDIGO AQUI:
-
+    expect(mensagens[0].category).toBe('item');
   });
 
 });
@@ -133,8 +131,11 @@ describe('LogSystem — limite máximo', () => {
 
     // DICA: chame log.getVisible(2) e verifique o tamanho
     // DICA: as 2 mais recentes são C e D
-    // ESCREVA SEU CÓDIGO AQUI:
+    const recentes = log.getVisible(2);
 
+    expect(recentes).toHaveLength(2);
+    expect(recentes[0].message).toBe('Mensagem C');
+    expect(recentes[1].message).toBe('Mensagem D');
   });
 
 });
@@ -169,8 +170,8 @@ describe('LogSystem — isDirty', () => {
     // Agora isDirty é false...
 
     // DICA: adicione outra mensagem e verifique isDirty novamente
-    // ESCREVA SEU CÓDIGO AQUI:
-
+    log.add('Segunda mensagem');
+    expect(log.isDirty()).toBe(true);
   });
 
 });
@@ -217,8 +218,7 @@ describe('LogSystem — buildViewModel', () => {
 
     // DICA: use vm.entries.every(entry => entry.alpha >= 0.4)
     // DICA: expect(...).toBe(true)
-    // ESCREVA SEU CÓDIGO AQUI:
-
+    expect(vm.entries.every(entry => entry.alpha >= 0.4)).toBe(true);
   });
 
 });
@@ -245,8 +245,11 @@ describe('LogSystem — clear', () => {
     log.clear();
 
     // DICA: adicione uma nova mensagem e verifique que ela está no buffer
-    // ESCREVA SEU CÓDIGO AQUI:
+    log.add('Depois do clear');
+    const mensagens = log.getVisible(10);
 
+    expect(mensagens).toHaveLength(1);
+    expect(mensagens[0].message).toBe('Depois do clear');
   });
 
 });

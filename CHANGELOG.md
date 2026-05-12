@@ -51,9 +51,9 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 ## [Unreleased]
 
 ### Added
-- Testes guia para `LogSystem` (`tests/log-system.test.js`): 10 testes prontos + 6 exercícios comentados para completar
-- Testes guia para `PlayerMetrics` (`tests/player-metrics.test.js`): 11 testes prontos + 7 exercícios comentados para completar
-- Ambos os arquivos incluem comentários explicativos detalhados para auxiliar desenvolvedoras iniciantes
+- Testes guia para `LogSystem` (`tests/log-system.test.js`): 10 testes prontos + 6 exercícios completados
+- Testes guia para `PlayerMetrics` (`tests/player-metrics.test.js`): 11 testes prontos + 7 exercícios completados
+- Cobertura completa de LogSystem (buffer, limite máximo, isDirty, buildViewModel, clear) e PlayerMetrics (contadores, score de performance, janela deslizante, reset)
 
 ### Fixed
 

@@ -71,22 +71,28 @@ describe('PlayerMetrics — registrar eventos', () => {
   it('recordEnemyKilled incrementa o contador de inimigos mortos', () => {
     // DICA: chame metrics.recordEnemyKilled() algumas vezes
     // DICA: verifique metrics.enemiesKilled
-    // ESCREVA SEU CÓDIGO AQUI:
+    metrics.recordEnemyKilled();
+    metrics.recordEnemyKilled();
 
+    expect(metrics.enemiesKilled).toBe(2);
   });
 
   // ✏️ EXERCÍCIO 2 — Complete este teste:
   // Verifique que recordItemUsed incrementa itemsUsed
   it('recordItemUsed incrementa o contador de itens usados', () => {
-    // ESCREVA SEU CÓDIGO AQUI:
+    metrics.recordItemUsed();
+    metrics.recordItemUsed();
+    metrics.recordItemUsed();
 
+    expect(metrics.itemsUsed).toBe(3);
   });
 
   // ✏️ EXERCÍCIO 3 — Complete este teste:
   // Verifique que recordDeath incrementa deaths
   it('recordDeath incrementa o contador de mortes', () => {
-    // ESCREVA SEU CÓDIGO AQUI:
+    metrics.recordDeath();
 
+    expect(metrics.deaths).toBe(1);
   });
 
 });
@@ -143,8 +149,13 @@ describe('PlayerMetrics — getPerformanceScore', () => {
   it('score nunca fica abaixo de -100', () => {
     // DICA: simule um jogador que toma muito dano e morre várias vezes
     // DICA: use um loop como no teste acima
-    // ESCREVA SEU CÓDIGO AQUI:
+    for (let i = 0; i < 100; i++) {
+      metrics.recordDamageTaken(1000);
+      metrics.recordDeath();
+    }
 
+    const score = metrics.getPerformanceScore();
+    expect(score).toBeGreaterThanOrEqual(-100);
   });
 
 });
@@ -171,8 +182,11 @@ describe('PlayerMetrics — getRecentPerformanceScore', () => {
   // Verifique que o score recente é negativo quando o jogador recebe mais dano do que causa
   it('é negativo quando jogador recebe mais dano do que causa recentemente', () => {
     // DICA: recordDamageTaken com valor alto, recordDamageDealt com valor baixo
-    // ESCREVA SEU CÓDIGO AQUI:
+    metrics.recordDamageTaken(100);
+    metrics.recordDamageDealt(5);
 
+    const score = metrics.getRecentPerformanceScore();
+    expect(score).toBeLessThan(0);
   });
 
 });
@@ -210,8 +224,7 @@ describe('PlayerMetrics — reset', () => {
     metrics.reset();
 
     // DICA: chame getPerformanceScore() e verifique que é 0
-    // ESCREVA SEU CÓDIGO AQUI:
-
+    expect(metrics.getPerformanceScore()).toBe(0);
   });
 
   // ✏️ EXERCÍCIO 7 — Complete este teste:
@@ -221,8 +234,8 @@ describe('PlayerMetrics — reset', () => {
     metrics.reset();
 
     // DICA: registre um novo turno e verifique que turnsSurvived é 1
-    // ESCREVA SEU CÓDIGO AQUI:
-
+    metrics.recordTurn();
+    expect(metrics.turnsSurvived).toBe(1);
   });
 
 });
