@@ -50,6 +50,16 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ## [Unreleased]
 
+### Added
+- **Narrativa Emergente com IA (Fase 6)**: sistema completo de memória de eventos e geração narrativa contextualizada
+- `src/systems/EventMemory.ts` — registra eventos importantes da run (`ENEMY_KILLED`, `FLOOR_CHANGED`, `PLAYER_NEAR_DEATH`, `PLAYER_DEATH`, etc.) com debounce anti-spam e filtragem de eventos importantes
+- `src/ai/NarrativeService.ts` — gera narrativa baseada nos eventos reais do jogador (não inventa); usa `AIService` com fallback automático se IA indisponível
+- Narrativa gerada ao descer de andar (não-bloqueante via `.then()`) e exibida no log da UI
+- História da run gerada ao morrer e exibida na tela de Game Over
+- `GameOverScene` atualizada para exibir a história narrativa da partida
+- Eventos `NARRATIVE_GENERATED` e `DEATH_STORY_GENERATED` adicionados ao `EVENTS`
+- 16 novos testes em `tests/event-memory.test.js` (141 testes total)
+
 ### Fixed
 
 - Sprites de itens no chão da dungeon agora desaparecem corretamente após o jogador coletá-los: removidos os calls `setVisible(false).setActive(false)` antes de `destroy()` — em Phaser 4 desativar o sprite antes de destruí-lo impedia a remoção da display list; cache do andar (`_dungeonCache`) agora é atualizado após o filtro de coleta para manter consistência ao re-entrar no mesmo andar

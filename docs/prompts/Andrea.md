@@ -69,3 +69,43 @@ Resultado:
 108 testes passando. Sistema de inventário completo e funcional seguindo o padrão roguelike clássico.
 
 Branch criada: `feature/inventory-system`
+
+## Prompt 4 — feat(narrative): Fase 6 — Narrativa Emergente com IA
+Autor: Andrea
+Data: 2026-05-05
+
+Prompt utilizado:
+> Arquivo fase_6_IA_3.md fornecido com especificação completa da Fase 6.
+
+O que foi feito:
+
+1. Criada branch `feature/narrative-system` a partir de `staging`.
+
+2. Criado `src/systems/EventMemory.ts`:
+   - Registra eventos da run: ENEMY_KILLED, FLOOR_CHANGED, PLAYER_NEAR_DEATH, PLAYER_DEATH, ITEM_FOUND, ITEM_USED, PLAYER_DAMAGED, PLAYER_HEALED, ELITE_ENEMY_FOUND
+   - Debounce anti-spam para eventos repetitivos
+   - `getImportantEvents()` filtra e deduplica eventos relevantes para a narrativa
+   - `toPromptLines()` serializa eventos em texto legível para o prompt da IA
+
+3. Criado `src/ai/NarrativeService.ts`:
+   - `generateNarrative(events)` — narrativa de andar (3–5 frases)
+   - `generateDeathStory(events)` — história da run para Game Over
+   - Prompts em português com restrição explícita de não inventar eventos
+   - Fallback automático se IA indisponível
+
+4. Atualizado `src/scenes/GameScene.ts`:
+   - Inicializa `EventMemory` e `NarrativeService` no `create()`
+   - Registra eventos: coleta de item, mudança de andar, morte de inimigo, dano ao player, quase-morte, uso de item
+   - Gera narrativa ao descer de andar (não-bloqueante)
+   - Passa eventos para `GameOverScene` ao morrer
+
+5. Atualizado `src/scenes/GameOverScene.ts`:
+   - Exibe história narrativa da run gerada pela IA
+   - Fallback para texto padrão se IA indisponível
+
+6. Criado `tests/event-memory.test.js` com 16 testes.
+
+Resultado:
+141 testes passando. Sistema de narrativa emergente completo e funcional.
+
+Branch criada: `feature/narrative-system`
