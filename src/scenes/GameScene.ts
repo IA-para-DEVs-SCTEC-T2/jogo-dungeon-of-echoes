@@ -640,7 +640,6 @@ export class GameScene extends Phaser.Scene {
         item.gridX = null;
         item.gridY = null;
         if (item.sprite) {
-          item.sprite.setVisible(false).setActive(false);
           item.sprite.destroy();
           item.sprite = null;
         }
@@ -659,7 +658,6 @@ export class GameScene extends Phaser.Scene {
       const slotIndex = this.player.inventory.items.findIndex(i => i === item);
 
       if (item.sprite) {
-        item.sprite.setVisible(false).setActive(false);
         item.sprite.destroy();
         item.sprite = null;
       }
@@ -669,6 +667,10 @@ export class GameScene extends Phaser.Scene {
     }
 
     this._items = this._items.filter(i => i.gridX !== null);
+
+    // Keep dungeon cache in sync so floor re-entry shows correct items
+    const cached = this._dungeonCache.get(this.floorManager.currentFloor);
+    if (cached) cached.items = this._items;
   }
 
   // ─── Input ───────────────────────────────────────────────────────────────
