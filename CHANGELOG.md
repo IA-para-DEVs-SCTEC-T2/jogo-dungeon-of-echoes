@@ -51,14 +51,9 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 ## [Unreleased]
 
 ### Added
-- **Narrativa Emergente com IA (Fase 6)**: sistema completo de memória de eventos e geração narrativa contextualizada
-- `src/systems/EventMemory.ts` — registra eventos importantes da run (`ENEMY_KILLED`, `FLOOR_CHANGED`, `PLAYER_NEAR_DEATH`, `PLAYER_DEATH`, etc.) com debounce anti-spam e filtragem de eventos importantes
-- `src/ai/NarrativeService.ts` — gera narrativa baseada nos eventos reais do jogador (não inventa); usa `AIService` com fallback automático se IA indisponível
-- Narrativa gerada ao descer de andar (não-bloqueante via `.then()`) e exibida no log da UI
-- História da run gerada ao morrer e exibida na tela de Game Over
-- `GameOverScene` atualizada para exibir a história narrativa da partida
-- Eventos `NARRATIVE_GENERATED` e `DEATH_STORY_GENERATED` adicionados ao `EVENTS`
-- 16 novos testes em `tests/event-memory.test.js` (141 testes total)
+- Testes guia para `LogSystem` (`tests/log-system.test.js`): 10 testes prontos + 6 exercícios completados
+- Testes guia para `PlayerMetrics` (`tests/player-metrics.test.js`): 11 testes prontos + 7 exercícios completados
+- Cobertura completa de LogSystem (buffer, limite máximo, isDirty, buildViewModel, clear) e PlayerMetrics (contadores, score de performance, janela deslizante, reset)
 
 ### Fixed
 
