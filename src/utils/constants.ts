@@ -197,6 +197,9 @@ export const EVENTS = {
   SPELLS_STATE_RESPONSE:    'spells-state-response',
   SPELL_EQUIP_REQUEST:      'spell-equip-request',
   SPELLS_SELECTION_CHANGED: 'spells-selection-changed',
+  // Narrativa emergente (Fase 6)
+  NARRATIVE_GENERATED:      'narrative-generated',
+  DEATH_STORY_GENERATED:    'death-story-generated',
 } as const;
 
 // --- Loja ---
