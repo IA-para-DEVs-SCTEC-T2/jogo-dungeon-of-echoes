@@ -23,6 +23,12 @@ import { DifficultyScalingSystem } from '../systems/DifficultyScalingSystem';
 import { PlayerMetrics } from '../systems/PlayerMetrics';
 import { DifficultyManager } from '../systems/DifficultyManager';
 import { DungeonFeatureGenerator, type DungeonFeature } from '../generators/DungeonFeatureGenerator';
+import { AIService } from '../ai/AIService';
+import { AIIntegration } from '../ai/AIIntegration';
+import { NarrativeService } from '../ai/NarrativeService';
+import { AI_CONFIG } from '../ai/config';
+import { EventMemory } from '../systems/EventMemory';
+import type { GameEventType } from '../systems/EventMemory';
 import { EquipmentSystem } from '../systems/EquipmentSystem';
 import { ShopSystem } from '../systems/ShopSystem';
 import { SHOP_CATALOG } from '../config/shop.catalog';
@@ -70,6 +76,10 @@ export class GameScene extends Phaser.Scene {
   private _spellSystem!: SpellSystem;
   private _spellCastingSystem!: SpellCastingSystem;
   private gameState!: string;
+
+  // ─── Narrativa emergente (Fase 6) ─────────────────────────────────────────
+  private _eventMemory!: EventMemory;
+  private _narrativeService!: NarrativeService;
 
   // Cache de andares visitados (runtime — não serializado ainda)
   private _dungeonCache = new Map<number, {
@@ -163,6 +173,11 @@ export class GameScene extends Phaser.Scene {
     this._spellSystem         = new SpellSystem();
     this._spellCastingSystem  = new SpellCastingSystem();
     this._registerTransitions();
+
+    // ─── Narrativa emergente (Fase 6) ──────────────────────────────────────
+    this._eventMemory     = new EventMemory();
+    const aiService       = new AIService(AI_CONFIG.API_KEY);
+    this._narrativeService = new NarrativeService(aiService);
 
     // Player criado uma vez — moves between areas
     this.player = new Player(this, TOWN.START_X, TOWN.START_Y);
@@ -459,6 +474,19 @@ export class GameScene extends Phaser.Scene {
 
     EventBus.emit(EVENTS.AREA_CHANGED, { area: 'dungeon', floor, timestamp: Date.now() });
     EventBus.emit(EVENTS.UI_LOG, cached ? `Você está no andar ${floor}.` : `Você desce para o andar ${floor}. Cuidado!`);
+
+    // Registrar mudança de andar na memória narrativa
+    if (!cached) {
+      this._recordGameEvent('FLOOR_CHANGED', { floor });
+
+      // Gerar narrativa ao descer de andar (não-bloqueante)
+      const recentEvents = this._eventMemory.getImportantEvents(8);
+      this._narrativeService.generateNarrative(recentEvents)
+        .then((narrative) => {
+          EventBus.emit(EVENTS.UI_LOG, narrative);
+          EventBus.emit(EVENTS.NARRATIVE_GENERATED, { narrative, floor });
+        });
+    }
   }
 
   private _generateInitialItems(): void {
@@ -664,6 +692,8 @@ export class GameScene extends Phaser.Scene {
 
       EventBus.emit(EVENTS.UI_LOG, `Você pegou ${displayName}`);
       EventBus.emit(EVENTS.ITEM_PICKED_UP, { item, slotIndex });
+      // Registrar na memória narrativa
+      this._recordGameEvent('ITEM_FOUND', { itemName: displayName });
     }
 
     this._items = this._items.filter(i => i.gridX !== null);
@@ -839,6 +869,8 @@ export class GameScene extends Phaser.Scene {
       if (dropped && e.gridX === this.player.gridX && e.gridY === this.player.gridY) {
         anyDroppedOnPlayerTile = true;
       }
+      // Registrar morte de inimigo na memória narrativa
+      this._recordGameEvent('ENEMY_KILLED', { enemyName: e.aiName ?? 'Inimigo' });
     });
     // Coletar drops que caíram no mesmo tile que o player (o pickup anterior rodou antes dos drops)
     if (anyDroppedOnPlayerTile) this._checkItemPickup();
@@ -1100,6 +1132,17 @@ export class GameScene extends Phaser.Scene {
     }
 
     EventBus.emit(EVENTS.ITEM_USED, { itemIndex: this._inventorySelectedIndex });
+    // Registrar uso de item na memória narrativa
+    if (result.success) {
+      const usedItem = this.player.inventory.getItem(this._inventorySelectedIndex);
+      const itemName = usedItem
+        ? usedItem.getDisplayName(this.player.identifiedItems)
+        : result.messages[0] ?? 'item';
+      this._recordGameEvent('ITEM_USED', { itemName });
+      if (result.hpDelta > 0) {
+        this._recordGameEvent('PLAYER_HEALED', { amount: result.hpDelta });
+      }
+    }
     this._clampInventorySelection();
     this._emitInventoryState();
   }
@@ -1322,10 +1365,28 @@ export class GameScene extends Phaser.Scene {
     this.events.on(EVENTS.PLAYER_DIED, () => {
       this.gameState = GAME_STATE.GAME_OVER;
       EventBus.emit(EVENTS.UI_LOG, 'Você morreu.');
+
+      // Registrar evento de morte na memória
+      this._recordGameEvent('PLAYER_DEATH', {
+        floor: this.floorManager?.currentFloor ?? 1,
+        level: this.player.level,
+      });
+
+      // Gerar história da run de forma assíncrona (não bloqueia)
+      const importantEvents = this._eventMemory.getImportantEvents(10);
+      this._narrativeService.generateDeathStory(importantEvents)
+        .then((story) => {
+          EventBus.emit(EVENTS.DEATH_STORY_GENERATED, { story });
+        });
+
       this.cameras.main.flash(500, 255, 0, 0);
       this.time.delayedCall(600, () => {
         this.scene.stop('UIScene');
-        this.scene.start('GameOverScene', { level: this.player.level, xp: this.player.xp });
+        this.scene.start('GameOverScene', {
+          level: this.player.level,
+          xp: this.player.xp,
+          events: this._eventMemory.getImportantEvents(10),
+        });
       });
     });
 
@@ -1358,6 +1419,12 @@ export class GameScene extends Phaser.Scene {
     this.events.on(EVENTS.DAMAGE_PLAYER, (data: { pos: { x: number; y: number }; damage: number }) => {
       this._showDamageText(data.pos, data.damage, COLORS.DAMAGE_TEXT);
       this._flashSprite(this.player);
+      // Registrar dano na memória narrativa
+      this._recordGameEvent('PLAYER_DAMAGED', { damage: data.damage });
+      // Verificar quase-morte (HP <= 20% do máximo)
+      if (this.player.hp > 0 && this.player.hp <= Math.floor(this.player.maxHp * 0.2)) {
+        this._recordGameEvent('PLAYER_NEAR_DEATH', { hp: this.player.hp });
+      }
     });
 
     EventBus.on(EVENTS.ITEM_DROPPED, this._handleItemDropped, this);
@@ -1449,6 +1516,12 @@ export class GameScene extends Phaser.Scene {
         this._emitInventorySelectionChanged();
       }
     }, this);
+  }
+
+  // ─── Narrativa: registro de eventos ─────────────────────────────────────
+
+  private _recordGameEvent(type: GameEventType, data: Record<string, unknown> = {}): void {
+    this._eventMemory.addEvent({ type, timestamp: Date.now(), data });
   }
 
   private _handleDialogInput(): void {

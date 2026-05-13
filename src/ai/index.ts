@@ -7,6 +7,7 @@
 
 export { AIService } from './AIService';
 export { AIIntegration } from './AIIntegration';
+export { NarrativeService } from './NarrativeService';
 export { AI_CONFIG } from './config';
 
 export type {
