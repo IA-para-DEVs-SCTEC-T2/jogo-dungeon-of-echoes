@@ -54,6 +54,7 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 - Testes guia para `LogSystem` (`tests/log-system.test.js`): 10 testes prontos + 6 exercícios completados
 - Testes guia para `PlayerMetrics` (`tests/player-metrics.test.js`): 11 testes prontos + 7 exercícios completados
 - Cobertura completa de LogSystem (buffer, limite máximo, isDirty, buildViewModel, clear) e PlayerMetrics (contadores, score de performance, janela deslizante, reset)
+- **Tela de Game Over com estatísticas da partida**: ao morrer, o jogador vê nível alcançado, XP total, andares explorados, inimigos mortos, dano causado, dano recebido, turnos sobrevividos e itens usados — dados coletados pelo `PlayerMetrics` e passados via `scene.start()`
 
 ### Fixed
 

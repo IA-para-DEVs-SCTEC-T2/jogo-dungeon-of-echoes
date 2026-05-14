@@ -1383,9 +1383,16 @@ export class GameScene extends Phaser.Scene {
       this.time.delayedCall(600, () => {
         this.scene.stop('UIScene');
         this.scene.start('GameOverScene', {
-          level: this.player.level,
-          xp: this.player.xp,
-          events: this._eventMemory.getImportantEvents(10),
+          level:         this.player.level,
+          xp:            this.player.xp,
+          events:        this._eventMemory.getImportantEvents(10),
+          // Métricas da partida
+          turnsSurvived: this.playerMetrics.turnsSurvived,
+          damageDealt:   this.playerMetrics.damageDealt,
+          damageTaken:   this.playerMetrics.damageTaken,
+          enemiesKilled: this.playerMetrics.enemiesKilled,
+          itemsUsed:     this.playerMetrics.itemsUsed,
+          floorsReached: this.floorManager?.currentFloor ?? 1,
         });
       });
     });
