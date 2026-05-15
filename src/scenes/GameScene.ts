@@ -916,8 +916,8 @@ export class GameScene extends Phaser.Scene {
         EventBus.emit(EVENTS.SPELLS_SELECTION_CHANGED, { index: this._spellsSelectedIndex });
         return;
       }
-      // E/Enter — equipa no slot J (0) por padrão; K com tecla K
-      if (JD(this.enterKey) || JD(this.eKey)) {
+      // J — equipa no slot 0; K — equipa no slot 1; Enter/E — slot 0 por padrão
+      if (JD(this.jKey) || JD(this.enterKey) || JD(this.eKey)) {
         const spellId = this.player.unlockedSpells[this._spellsSelectedIndex] ?? null;
         if (spellId) EventBus.emit(EVENTS.SPELL_EQUIP_REQUEST, { slotIndex: 0, spellId });
         return;
