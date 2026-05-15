@@ -15,6 +15,7 @@ const ADJACENT = [
 export type SpellCastResult = {
   success: boolean;
   damage: number;
+  heal?: number;
   spellName: string;
   hitEnemies: EnemySystem[];
 };
@@ -49,6 +50,14 @@ export class SpellCastingSystem {
     EventBus.emit(EVENTS.PLAYER_MANA_CHANGED, { mana: player.mana, maxMana: player.maxMana });
     spellSystem.recordCast(slotIndex, nowMs);
     EventBus.emit(EVENTS.SPELL_CAST, { slotIndex, spellId: spell.id });
+
+    // Magia de cura: aplica no player, não nos inimigos
+    if (spell.heal && spell.heal > 0) {
+      const healed = Math.min(spell.heal, player.maxHp - player.hp);
+      player.hp = Math.min(player.maxHp, player.hp + spell.heal);
+      EventBus.emit(EVENTS.PLAYER_HP_CHANGED, { hp: player.hp, maxHp: player.maxHp });
+      return { success: true, damage: 0, heal: healed, spellName: spell.name, hitEnemies: [] };
+    }
 
     // INT: adiciona bônus de dano mágico flat
     const effectiveDamage = spell.damage + (player.spellBonus ?? 0);

@@ -1,6 +1,13 @@
 import type { SpellDef } from '../types/spells';
 
 export const SPELLS_DB: Record<string, SpellDef> = {
+  minor_healing: {
+    id: 'minor_healing', name: 'Minor Healing', element: 'arcane',
+    damage: 0, heal: 20, manaCost: 10, cooldownMs: 1500, projectileSpeed: 0,
+    animKey: 'spell_wind_fly', impactAnimKey: 'spell_wind_impact',
+    minLevel: 1,
+    description: 'Canaliza energia arcana para recuperar 20 de vida.',
+  },
   fire_bolt: {
     id: 'fire_bolt', name: 'Fire Bolt', element: 'fire',
     damage: 15, manaCost: 8, cooldownMs: 800, projectileSpeed: 3,
