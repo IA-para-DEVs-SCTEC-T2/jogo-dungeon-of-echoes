@@ -33,13 +33,13 @@ Dungeon of Echoes é um RPG 2D tile-based jogado no navegador. O jogador explora
 | Engine | Phaser 4 |
 | Linguagem | TypeScript (novos sistemas) + JavaScript legado |
 | Build | Vite |
-| Testes | Vitest (17+ testes) |
+| Testes | Vitest (125+ testes) |
 | Qualidade | Husky + Commitlint |
 | Assets | Dawnlike 16×16 tileset (CC-BY) |
 
 ## Restrições
 
-- **Sem IA generativa** neste estágio (preparar hooks para expansão futura)
+- **IA generativa integrada de forma não-bloqueante** — `AIService.ts` + `NarrativeService.ts` geram descrições de itens raros e variantes de inimigos elite; fallback gracioso quando API indisponível; cache por sessão para evitar chamadas duplicadas
 - **Sem banco de dados** — estado apenas em memória durante a sessão
 - **Sem servidor backend** — jogo 100% client-side
 - **Sem animações complexas** — sprites estáticos (frame fixo por entidade)
@@ -77,25 +77,32 @@ Dungeon of Echoes é um RPG 2D tile-based jogado no navegador. O jogador explora
 
 ```
 /src
-  /scenes       → Cenas Phaser (Boot, Game, GameOver, UI)
-  /systems      → Lógica de jogo:
+  /scenes       → Cenas Phaser (Boot, Game, GameOver, UI, VisualRegression*)
+                   * VisualRegressionScene existe exclusivamente para regressão de autotiling; não é cena de produção
+  /systems      → Lógica de jogo (sem dependência de Phaser):
                    TurnManager, CombatSystem, EnemySystem, XPSystem
                    InventorySystem, EquipmentSystem, ShopSystem
                    InputModeManager, LootSystem, WorldSystem, LogSystem
-                   NPCController, InteractiveObjectSystem, CityDecorationSystem
+                   NPCController, NPCSystem, InteractiveObjectSystem, CityDecorationSystem
                    MapTransitionSystem, DungeonFloorManager, DifficultyScalingSystem
                    AutoTileResolver, DungeonRenderer, BonusAreaRenderer
+                   SemanticClassifier, TileSemanticsProvider, WallVariantLUT
+                   DebugOverlayRenderer, MaskFrequencyLogger
                    SpellSystem, SpellCastingSystem
+                   PlayerMetrics, DifficultyManager, EventMemory
   /entities     → Entidades puras (Player — gold, equipmentBonuses, facingDir, spells; Item — slotId, bonuses)
-  /generators   → DungeonGenerator, CityLayoutProcessor, TileVariantResolver
-  /config       → constants.ts, town.config.ts, sprites-config.ts, shop.catalog.ts, spells.db.ts, spell-progression.ts
-  /types        → town.ts, equipment.ts, viewmodels.ts, input.ts
-  /utils        → EventBus
+  /generators   → DungeonGenerator, DungeonFeatureGenerator, CityLayoutProcessor, TileVariantResolver
+  /config       → constants.ts, town.config.ts, sprites-config.ts, shop.catalog.ts
+                   spells.db.ts, spell-progression.ts, dungeon-themes.ts, difficulty.config.ts
+                   BonusAreaData.ts, TileProperties.ts
+  /types        → town.ts, equipment.ts, viewmodels.ts, input.ts, spells.ts, difficulty.ts
+  /utils        → EventBus, constants
   /ui           → InventoryPanel, ShopPanel, DialogPanel, LogPanel, ActionBarPanel, SpellsPanel, StatusPanel
+  /ai           → AIService, NarrativeService, AIIntegration (não-bloqueante, fallback gracioso)
 .kiro/
   /steering     → Diretrizes do projeto (este arquivo)
   /specs        → Especificações de cada sistema
-/tests          → Testes unitários (Vitest): combat, dungeon, xp, shop
+/tests          → Testes unitários (Vitest, 125+ testes)
 /public/assets/dawnlike → Tileset Dawnlike 16×16 (CC-BY)
 ```
 
@@ -107,12 +114,19 @@ Dungeon of Echoes é um RPG 2D tile-based jogado no navegador. O jogador explora
 4. Validar manualmente o comportamento
 5. Escrever testes automatizados em `/tests`
 
+## Regras Arquiteturais Adicionais
+
+- **`DifficultyManager` e `PlayerMetrics`** vivem em `src/systems/` e não têm dependência de Phaser; são testáveis em Node puro
+- **`AIService` é assíncrono e não-bloqueante** — nunca aguarda resposta da API no game loop; usa cache por sessão; falha silenciosamente com fallback para conteúdo padrão
+- **`VisualRegressionScene`** é exclusivamente para testes de regressão de autotiling (teclas 1-4 toggleiam debug modes); não deve ser incluída em builds de produção
+- **`PlayerMetrics` alimenta `DifficultyManager`** via sliding window de 20 turnos; `DifficultyScalingSystem` aplica os multiplicadores por andar; os três sistemas são independentes entre si
+
 ## Expansões Futuras Planejadas
 
 Estes sistemas NÃO fazem parte do MVP atual mas o código deve ser estruturado para suportá-los:
 
 - **Fog of War**: visibilidade por tile (spec pronta em `.kiro/specs/fog-of-war.spec.md`)
-- **Minimap**: overlay com estado de exploração (spec em `.kiro/specs/minimap.spec.md`)
+- **Minimap**: overlay com estado de exploração (spec pronta em `.kiro/specs/minimap.spec.md`)
 - **Habilidades**: árvore de habilidades por classe
 - **IA de Inimigos**: pathfinding A*, comportamentos variados por tipo
-- **Narrativa por IA**: lores geradas por LLM — Claude Haiku (hooks preparados em `AIService.ts`)
+- **Save / Placar local**: persistência entre sessões
