@@ -29,6 +29,8 @@ export class EnemySystem {
    * Definido pelo DifficultyManager no momento do spawn.
    */
   aggressionLevel: number;
+  isElite: boolean = false;
+  aiName: string | null = null;
 
   sprite: Phaser.GameObjects.Sprite | null = null;
   hpBar: Phaser.GameObjects.Rectangle | null = null;

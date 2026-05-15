@@ -33,7 +33,12 @@ export class SpellCastingSystem {
 
     const spell = SPELLS_DB[slot.spellId];
     if (!spell) return null;
-    if (!spellSystem.canCast(slotIndex, nowMs)) return null;
+
+    // WIS: reduz cooldown efetivo antes de checar se pode lançar
+    const effectiveCooldown = slot.cooldownMs * (1 - (player.cdReduction ?? 0));
+    const elapsed = nowMs - slot.lastCastMs;
+    if (elapsed < effectiveCooldown) return null;
+
     if (player.mana < spell.manaCost) return null;
 
     const targets = ADJACENT
@@ -45,6 +50,8 @@ export class SpellCastingSystem {
     spellSystem.recordCast(slotIndex, nowMs);
     EventBus.emit(EVENTS.SPELL_CAST, { slotIndex, spellId: spell.id });
 
-    return { success: true, damage: spell.damage, spellName: spell.name, hitEnemies: targets };
+    // INT: adiciona bônus de dano mágico flat
+    const effectiveDamage = spell.damage + (player.spellBonus ?? 0);
+    return { success: true, damage: effectiveDamage, spellName: spell.name, hitEnemies: targets };
   }
 }

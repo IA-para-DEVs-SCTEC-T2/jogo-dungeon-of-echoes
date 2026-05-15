@@ -40,7 +40,7 @@ export class CombatSystem {
   }
 
   resolve(
-    player: { hp: number; maxHp: number; attack: number; xp: number; level: number; getPixelPos?: () => { x: number; y: number } },
+    player: { hp: number; maxHp: number; attack: number; xp: number; level: number; critChance?: number; getPixelPos?: () => { x: number; y: number } },
     enemy: { hp: number; maxHp: number; attack: number; xpReward: number; alive: boolean; getPixelPos?: () => { x: number; y: number } },
   ): CombatResult | null {
     if (!player || !enemy) return null;
@@ -53,12 +53,14 @@ export class CombatSystem {
       playerDied: false,
     };
 
-    // Player ataca
-    result.playerDamage = player.attack;
-    enemy.hp = Math.max(0, enemy.hp - player.attack);
-    this.emitter.emit(EVENTS.COMBAT_HIT, { attacker: player, defender: enemy, damage: player.attack });
+    // Player ataca — DEX concede chance de crítico (1.5x dano)
+    const isCrit = Math.random() < (player.critChance ?? 0);
+    const playerDmg = isCrit ? Math.floor(player.attack * 1.5) : player.attack;
+    result.playerDamage = playerDmg;
+    enemy.hp = Math.max(0, enemy.hp - playerDmg);
+    this.emitter.emit(EVENTS.COMBAT_HIT, { attacker: player, defender: enemy, damage: playerDmg, crit: isCrit });
     if (enemy.getPixelPos) {
-      this.emitter.emit(EVENTS.DAMAGE_ENEMY, { pos: enemy.getPixelPos(), damage: player.attack });
+      this.emitter.emit(EVENTS.DAMAGE_ENEMY, { pos: enemy.getPixelPos(), damage: playerDmg });
     }
 
     if (enemy.hp <= 0) {

@@ -865,7 +865,7 @@ export class GameScene extends Phaser.Scene {
     result.enemiesDied.forEach(e => {
       EventBus.emit(EVENTS.UI_LOG, `+${e.xpReward} XP`);
       this._removeEnemySprite(e);
-      const dropped = this.lootSystem.roll(e.gridX, e.gridY, this.floorManager.currentFloor);
+      const dropped = this.lootSystem.roll(e.gridX, e.gridY, this.floorManager.currentFloor, e.isElite);
       if (dropped && e.gridX === this.player.gridX && e.gridY === this.player.gridY) {
         anyDroppedOnPlayerTile = true;
       }

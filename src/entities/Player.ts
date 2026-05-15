@@ -27,6 +27,9 @@ export class Player extends Phaser.GameObjects.Sprite {
   xp: number;
   level: number;
   attack: number;
+  critChance = 0;   // DEX: chance de crítico (0–0.30)
+  cdReduction = 0;  // WIS: redução de cooldown de magias (0–0.40)
+  spellBonus = 0;   // INT: bônus de dano mágico flat
 
   // Inventário e identificação de itens
   inventory: InventorySystem;
@@ -69,11 +72,11 @@ export class Player extends Phaser.GameObjects.Sprite {
     this.xp     = 0;
     this.attack = PLAYER.ATTACK;
 
-    // Derivados via fórmulas da spec
-    this.maxHp   = this.con * 5 + this.level * 3;
-    this.hp      = this.maxHp;
-    this.maxMana = this.wis * 4 + this.intel * 2;
-    this.mana    = this.maxMana;
+    // Inicialização temporária antes do recalcStats
+    this.maxHp = 0; this.maxMana = 0;
+    this.recalcStats();
+    this.hp   = this.maxHp;
+    this.mana = this.maxMana;
 
     this._lastMoveTime    = 0;
     this._emitter         = scene.events;
@@ -92,12 +95,27 @@ export class Player extends Phaser.GameObjects.Sprite {
     this.facingDir      = 'down';
   }
 
-  /** Recalcula maxHp, maxMana e attack a partir dos atributos base, nível e bônus de equipamento. */
+  /** Recalcula todos os atributos derivados a partir dos stats base, nível e bônus de equipamento. */
   recalcStats(): void {
-    this.maxHp   = this.con * 5 + this.level * 3 + (this._equipmentBonuses.maxHp ?? 0);
-    this.maxMana = this.wis * 4 + this.intel * 2;
-    this.attack  = PLAYER.ATTACK + (this._equipmentBonuses.attack ?? 0);
-    // hp e mana nunca ultrapassam o máximo
+    // VIT (CON): cada ponto = 5 HP + bônus de nível
+    this.maxHp = this.con * 5 + this.level * 3 + (this._equipmentBonuses.maxHp ?? 0);
+
+    // WIS: peso maior para diferenciar de INT; INT contribui menos
+    this.maxMana = this.wis * 5 + this.intel * 2;
+
+    // STR: dano físico base + 0.8 por ponto acima de 10
+    const strBonus = Math.floor((this.str - 10) * 0.8);
+    this.attack = PLAYER.ATTACK + strBonus + (this._equipmentBonuses.attack ?? 0);
+
+    // DEX: +1.5% de crítico por ponto acima de 10, cap 30%
+    this.critChance = Math.min(Math.max((this.dex - 10) * 0.015, 0), 0.30);
+
+    // WIS: +2% de redução de cooldown por ponto acima de 10, cap 40%
+    this.cdReduction = Math.min(Math.max((this.wis - 10) * 0.02, 0), 0.40);
+
+    // INT: +1.2 de dano mágico flat por ponto acima de 10
+    this.spellBonus = Math.floor(Math.max((this.intel - 10) * 1.2, 0));
+
     this.hp   = Math.min(this.hp,   this.maxHp);
     this.mana = Math.min(this.mana, this.maxMana);
   }
