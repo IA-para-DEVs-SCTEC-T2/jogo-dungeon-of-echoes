@@ -16,17 +16,18 @@ O projeto é de contexto acadêmico e serve como demonstração de arquitetura m
 
 O loop central é turn-based e tile-based:
 
-1. O jogador explora um mapa de dungeon gerado proceduralmente (grid 50×50)
-2. Cada ação (mover, atacar, usar item, esperar) consome um turno
-3. Após a ação do jogador, todos os inimigos visíveis executam seu turno
-4. O jogador ganha XP ao derrotar inimigos e avança de nível distribuindo atributos
-5. Ao encontrar a escada, desce para um andar mais difícil
+1. O jogador explora um mapa de dungeon gerado proceduralmente (grid 40×40, BSP)
+2. Cada ação (mover, atacar, usar item, usar magia, esperar) consome um turno
+3. Após a ação do jogador, todos os inimigos vivos executam seu turno
+4. O jogador ganha XP ao derrotar inimigos e avança de nível automaticamente
+5. Ao encontrar a escada, desce para um andar mais difícil (tema visual muda por faixa de andares)
 6. Morte é permanente (permadeath) — cada sessão começa do zero
 
 **Ciclo de turno:**
 ```
-Input do jogador → Resolve ação → Atualiza visão (FOG) → Turno dos inimigos → Verifica condições → Atualiza HUD
+Input do jogador → Resolve ação (mover/atacar/item/magia/esperar) → Turno dos inimigos → Verifica condições → Atualiza HUD
 ```
+*(Fog of War não implementado — spec pronta em `.kiro/specs/fog-of-war.spec.md`)*
 
 ## Principais Funcionalidades (MVP)
 
@@ -34,29 +35,44 @@ Input do jogador → Resolve ação → Atualiza visão (FOG) → Turno dos inim
 | Sistema | Responsabilidade |
 |---------|-----------------|
 | PlayerSystem | Atributos, HP/Mana, gold, bônus de equipamento acumulados em `_equipmentBonuses`; `recalcStats()` como fonte de verdade |
-| DungeonSystem | Geração procedural BSP, múltiplos andares com cache |
+| DungeonGenerator | Geração procedural BSP (40×40), corredores L-shaped |
+| DungeonFloorManager | Cache de estado por andar; inimigos respawnam, itens persistem; `ascend()`/`descend()` |
+| DifficultyScalingSystem | Multiplicadores de HP/ATK por andar; 4 temas (Dungeon/Mine/Underworld/Boss) |
+| DifficultyManager | Agression score (0–1) por inimigo via `PlayerMetrics`; sliding window de 20 turnos; histeresis |
+| PlayerMetrics | Rastreia turnos, dano, kills para alimentar `DifficultyManager` |
+| SemanticClassifier | Classifica grid → `SemanticGrid` (FLOOR/WALL_EDGE/VOID); apenas 4 vizinhos cardinais |
+| TileSemanticsProvider | Fonte de verdade para `isVisuallyOpen` e `isSolid`; extensível para novos tiles |
+| WallVariantLUT | 256 entradas de bitmask → frame; sanitização de padrões inválidos |
 | AutoTileResolver | Interpreta vizinhos cardinais → `TileRenderData`; puro, sem Phaser |
 | DungeonRenderer | Itera grid + tema → `RenderCommand[]`; sem conhecer a Scene |
-| BonusAreaRenderer | Renderiza área bônus com debug e overrides isolados |
-| EnemySystem | Spawn, estados de IA (IDLE/CHASING/ATTACKING) |
-| CombatSystem | Resolução de ataque, dano, morte |
-| XPSystem | Ganho de XP, cálculo de nível, level up |
+| BonusAreaRenderer | Renderiza área bônus (30×22) com debug e overrides isolados de `BONUS_AREA_OVERRIDES` |
+| DebugOverlayRenderer | Modos de debug visual: semântico/variante/bitmask; toggle por tecla |
+| EnemySystem | Spawn, estados de IA (IDLE/CHASING/ATTACKING), detecção por raio e por sala |
+| CombatSystem | Resolução de ataque (80% hit chance), dano, morte |
+| XPSystem | Ganho de XP, multi-level-up, fórmula `100 × N × (N+1) / 2` |
+| SpellSystem | Desbloqueio por nível, 2 slots equipados (J/K), cooldown por slot |
+| SpellCastingSystem | Valida mana/cooldown, aplica dano em todos os 4 cardinais adjacentes, retorna `SpellCastResult` |
 | InventorySystem | 20 slots, roguelike identification, `useItem()`, `addItem()`, `removeItem()` |
-| EquipmentSystem | 6 slots (helmet/shield/sword/pants/boots/amulet); equip/unequip com eventos; armazena IDs |
+| EquipmentSystem | 6 slots (helmet/shield/sword/pants/boots/amulet); equip/unequip com eventos; bônus reversíveis |
 | ShopSystem | Compra/venda catalog-driven; `buildViewModel()` + `buildSellItems()` para UI; sem lógica de cena |
-| InputModeManager | Stack-based: GAMEPLAY / INVENTORY / SHOP / DIALOG — `push()` / `pop()` / `is()` |
+| InputModeManager | Stack-based: GAMEPLAY / INVENTORY / SHOP / DIALOG / MODAL / DEBUG — `push()` / `pop()` / `is()` |
+| LogSystem | Buffer de 50 mensagens, dirty flag, eventos de combate/itens/sistema |
+| EventMemory | Histórico de eventos tipados; summaries para uso narrativo |
 | CityLayoutProcessor | Pipeline TOWN_CONFIG → ProcessedTownLayout; atribui biomas e resolve tile visuals |
 | TileVariantResolver | Seleção determinística de frame por posição + bioma (hash xorshift + peso) |
 | NPCController | FSM Idle → Wander para NPCs da cidade; `customWanderBounds` por NPC |
 | InteractiveObjectSystem | Detecta proximidade player↔NPC; respeita `houseBounds`; dispara SHOP_OPENED ou DIALOG_OPENED |
 | CityDecorationSystem | Renderização de objetos do mundo com Y-sort automático |
+| LootSystem | Drop probability data-driven (40% nada, 30% heal, 20% poison, 10% gold) |
+| WorldSystem | Cache singleton: estado de dungeon e itens persistem dentro da sessão |
+| MapTransitionSystem | Orquestra transições town ↔ dungeon ↔ bonus |
 
 ### Funcionalidades do Jogador
-- 3 classes: Warrior, Mage, Rogue
 - 6 atributos: STR, INT, DEX, CON, WIS, CHA
-- HP e Mana derivados dos atributos; stats recalculados ao equipar/desequipar
-- Movimento por teclado (setas ou WASD) no grid
+- HP (`CON × 5 + Level × 3`) e Mana (`WIS × 4 + INT × 2`) derivados dos atributos; stats recalculados ao equipar/desequipar
+- Movimento por teclado (setas ou WASD) no grid; cooldown 150ms por tile
 - Gold (começa com 500) exibido no HUD; atualizado em tempo real
+- 2 slots de magia (J/K) com cooldown independente
 
 ### Comércio e Equipamentos
 - **Loja do Mercador**: 2 abas (Comprar / Vender); navegação por teclado e mouse
@@ -97,9 +113,10 @@ Input do jogador → Resolve ação → Atualiza visão (FOG) → Turno dos inim
 - Debug de tiles: clique exibe coordenadas TMX + game e GIDs das layers; toggle de labels na `UIScene`
 
 ### Inimigos
-- Inimigos com estados de IA: IDLE → ALERTED → CHASING → ATTACKING → FLEEING
-- Raio de detecção configurável
-- Tabela de inimigos por andar (Rato Gigante, Goblin, Esqueleto, Orc, Troll...)
+- Estados de IA: IDLE → CHASING → ATTACKING
+- Raio de detecção configurável (padrão 8 tiles ou mesma sala BSP)
+- Agression score (0–1) pelo `DifficultyManager`: alto → raio 1.5×, perseguição garantida
+- Variantes elite geradas por IA generativa (nome, habilidade especial, descrição narrativa)
 - Recompensa de XP ao morrer
 
 ### Progressão
@@ -107,15 +124,35 @@ Input do jogador → Resolve ação → Atualiza visão (FOG) → Turno dos inim
 - Level up: +3 pontos de atributo para distribuir
 - HP e Mana recalculados automaticamente
 
-## Funcionalidades Fora do MVP (Planejadas)
+### Magias (v0.5.4)
 
-Estas features **não estão no escopo atual** mas o código deve ser estruturado para suportá-las:
+- 5 magias data-driven (`spells.db.ts`): Fire Bolt, Ice Shard, Wind Cyclone, Fire Explosion, Blizzard
+- Desbloqueio automático por nível (`spell-progression.ts`): nível 1, 5, 10, 15, 20
+- Melee-range AoE: atinge todos os inimigos nos 4 tiles cardinais adjacentes
+- Mana e cooldown por slot, verificados antes do cast
+- UI: `SpellsPanel` na aba `I`, slots J/K no action bar com barra de cooldown
 
-- Sistema de magia com slots e custo de mana
-- Identificação de itens (pergaminhos, anéis)
-- IA generativa para descrições de itens épicos e variantes de inimigos elite
-- Árvore de habilidades por classe
-- Sistema de save / placar local
+### IA Narrativa (v0.5.2+)
+
+- `AIService.ts` + `NarrativeService.ts`: chamadas assíncronas não-bloqueantes ao LLM
+- Triggers: itens raros (raridade ≥ 80%), inimigos elite, locais especiais
+- Cache por sessão — sem chamadas duplicadas
+- Fallback gracioso quando API indisponível
+
+### Dificuldade Adaptativa
+
+- `PlayerMetrics`: sliding window de 20 turnos (dano recebido, kills, mortes)
+- `DifficultyManager`: calcula aggression score (0–1) com histeresis para evitar oscilação
+- `DifficultyScalingSystem`: multiplicadores fixos por andar (1.0× → 2.0× HP/ATK)
+
+## Funcionalidades Fora do Escopo Atual (Planejadas)
+
+Estas features **não estão implementadas** mas têm specs ou estrutura preparada:
+
+- **Fog of War**: spec pronta em `.kiro/specs/fog-of-war.spec.md` (HIDDEN/VISIBLE/REVEALED)
+- **Minimap**: spec pronta em `.kiro/specs/minimap.spec.md`
+- **Árvore de habilidades por classe**
+- **Sistema de save / placar local**
 
 ## Diferenciais
 

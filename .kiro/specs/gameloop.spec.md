@@ -17,10 +17,11 @@ O Game Loop coordena o estado geral do jogo: inicialização, atualização por 
 
 ## Áreas de Jogo
 
-| Área    | Descrição                                                          |
-|---------|--------------------------------------------------------------------|
-| `town`  | Hub seguro. Sem inimigos. Mapa fixo 24×20. Entrada para dungeon.  |
-| `dungeon` | Dungeon BSP procedural. Inimigos, itens, loot. Volta para town. |
+| Área    | Descrição                                                              |
+|---------|------------------------------------------------------------------------|
+| `town`  | Hub seguro. Sem inimigos. Mapa TMX 30×25. Entrada para dungeon.       |
+| `dungeon` | Dungeon BSP procedural (40×40). Inimigos, itens, loot. Volta para town. |
+| `bonus` | Área bônus 30×22. Acessível pela entrada norte da cidade. Overrides isolados. |
 
 Transições gerenciadas por `WorldSystem` (singleton). GameScene não reinicia — troca de área via `_loadArea()`.
 
@@ -40,16 +41,20 @@ Transições gerenciadas por `WorldSystem` (singleton). GameScene não reinicia 
 ## Ciclo de Atualização (GameScene.update)
 
 ```
-1. Verificar input do player
+1. Verificar input do player (WASD = mover, Space = esperar, 1-9 = item, J/K = magia)
 2. Se input detectado:
-   a. Calcular tile destino
-   b. Se FLOOR e sem inimigo → mover player
-   c. Se FLOOR e com inimigo → iniciar combate
-   d. Se WALL → ignorar
-3. Verificar condição de game over (player.hp <= 0)
-4. Atualizar HUD (HP, XP, Level)
-5. Renderizar estado atual
+   a. Mover: calcular tile destino
+      - Se FLOOR e sem inimigo → mover player
+      - Se FLOOR e com inimigo → CombatSystem.attack()
+      - Se WALL → ignorar
+   b. Magia (J/K): SpellCastingSystem.cast() → dano em todos os 4 cardinais adjacentes
+   c. Item (1-9): InventorySystem.useItem()
+   d. Esperar (Space): consumir turno sem ação
+3. Turno dos inimigos: EnemySystem.tickEnemies()
+4. Verificar condição de game over (player.hp <= 0)
+5. Atualizar HUD via EventBus (HP, Mana, XP, Level, Log)
 ```
+*(Fog of War não implementado — spec pronta em `.kiro/specs/fog-of-war.spec.md`)*
 
 ---
 
@@ -70,11 +75,14 @@ Transições gerenciadas por `WorldSystem` (singleton). GameScene não reinicia 
 
 ## HUD (Heads-Up Display)
 
-| Elemento | Posição    | Conteúdo                    |
-|----------|------------|-----------------------------|
-| HP Bar   | Topo-esquerdo | Barra visual + "HP: X/Y" |
-| XP Text  | Topo-esquerdo | "XP: X / Y"               |
-| Level    | Topo-esquerdo | "Nível: X"                |
+| Elemento | Posição | Conteúdo |
+|----------|---------|----------|
+| HP Bar | Topo-esquerdo | Barra visual + "HP: X/Y" |
+| Mana Bar | Topo-esquerdo | Barra visual + "MP: X/Y" |
+| XP Text | Topo-esquerdo | "XP: X / Y" |
+| Level | Topo-esquerdo | "Nível: X" |
+| Log Panel | Canto inferior esquerdo | Últimas mensagens de combate/sistema (buffer 50) |
+| Action Bar | Rodapé | 9 slots de poção (1-9) + 2 slots de magia (J/K) com barra de cooldown |
 
 ---
 
