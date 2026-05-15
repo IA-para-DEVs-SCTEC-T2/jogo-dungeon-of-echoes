@@ -72,15 +72,15 @@ export class Player extends Phaser.GameObjects.Sprite {
     this.xp     = 0;
     this.attack = PLAYER.ATTACK;
 
+    this._lastMoveTime     = 0;
+    this._emitter          = scene.events;
+    this._equipmentBonuses = {};
+
     // Inicialização temporária antes do recalcStats
     this.maxHp = 0; this.maxMana = 0;
     this.recalcStats();
     this.hp   = this.maxHp;
     this.mana = this.maxMana;
-
-    this._lastMoveTime    = 0;
-    this._emitter         = scene.events;
-    this._equipmentBonuses = {};
 
     // Inventário e identificação
     this.inventory       = new InventorySystem();
