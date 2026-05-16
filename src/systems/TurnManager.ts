@@ -61,12 +61,12 @@ export class TurnManager {
       const target = action.target;
 
       // Verificar se a classe pode atacar (Mago não pode corpo a corpo; Arqueiro precisa de flechas)
-      if (!ClassRulesEngine.canMelee(player.classDef) && !player.classDef.usesArrows) {
+      if (player.classDef && !ClassRulesEngine.canMelee(player.classDef) && !player.classDef.usesArrows) {
         result.messages.push(`${player.classDef.label} não pode atacar corpo a corpo. Use magias!`);
         this.playerTurn = true;
         return result;
       }
-      if (!ClassRulesEngine.canAttack(player.classDef, player.arrows)) {
+      if (player.classDef && !ClassRulesEngine.canAttack(player.classDef, player.arrows ?? 0)) {
         result.messages.push('Sem flechas! Compre mais na loja.');
         this.playerTurn = true;
         return result;
@@ -76,10 +76,10 @@ export class TurnManager {
       if (atk.hit) {
         target.hp = Math.max(0, target.hp - atk.damage);
         metrics?.recordDamageDealt(atk.damage);
-        const verb = player.classDef.usesArrows ? 'atirou e causou' : 'atacou e causou';
+        const verb = player.classDef?.usesArrows ? 'atirou e causou' : 'atacou e causou';
         result.messages.push(`Você ${verb} ${atk.damage} de dano`);
         // Consumir flecha
-        if (player.classDef.usesArrows) {
+        if (player.classDef?.usesArrows) {
           player.arrows = Math.max(0, player.arrows - 1);
           EventBus.emit(EVENTS.ARROWS_CHANGED, { arrows: player.arrows });
         }
@@ -134,7 +134,10 @@ export class TurnManager {
         const atk = combat.attack(enemy, player);
         if (atk.hit) {
           const rawDmg = atk.damage;
-          const reduced = Math.max(1, Math.round(rawDmg * ClassRulesEngine.physicalDamageMultiplier(player.classDef)));
+          const dmgMultiplier = player.classDef
+            ? ClassRulesEngine.physicalDamageMultiplier(player.classDef)
+            : 1.0;
+          const reduced = Math.max(1, Math.round(rawDmg * dmgMultiplier));
           if (!DEV_CONFIG.godMode) player.hp = Math.max(0, player.hp - reduced);
           metrics?.recordDamageTaken(reduced);
           EventBus.emit(EVENTS.PLAYER_HP_CHANGED, { hp: player.hp, maxHp: player.maxHp });
