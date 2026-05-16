@@ -6,6 +6,7 @@ export interface SpellDef {
   name: string;
   element: SpellElement;
   damage: number;
+  heal?: number;        // se > 0, cura o player em vez de atacar
   manaCost: number;
   cooldownMs: number;
   projectileSpeed: number;

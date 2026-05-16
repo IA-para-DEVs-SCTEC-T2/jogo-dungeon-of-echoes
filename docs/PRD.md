@@ -1,10 +1,10 @@
 # PRD — Product Requirements Document
 # Dungeon of Echoes
 
-**Versão:** 0.5.4  
-**Data:** 2026-05-12  
+**Versão:** 0.6.0  
+**Data:** 2026-05-16  
 **Equipe:** Equipe 7 — IA para DEVs SCTEC T2  
-**Status:** v0.5.4 entregue — Sistema de Magias melee-range, dois slots J/K no footer, navegação por teclado no painel de magias
+**Status:** v0.6.0 entregue — Classes de herói com bônus de atributo, drops visuais de ouro por quantidade e sistema de baús com loot por profundidade
 
 ---
 
@@ -238,7 +238,7 @@ Os requisitos abaixo são derivados diretamente das specs em `.kiro/specs/`.
 
 ## 9. Escopo
 
-### Dentro do escopo (v0.5.3 — estado atual)
+### Dentro do escopo (v0.6.0 — estado atual)
 
 - [x] Geração procedural de dungeon (salas + corredores BSP, 40×40 tiles)
 - [x] Player controlável (4 direções, turn-based real via TurnManager)
@@ -258,9 +258,12 @@ Os requisitos abaixo são derivados diretamente das specs em `.kiro/specs/`.
 - [x] Área bônus (30×22 tiles) com renderer próprio, debug idêntico à cidade e overrides isolados
 - [x] `DEV_CONFIG.godMode` para testes sem risco de morte
 - [x] Integração com IA generativa (AIService — descrições atmosféricas de itens e inimigos elite)
-- [x] Game Over com tela de resultado e restart
-- [x] 125+ testes unitários
+- [x] Game Over com tela de resultado e restart (estatísticas completas via PlayerMetrics)
+- [x] 125+ testes unitários (+ testes guia de LogSystem e PlayerMetrics)
 - [x] Dashboard estático de acompanhamento do projeto
+- [x] Classes de herói com bônus de atributo aplicados ao iniciar (`applyClassBonus`)
+- [x] Drops de ouro com tier visual (GOLD_SMALL/MEDIUM/LARGE) baseados em quantidade
+- [x] Baús nas dungeons: geração procedural, loot por profundidade, interação com mímica
 
 ### Fora do escopo (planejado para versões futuras)
 
@@ -368,7 +371,18 @@ Os requisitos abaixo são derivados diretamente das specs em `.kiro/specs/`.
 - [x] XPSystem integrado: desbloqueia magias automaticamente ao subir de nível
 - [x] Barra de HP do inimigo atualizada imediatamente após dano de magia
 
-### v0.6.0 — FOG of War (planejado)
+### v0.6.0 — Classes, Drops Visuais e Baús (entregue em 2026-05-16)
+- [x] `Player.applyClassBonus()`: aplica `statBonus` da classe selecionada aos atributos reais; `recalcStats()` + restauro de HP/Mana
+- [x] Drops de ouro com tier visual: `GOLD_SMALL` / `GOLD_MEDIUM` / `GOLD_LARGE` baseados em `goldAmount` (frames da Row 2 de `Money.png`)
+- [x] `DungeonFeatureGenerator`: tipo `chest` — 1–2 baús por andar em rooms intermediárias com `metadata.opened`
+- [x] `LootSystem.rollChestLoot()`: loot de baú por profundidade (ouro/poção/mímica/equipamento)
+- [x] `GameScene._checkChestInteraction()`: interação completa com baú (dano de mímica, coleta de ouro/poção, equipamento direto ao inventário)
+- [x] `Item.goldAmount` declarada como propriedade formal (era assignment dinâmico sem tipagem)
+- [x] `_spawnDroppedItem()` idempotente: evita sprites duplicados e dupla inserção em `_items`
+- [x] Tela de Game Over com estatísticas completas da partida via `PlayerMetrics`
+- [x] Testes guia para `LogSystem` e `PlayerMetrics` com exercícios
+
+### v0.7.0 — FOG of War (planejado)
 - [ ] FOG of War: HIDDEN / VISIBLE / REVEALED por tile
 - [ ] Minimap com estado de exploração
 

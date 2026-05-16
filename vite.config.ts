@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import pkg from './package.json';
 
 export default defineConfig({
   server: {
@@ -12,5 +13,8 @@ export default defineConfig({
   },
   resolve: {
     extensions: ['.ts', '.js'],
+  },
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
   },
 });

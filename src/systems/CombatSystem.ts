@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { EVENTS, DEV_CONFIG } from '../utils/constants';
+import { EVENTS } from '../utils/constants';
 import type { XPSystem } from './XPSystem';
 
 export interface CombatResult {
@@ -42,6 +42,7 @@ export class CombatSystem {
   resolve(
     player: { hp: number; maxHp: number; attack: number; xp: number; level: number; getPixelPos?: () => { x: number; y: number } },
     enemy: { hp: number; maxHp: number; attack: number; xpReward: number; alive: boolean; getPixelPos?: () => { x: number; y: number } },
+    _equippedExtraItemType?: string | null,
   ): CombatResult | null {
     if (!player || !enemy) return null;
     if (!enemy.alive) return null;
@@ -71,7 +72,7 @@ export class CombatSystem {
 
     // Inimigo contra-ataca
     result.enemyDamage = enemy.attack;
-    if (!DEV_CONFIG.godMode) player.hp = Math.max(0, player.hp - enemy.attack);
+    player.hp = Math.max(0, player.hp - enemy.attack);
     this.emitter.emit(EVENTS.COMBAT_HIT, { attacker: enemy, defender: player, damage: enemy.attack });
     if (player.getPixelPos) {
       this.emitter.emit(EVENTS.DAMAGE_PLAYER, { pos: player.getPixelPos(), damage: enemy.attack });

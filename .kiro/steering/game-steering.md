@@ -66,6 +66,7 @@ Dungeon of Echoes é um RPG 2D tile-based jogado no navegador. O jogador explora
 - **Variação de body walls deve ser mínima** — `bodyFrames` de `wall_edge` contém 1 frame; silhueta legível tem prioridade absoluta sobre detalhe de textura
 - **`BONUS_AREA_OVERRIDES` é estritamente isolado de `MANUAL_MAP_OVERRIDES`** — nunca cruzar importações entre `BonusAreaData.ts` e `TileProperties.ts`
 - **`DEV_CONFIG.godMode`** em `constants.ts` — flag de desenvolvimento; `CombatSystem` consulta antes de aplicar dano ao player; manter `false` em produção
+- **`DEV_CONFIG.devMode`** em `constants.ts` — quando `true`, `BootScene` transita diretamente para `GameScene` pulando o `MainMenuScene`; útil em desenvolvimento; manter `false` em produção
 - **Magias são data-driven** — `spells.db.ts` é a única fonte de verdade para atributos de magia; `spell-progression.ts` define quando cada magia é desbloqueada; nunca hardcodar IDs ou dano em Systems
 - **`SpellCastingSystem` nunca importa `SpellSystem` diretamente** — recebe instância como parâmetro em `cast()`; retorna `SpellCastResult` com `hitEnemies: EnemySystem[]`
 - **Magias são melee-range** — `SpellCastingSystem.cast()` verifica os 4 tiles cardinais adjacentes ao player e aplica dano em todos os inimigos encontrados; sem projétil
@@ -77,8 +78,10 @@ Dungeon of Echoes é um RPG 2D tile-based jogado no navegador. O jogador explora
 
 ```
 /src
-  /scenes       → Cenas Phaser (Boot, Game, GameOver, UI, VisualRegression*)
+  /scenes       → Cenas Phaser (Boot, MainMenu, Credits, Game, GameOver, UI, VisualRegression*)
                    * VisualRegressionScene existe exclusivamente para regressão de autotiling; não é cena de produção
+                   * Fluxo normal: BootScene → MainMenuScene → GameScene
+                   * Com devMode=true: BootScene → GameScene (pula menu)
   /systems      → Lógica de jogo (sem dependência de Phaser):
                    TurnManager, CombatSystem, EnemySystem, XPSystem
                    InventorySystem, EquipmentSystem, ShopSystem
@@ -94,7 +97,7 @@ Dungeon of Echoes é um RPG 2D tile-based jogado no navegador. O jogador explora
   /generators   → DungeonGenerator, DungeonFeatureGenerator, CityLayoutProcessor, TileVariantResolver
   /config       → constants.ts, town.config.ts, sprites-config.ts, shop.catalog.ts
                    spells.db.ts, spell-progression.ts, dungeon-themes.ts, difficulty.config.ts
-                   BonusAreaData.ts, TileProperties.ts
+                   BonusAreaData.ts, TileProperties.ts, enemies.config.ts
   /types        → town.ts, equipment.ts, viewmodels.ts, input.ts, spells.ts, difficulty.ts
   /utils        → EventBus, constants
   /ui           → InventoryPanel, ShopPanel, DialogPanel, LogPanel, ActionBarPanel, SpellsPanel, StatusPanel

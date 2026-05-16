@@ -2,11 +2,14 @@ import { SPELLS_DB } from '../config/spells.db';
 import { SPELL_PROGRESSION } from '../config/spell-progression';
 import { EventBus } from '../utils/EventBus';
 import { EVENTS } from '../utils/constants';
+import { ClassRulesEngine } from './ClassRulesEngine';
 import type { SpellSlotState } from '../types/spells';
+import type { PlayerClassDef } from '../config/player-classes.config';
 
 type SpellPlayer = {
   unlockedSpells: string[];
   equippedSpells: [string | null, string | null];
+  classDef?: PlayerClassDef;
 };
 
 export class SpellSystem {
@@ -20,11 +23,20 @@ export class SpellSystem {
     const added: string[] = [];
     for (const id of ids) {
       if (!player.unlockedSpells.includes(id)) {
+        // Pular spells exclusivas de outras classes
+        if (player.classDef && !ClassRulesEngine.canUnlockSpell(player.classDef, id)) continue;
         player.unlockedSpells.push(id);
         added.push(id);
       }
     }
     return added;
+  }
+
+  /** Custo efetivo de mana de uma spell considerando a classe do player */
+  getManaCost(spellId: string, classDef?: PlayerClassDef): number {
+    const base = SPELLS_DB[spellId]?.manaCost ?? 0;
+    if (!classDef) return base;
+    return ClassRulesEngine.effectiveManaCost(classDef, base);
   }
 
   equipSpell(player: SpellPlayer, spellId: string, slotIndex: 0 | 1): boolean {

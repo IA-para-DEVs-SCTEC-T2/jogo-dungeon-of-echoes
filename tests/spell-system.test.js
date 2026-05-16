@@ -52,7 +52,7 @@ describe('SpellSystem — desbloqueio por nível', () => {
   });
 
   it('não adiciona magia duplicada se já desbloqueada', () => {
-    const player = makePlayer({ unlockedSpells: ['fire_bolt'] });
+    const player = makePlayer({ unlockedSpells: ['fire_bolt', 'minor_healing'] });
     const added = spellSystem.unlockSpellsForLevel(player, 1);
     expect(added).toHaveLength(0);
     expect(player.unlockedSpells.filter(s => s === 'fire_bolt')).toHaveLength(1);

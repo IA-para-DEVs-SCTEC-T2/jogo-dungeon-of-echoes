@@ -69,7 +69,10 @@ export const DAWNLIKE_FRAMES = {
   PLATINO: 0,         // Reptiles0.png — lagartixa do DragonDePlatino (easter egg)
   POTION_HEAL: 0,     // Potion.png — frasco vermelho (poção de cura)
   POTION_MANA: 7,     // Potion.png — frasco azul (poção de mana)
-  GOLD: 0,            // Money.png — moeda de ouro (frame fixo)
+  GOLD_SMALL:  10,    // Money.png Row 2 Col 3 — moeda única (pouca quantidade)
+  GOLD_MEDIUM:  9,    // Money.png Row 2 Col 2 — poucas moedas agrupadas
+  GOLD_LARGE:   8,    // Money.png Row 2 Col 1 — pilha grande de moedas
+  CHEST:       14,    // Money.png Row 2 Col 7 — baú vermelho fechado
 };
 
 // --- Chaves dos spritesheets carregados na BootScene ---
@@ -168,14 +171,18 @@ export const EVENTS = {
   // Seleção de inventário
   INVENTORY_SELECTION_CHANGED: 'inventory-selection-changed',
   INVENTORY_ITEM_CLICKED: 'inventory-item-clicked',
+  // Classe do personagem
+  CLASS_INFO: 'class-info',
   // Moedas
   PLAYER_GOLD_CHANGED: 'player-gold-changed',
+  ARROWS_CHANGED:      'arrows-changed',
   // Loja
   SHOP_OPENED:  'shop-opened',
   SHOP_CLOSED:  'shop-closed',
   SHOP_UPDATED: 'shop-updated',
   SHOP_ITEM_HOVERED:      'shop-item-hovered',
   SHOP_ITEM_SELECTED:     'shop-item-selected',
+  SHOP_TAB_SWITCHED:      'shop-tab-switched',
   // Diálogo
   DIALOG_OPENED:          'dialog-opened',
   DIALOG_CLOSED:          'dialog-closed',
@@ -258,4 +265,5 @@ export const AI = {
 // ─── Configurações de desenvolvimento ────────────────────────────────────────
 export const DEV_CONFIG = {
   godMode: false,  // true → player não toma dano
+  devMode: false,  // true → pula o menu principal e inicia direto na GameScene
 };

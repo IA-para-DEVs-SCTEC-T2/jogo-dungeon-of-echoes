@@ -63,52 +63,9 @@ export interface ShopViewModel {
   /** @deprecated use buyItems */
   items: ShopItemViewModel[];
   buyItems: ShopItemViewModel[];
+  buyItemsCount?: number;
   sellItems: SellItemViewModel[];
   tab: 'buy' | 'sell';
   playerGold: number;
   selectedIndex: number;
-}
-
-export interface StatusViewModel {
-  level: number;
-  xp: number;
-  xpNext: number;
-  hp: number;
-  maxHp: number;
-  mana: number;
-  maxMana: number;
-  str: number;
-  intel: number;
-  dex: number;
-  con: number;
-  wis: number;
-  cha: number;
-  attack: number;
-  freePoints: number;
-}
-
-export interface SpellSlotViewModel {
-  slotIndex: 0 | 1;
-  key: 'J' | 'K';
-  spellId: string | null;
-  spellName: string;
-  cooldownRatio: number;
-}
-
-export interface SpellListItemViewModel {
-  id: string;
-  name: string;
-  element: string;
-  damage: number;
-  manaCost: number;
-  cooldownMs: number;
-  isEquipped: boolean;
-  isSelected: boolean;
-}
-
-export interface SpellsViewModel {
-  activeSlots: SpellSlotViewModel[];
-  unlockedSpells: SpellListItemViewModel[];
-  selectedSpellId: string | null;
-  playerMana: number;
 }

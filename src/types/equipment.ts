@@ -1,4 +1,4 @@
-export type EquipmentSlotId = 'helmet' | 'shield' | 'sword' | 'pants' | 'boots' | 'amulet' | 'ring';
+export type EquipmentSlotId = 'helmet' | 'shield' | 'sword' | 'pants' | 'boots' | 'amulet' | 'ring' | 'extra';
 
 export interface StatBonuses {
   str?: number;
@@ -19,10 +19,11 @@ export const EQUIPMENT_SLOT_LABELS: Record<EquipmentSlotId, string> = {
   boots:  'Bota',
   amulet: 'Amuleto',
   ring:   'Anel',
+  extra:  'Extra',
 };
 
 export const EQUIPMENT_SLOT_ORDER: EquipmentSlotId[] = [
-  'helmet', 'shield', 'sword', 'pants', 'boots', 'amulet', 'ring',
+  'helmet', 'shield', 'sword', 'pants', 'boots', 'amulet', 'ring', 'extra',
 ];
 
 export type EquippableItemType =
@@ -32,7 +33,9 @@ export type EquippableItemType =
   | 'pants_leather' | 'pants_iron' | 'pants_mithril' | 'pants_shadow'
   | 'boots_leather' | 'boots_iron' | 'boots_swift' | 'boots_ethereal'
   | 'amulet_stone' | 'amulet_silver' | 'amulet_gold' | 'amulet_arcane' | 'amulet_eternal'
-  | 'ring_copper' | 'ring_silver' | 'ring_enchanted' | 'ring_void';
+  | 'ring_copper' | 'ring_silver' | 'ring_enchanted' | 'ring_void'
+  | 'bow' | 'spellbook'
+  | 'arrows_20' | 'arrows_50' | 'arrows_100';
 
 export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
