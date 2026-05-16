@@ -68,7 +68,7 @@ export const DAWNLIKE_FRAMES = {
   ENEMY: 0,           // Undead0.png — esqueleto (frame fixo)
   PLATINO: 0,         // Reptiles0.png — lagartixa do DragonDePlatino (easter egg)
   POTION_HEAL: 0,     // Potion.png — frasco vermelho (poção de cura)
-  POTION_POISON: 7,   // Potion.png — frasco azul (poção de veneno)
+  POTION_MANA: 7,     // Potion.png — frasco azul (poção de mana)
   GOLD: 0,            // Money.png — moeda de ouro (frame fixo)
 };
 
@@ -120,10 +120,14 @@ export const GAME_STATE = {
 // --- Inventário ---
 export const INVENTORY = {
   MAX_SLOTS: 20,
-  POTION_HEAL_AMOUNT: 10,
-  POTION_POISON_AMOUNT: 5,
-  ITEM_SPAWN_MIN: 3,
-  ITEM_SPAWN_MAX: 6,
+  POTION_HEAL_LIGHT_AMOUNT:  10,
+  POTION_HEAL_AMOUNT:        25,
+  POTION_HEAL_HIGH_AMOUNT:   50,
+  POTION_MANA_LIGHT_AMOUNT:  15,
+  POTION_MANA_AMOUNT:        30,
+  POTION_MANA_HIGH_AMOUNT:   60,
+  ITEM_SPAWN_MIN: 1,
+  ITEM_SPAWN_MAX: 3,
 };
 
 // --- Eventos ---
@@ -163,21 +167,41 @@ export const EVENTS = {
   INPUT_MODE_CHANGED: 'input-mode-changed',
   // Seleção de inventário
   INVENTORY_SELECTION_CHANGED: 'inventory-selection-changed',
+  INVENTORY_ITEM_CLICKED: 'inventory-item-clicked',
   // Moedas
   PLAYER_GOLD_CHANGED: 'player-gold-changed',
-  // Flechas
-  ARROWS_CHANGED: 'arrows-changed',
+  ARROWS_CHANGED:      'arrows-changed',
   // Loja
   SHOP_OPENED:  'shop-opened',
   SHOP_CLOSED:  'shop-closed',
   SHOP_UPDATED: 'shop-updated',
-  SHOP_TAB_SWITCHED:      'shop_tab_switched',
   SHOP_ITEM_HOVERED:      'shop-item-hovered',
   SHOP_ITEM_SELECTED:     'shop-item-selected',
+  SHOP_TAB_SWITCHED:      'shop-tab-switched',
   // Diálogo
   DIALOG_OPENED:          'dialog-opened',
   DIALOG_CLOSED:          'dialog-closed',
   DIALOG_OPTION_SELECTED: 'dialog-option-selected',
+  // Pontos de atributo
+  STAT_POINT_SPENT_REQUEST: 'stat-point-spent-request',
+  STAT_POINT_SPENT:         'stat-point-spent',
+  // Magias
+  SPELL_UNLOCKED:        'spell-unlocked',
+  SPELL_EQUIPPED:        'spell-equipped',
+  SPELL_CAST:            'spell-cast',
+  // Painel I — abas
+  INVENTORY_TAB_CHANGED: 'inventory-tab-changed',
+  // Status
+  STATUS_STATE_REQUESTED: 'status-state-requested',
+  STATUS_STATE_RESPONSE:  'status-state-response',
+  // Magias
+  SPELLS_STATE_REQUESTED:   'spells-state-requested',
+  SPELLS_STATE_RESPONSE:    'spells-state-response',
+  SPELL_EQUIP_REQUEST:      'spell-equip-request',
+  SPELLS_SELECTION_CHANGED: 'spells-selection-changed',
+  // Narrativa emergente (Fase 6)
+  NARRATIVE_GENERATED:      'narrative-generated',
+  DEATH_STORY_GENERATED:    'death-story-generated',
 } as const;
 
 // --- Loja ---
@@ -232,3 +256,9 @@ export const AI = {
   CACHE_MAX_SIZE: 100,          // Máximo de entradas no cache
   REQUEST_TIMEOUT: 5000,        // Timeout de 5s para chamadas LLM
 } as const;
+
+// ─── Configurações de desenvolvimento ────────────────────────────────────────
+export const DEV_CONFIG = {
+  godMode: false,  // true → player não toma dano
+  devMode: false,  // true → pula o menu principal e inicia direto na GameScene
+};
