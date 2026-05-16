@@ -43,6 +43,10 @@ export class UIScene extends Phaser.Scene {
   private _xpLabel!: Phaser.GameObjects.Text;
   private _goldLabel!: Phaser.GameObjects.Text;
 
+  // Classe e flechas
+  private _classLabel!: Phaser.GameObjects.Text;
+  private _arrowLabel!: Phaser.GameObjects.Text;
+
   // Log
   private _logSystem!: LogSystem;
   private _logPanel!: LogPanel;
@@ -445,19 +449,49 @@ export class UIScene extends Phaser.Scene {
       .text(PANEL_X, xpY + 24, 'Ouro: 500', { ...TEXT_STYLE, color: '#ffd700' })
       .setScrollFactor(0).setDepth(d + 1);
 
-    // Ajustar altura do fundo do painel de stats para acomodar nova linha
+    // Badge de classe
+    this._classLabel = this.add
+      .text(PANEL_X, xpY + 36, '', { ...TEXT_STYLE, color: '#a78bfa' })
+      .setScrollFactor(0).setDepth(d + 1);
+
+    // Contador de flechas (Arqueiro)
+    this._arrowLabel = this.add
+      .text(PANEL_X, xpY + 48, '', { ...TEXT_STYLE, color: '#fbbf24' })
+      .setScrollFactor(0).setDepth(d + 1).setVisible(false);
+
+    // Fundo do painel de stats (altura extra para acomodar classe e flechas)
     this.add
-      .rectangle(0, 0, panelW, 70, 0x000000, 0.55)
+      .rectangle(0, 0, panelW, 88, 0x000000, 0.55)
       .setOrigin(0, 0).setScrollFactor(0).setDepth(d - 1);
   }
 
   // ─── Registro de Eventos ──────────────────────────────────────────────────
+
+  setClassInfo(label: string, usesArrows: boolean, arrows: number): void {
+    if (!this.sys.isActive()) return;
+    this._classLabel.setText(`[${label}]`);
+    this._arrowLabel.setVisible(usesArrows);
+    if (usesArrows) this._updateArrowLabel(arrows);
+  }
+
+  private _updateArrowLabel(arrows: number): void {
+    this._arrowLabel.setText(`>> ${arrows} flechas`);
+    this._arrowLabel.setStyle({ color: arrows < 20 ? '#ef4444' : '#fbbf24' });
+  }
 
   private _registerEvents(): void {
     EventBus.on(EVENTS.PLAYER_HP_CHANGED,   this._onHPChanged,    this);
     EventBus.on(EVENTS.PLAYER_MANA_CHANGED, this._onManaChanged,  this);
     EventBus.on(EVENTS.PLAYER_XP_CHANGED,   this._onXPChanged,    this);
     EventBus.on(EVENTS.PLAYER_LEVELED_UP,   this._onLevelUp,      this);
+    EventBus.on(EVENTS.ARROWS_CHANGED, (data: { arrows: number }) => {
+      if (!this.sys.isActive()) return;
+      this._updateArrowLabel(data.arrows);
+    }, this);
+    EventBus.on(EVENTS.CLASS_INFO, (data: { label: string; usesArrows: boolean; arrows: number }) => {
+      if (!this.sys.isActive()) return;
+      this.setClassInfo(data.label, data.usesArrows, data.arrows);
+    }, this);
     EventBus.on(EVENTS.ITEM_PICKED_UP,      this._onItemPickedUp, this);
     EventBus.on(EVENTS.ITEM_USED,           this._onItemUsed,     this);
 

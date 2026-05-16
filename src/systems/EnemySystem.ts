@@ -1,9 +1,11 @@
 import * as Phaser from 'phaser';
 import { ENEMY, EVENTS, TILE_SIZE } from '../utils/constants';
+import { ClassRulesEngine } from './ClassRulesEngine';
 import type { DungeonGenerator, GridPos } from '../generators/DungeonGenerator';
 import type { FloorDifficulty } from '../config/difficulty.config';
 import { pickEnemyDef, buildAnimKey } from '../config/enemies.config';
 import type { EnemyCategory } from '../config/enemies.config';
+import type { PlayerClassDef } from '../config/player-classes.config';
 
 export type EnemyState = 'IDLE' | 'CHASING' | 'ATTACKING';
 
@@ -78,6 +80,7 @@ export class EnemySystem {
     playerGridY: number,
     dungeon: DungeonGenerator,
     allEnemies: EnemySystem[],
+    playerClassDef?: PlayerClassDef,
   ): EnemyAttackResult {
     if (!this.alive) return { attacked: false, damage: 0 };
 
@@ -86,14 +89,20 @@ export class EnemySystem {
     const manhattan = Math.abs(dx) + Math.abs(dy);
     const adjacent  = manhattan === 1;
 
-    // Raio de detecção ampliado para inimigos agressivos
-    const effectiveRadius = this.aggressionLevel > 0.7
+    // Raio de detecção: ampliado por aggressionLevel e pelo bias da classe do player
+    const baseRadius = this.aggressionLevel > 0.7
       ? this.detectionRadius * 1.5
       : this.detectionRadius;
+    const effectiveRadius = playerClassDef
+      ? ClassRulesEngine.effectiveDetectionRadius(playerClassDef, baseRadius)
+      : baseRadius;
 
-    // Detecção: dentro do raio OU mesma sala (sempre para agressivos)
+    // Detecção: dentro do raio OU mesma sala (sempre para agressivos ou vs ranged)
+    const alwaysChase = this.aggressionLevel > 0.7 ||
+      (playerClassDef ? playerClassDef.enemyApproachBias >= 1.0 : false);
+
     const detected = manhattan <= effectiveRadius ||
-      (this.aggressionLevel > 0.7) ||
+      alwaysChase ||
       this._isInSameRoom(playerGridX, playerGridY, dungeon);
 
     if (detected) {
@@ -103,7 +112,9 @@ export class EnemySystem {
     if (this.state === 'IDLE') return { attacked: false, damage: 0 };
 
     // Inimigos pouco agressivos têm chance de ficar idle mesmo detectando
-    if (this.aggressionLevel < 0.3 && Math.random() > this.aggressionLevel + 0.3) {
+    // (mas não quando enfrentam classes ranged — eles sempre perseguem)
+    const approachBias = playerClassDef?.enemyApproachBias ?? 0;
+    if (this.aggressionLevel < 0.3 && approachBias < 0.5 && Math.random() > this.aggressionLevel + 0.3) {
       return { attacked: false, damage: 0 };
     }
 

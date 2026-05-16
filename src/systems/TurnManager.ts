@@ -1,5 +1,6 @@
 import { TILE_SIZE, EVENTS, INVENTORY, DEV_CONFIG } from '../utils/constants';
 import { EventBus } from '../utils/EventBus';
+import { ClassRulesEngine } from './ClassRulesEngine';
 import type { Player } from '../entities/Player';
 import type { EnemySystem } from './EnemySystem';
 import type { CombatSystem } from './CombatSystem';
@@ -58,11 +59,30 @@ export class TurnManager {
       }
     } else if (action.type === 'ATTACK') {
       const target = action.target;
+
+      // Verificar se a classe pode atacar (Mago não pode corpo a corpo; Arqueiro precisa de flechas)
+      if (!ClassRulesEngine.canMelee(player.classDef) && !player.classDef.usesArrows) {
+        result.messages.push(`${player.classDef.label} não pode atacar corpo a corpo. Use magias!`);
+        this.playerTurn = true;
+        return result;
+      }
+      if (!ClassRulesEngine.canAttack(player.classDef, player.arrows)) {
+        result.messages.push('Sem flechas! Compre mais na loja.');
+        this.playerTurn = true;
+        return result;
+      }
+
       const atk = combat.attack(player, target);
       if (atk.hit) {
         target.hp = Math.max(0, target.hp - atk.damage);
         metrics?.recordDamageDealt(atk.damage);
-        result.messages.push(`Você atacou e causou ${atk.damage} de dano`);
+        const verb = player.classDef.usesArrows ? 'atirou e causou' : 'atacou e causou';
+        result.messages.push(`Você ${verb} ${atk.damage} de dano`);
+        // Consumir flecha
+        if (player.classDef.usesArrows) {
+          player.arrows = Math.max(0, player.arrows - 1);
+          EventBus.emit(EVENTS.ARROWS_CHANGED, { arrows: player.arrows });
+        }
         if (target.hp <= 0) {
           target.alive = false;
           result.enemiesDied.push(target);
@@ -108,15 +128,17 @@ export class TurnManager {
     for (const enemy of enemies) {
       if (!enemy.alive) continue;
 
-      const ai = enemy.update(player.gridX, player.gridY, dungeon, enemies);
+      const ai = enemy.update(player.gridX, player.gridY, dungeon, enemies, player.classDef);
 
       if (ai.attacked) {
         const atk = combat.attack(enemy, player);
         if (atk.hit) {
-          if (!DEV_CONFIG.godMode) player.hp = Math.max(0, player.hp - atk.damage);
-          metrics?.recordDamageTaken(atk.damage);
+          const rawDmg = atk.damage;
+          const reduced = Math.max(1, Math.round(rawDmg * ClassRulesEngine.physicalDamageMultiplier(player.classDef)));
+          if (!DEV_CONFIG.godMode) player.hp = Math.max(0, player.hp - reduced);
+          metrics?.recordDamageTaken(reduced);
           EventBus.emit(EVENTS.PLAYER_HP_CHANGED, { hp: player.hp, maxHp: player.maxHp });
-          result.messages.push(`Inimigo atacou você por ${atk.damage}`);
+          result.messages.push(`Inimigo atacou você por ${reduced}`);
           if (player.hp <= 0) {
             result.playerDied = true;
             metrics?.recordDeath();

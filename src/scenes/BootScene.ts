@@ -39,6 +39,7 @@ export class BootScene extends Phaser.Scene {
     // Estes não pertencem a biomas e permanecem hardcoded aqui intencionalmente.
     this.load.spritesheet(SPRITES.WALL,    `${base}/Objects/Wall.png`,           { frameWidth: 16, frameHeight: 16 });
     this.load.spritesheet(SPRITES.PLAYER,  `${base}/Characters/Player0.png`,     { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('player1',       `${base}/Characters/Player1.png`,     { frameWidth: 16, frameHeight: 16 });
     this.load.spritesheet(SPRITES.ENEMY,   `${base}/Characters/Undead0.png`,     { frameWidth: 16, frameHeight: 16 });
     this.load.spritesheet(SPRITES.POTION,  `${base}/Items/Potion.png`,           { frameWidth: 16, frameHeight: 16 });
     this.load.spritesheet(SPRITES.MONEY,   `${base}/Items/Money.png`,            { frameWidth: 16, frameHeight: 16 });

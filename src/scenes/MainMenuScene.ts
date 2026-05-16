@@ -20,7 +20,7 @@ export class MainMenuScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     this._makeButton(width / 2, height * 0.50, 'Novo Jogo', () => {
-      this.scene.start('GameScene');
+      this.scene.start('CharacterSelectScene');
     });
 
     this._makeButton(width / 2, height * 0.62, 'Créditos', () => {
