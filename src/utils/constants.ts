@@ -168,6 +168,8 @@ export const EVENTS = {
   // Seleção de inventário
   INVENTORY_SELECTION_CHANGED: 'inventory-selection-changed',
   INVENTORY_ITEM_CLICKED: 'inventory-item-clicked',
+  // Classe do personagem
+  CLASS_INFO: 'class-info',
   // Moedas
   PLAYER_GOLD_CHANGED: 'player-gold-changed',
   ARROWS_CHANGED:      'arrows-changed',

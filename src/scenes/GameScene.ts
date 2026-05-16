@@ -201,6 +201,19 @@ export class GameScene extends Phaser.Scene {
     this._emitInitialUIState();
     this._applyClassStartingItems();
 
+    // Aplicar sprite e animação da classe (após UIScene estar ativa)
+    this.time.delayedCall(50, () => {
+      const cd = this.player.classDef;
+      if (cd) {
+        this.player.applySkin(cd.frame);
+        EventBus.emit(EVENTS.CLASS_INFO, {
+          label:      cd.label,
+          usesArrows: cd.usesArrows,
+          arrows:     this.player.arrows,
+        });
+      }
+    });
+
     this._loadArea('town');
   }
 

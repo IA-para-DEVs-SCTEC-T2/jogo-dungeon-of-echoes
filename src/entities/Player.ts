@@ -95,6 +95,23 @@ export class Player extends Phaser.GameObjects.Sprite {
     this.facingDir      = 'down';
   }
 
+  /** Aplica o frame e a animação de idle correspondentes ao frame da classe. */
+  applySkin(frame: number): void {
+    const key = `player.idle.${frame}`;
+    if (!this.scene.anims.exists(key)) {
+      this.scene.anims.create({
+        key,
+        frames: [
+          { key: SPRITES.PLAYER, frame },
+          { key: 'player1',      frame },
+        ],
+        frameRate: 2,
+        repeat: -1,
+      });
+    }
+    this.play(key);
+  }
+
   /** Recalcula todos os atributos derivados a partir dos stats base, nível e bônus de equipamento. */
   recalcStats(): void {
     // VIT (CON): cada ponto = 5 HP + bônus de nível
