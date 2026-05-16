@@ -38,11 +38,8 @@ export class ClassRulesEngine {
    *
    * @param equippedExtraItemType - tipo do item equipado no slot extra (ou null/undefined)
    */
-  static canAttack(classDef: PlayerClassDef, arrows: number, equippedExtraItemType?: string | null): boolean {
-    if (classDef.usesArrows) {
-      const hasArrowsEquipped = equippedExtraItemType?.startsWith('arrows') ?? false;
-      if (!hasArrowsEquipped || arrows <= 0) return false;
-    }
+  static canAttack(classDef: PlayerClassDef, arrows: number): boolean {
+    if (classDef.usesArrows && arrows <= 0) return false;
     return true;
   }
 

@@ -5,6 +5,7 @@ import { InventorySystem } from '../systems/InventorySystem';
 import type { DungeonGenerator } from '../generators/DungeonGenerator';
 import type { StatBonuses } from '../types/equipment';
 import type { Direction } from '../types/spells';
+import { PLAYER_CLASSES, type PlayerClassDef } from '../config/player-classes.config';
 
 export class Player extends Phaser.GameObjects.Sprite {
   // Posição no grid (tile-based)
@@ -43,6 +44,13 @@ export class Player extends Phaser.GameObjects.Sprite {
   unlockedSpells: string[];
   equippedSpells: [string | null, string | null];
   facingDir:      Direction;
+
+  /** Definição da classe do personagem — fonte de verdade para regras */
+  classDef: PlayerClassDef;
+  /** Flechas disponíveis (apenas Arqueiro) */
+  arrows: number;
+  /** Cooldown de movimento em ms (configurado pela classe) */
+  moveCooldown: number;
 
   private _lastMoveTime: number;
   private _emitter: Phaser.Events.EventEmitter;
@@ -87,6 +95,11 @@ export class Player extends Phaser.GameObjects.Sprite {
     this.identifiedItems = {};
 
     this.gold = 500;
+
+    // Classe e recursos de classe
+    this.classDef    = PLAYER_CLASSES[0];
+    this.arrows      = 0;
+    this.moveCooldown = PLAYER.MOVE_COOLDOWN;
 
     // Magias e pontos livres
     this.freePoints     = 0;
