@@ -3,7 +3,7 @@ import type { GridPos } from './DungeonGenerator';
 import { TILE } from '../utils/constants';
 import type { StairConnection, FloorConnectionData } from '../types/dungeon';
 
-export type FeatureType = 'stairDown' | 'stairUp' | 'trap' | 'shrine' | 'portal';
+export type FeatureType = 'stairDown' | 'stairUp' | 'trap' | 'shrine' | 'portal' | 'chest';
 
 export interface DungeonFeature {
   type: FeatureType;
@@ -60,6 +60,26 @@ export class DungeonFeatureGenerator {
         targetPosition: { x: 0, y: 0 }, // preenchido depois
       };
       features.push({ type: 'stairDown', gridX: downPos.x, gridY: downPos.y, connection: downConn });
+    }
+
+    // Baús: 1-2 por andar, em rooms intermediárias (evitando a primeira e a última)
+    const chestCount = 1 + Math.floor(Math.random() * 2);
+    const midRooms = dungeon.rooms.length > 2
+      ? dungeon.rooms.slice(1, dungeon.rooms.length - 1)
+      : dungeon.rooms;
+
+    for (let i = 0; i < chestCount; i++) {
+      const roomIdx = Math.floor(Math.random() * midRooms.length);
+      const absoluteRoomIdx = dungeon.rooms.indexOf(midRooms[roomIdx]);
+      const pos = this._findPositionInRoom(dungeon, absoluteRoomIdx, excluded);
+      if (!pos) continue;
+      excluded.add(`${pos.x},${pos.y}`);
+      features.push({
+        type: 'chest',
+        gridX: pos.x,
+        gridY: pos.y,
+        metadata: { opened: false },
+      });
     }
 
     return features;

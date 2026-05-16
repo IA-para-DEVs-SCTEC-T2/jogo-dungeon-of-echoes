@@ -81,7 +81,7 @@ export async function runTests() {
   const aiServiceNoKey = new AIService(''); // Sem API key
   const aiIntegrationNoKey = new AIIntegration(aiServiceNoKey);
   
-  const item3 = new Item('test-item-3', 'potion_poison', 7, 7);
+  const item3 = new Item('test-item-3', 'potion_mana', 7, 7);
   await aiIntegrationNoKey.enrichItem(item3, 0.9);
   
   console.log('✅ Fallback:', item3.aiDescription);

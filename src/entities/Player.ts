@@ -4,6 +4,8 @@ import { EventBus } from '../utils/EventBus';
 import { InventorySystem } from '../systems/InventorySystem';
 import type { DungeonGenerator } from '../generators/DungeonGenerator';
 import type { StatBonuses } from '../types/equipment';
+import type { Direction } from '../types/spells';
+import { PLAYER_CLASSES, type PlayerClassDef } from '../config/player-classes.config';
 
 export class Player extends Phaser.GameObjects.Sprite {
   // Posição no grid (tile-based)
@@ -26,6 +28,9 @@ export class Player extends Phaser.GameObjects.Sprite {
   xp: number;
   level: number;
   attack: number;
+  critChance = 0;   // DEX: chance de crítico (0–0.30)
+  cdReduction = 0;  // WIS: redução de cooldown de magias (0–0.40)
+  spellBonus = 0;   // INT: bônus de dano mágico flat
 
   // Inventário e identificação de itens
   inventory: InventorySystem;
@@ -33,6 +38,19 @@ export class Player extends Phaser.GameObjects.Sprite {
 
   // Moedas
   gold: number;
+
+  // Progressão de magias
+  freePoints:     number;
+  unlockedSpells: string[];
+  equippedSpells: [string | null, string | null];
+  facingDir:      Direction;
+
+  /** Definição da classe do personagem — fonte de verdade para regras */
+  classDef: PlayerClassDef;
+  /** Flechas disponíveis (apenas Arqueiro) */
+  arrows: number;
+  /** Cooldown de movimento em ms (configurado pela classe) */
+  moveCooldown: number;
 
   private _lastMoveTime: number;
   private _emitter: Phaser.Events.EventEmitter;
@@ -62,29 +80,72 @@ export class Player extends Phaser.GameObjects.Sprite {
     this.xp     = 0;
     this.attack = PLAYER.ATTACK;
 
-    // Derivados via fórmulas da spec
-    this.maxHp   = this.con * 5 + this.level * 3;
-    this.hp      = this.maxHp;
-    this.maxMana = this.wis * 4 + this.intel * 2;
-    this.mana    = this.maxMana;
-
-    this._lastMoveTime    = 0;
-    this._emitter         = scene.events;
+    this._lastMoveTime     = 0;
+    this._emitter          = scene.events;
     this._equipmentBonuses = {};
+
+    // Inicialização temporária antes do recalcStats
+    this.maxHp = 0; this.maxMana = 0;
+    this.recalcStats();
+    this.hp   = this.maxHp;
+    this.mana = this.maxMana;
 
     // Inventário e identificação
     this.inventory       = new InventorySystem();
     this.identifiedItems = {};
 
     this.gold = 500;
+
+    // Classe e recursos de classe
+    this.classDef    = PLAYER_CLASSES[0];
+    this.arrows      = 0;
+    this.moveCooldown = PLAYER.MOVE_COOLDOWN;
+
+    // Magias e pontos livres
+    this.freePoints     = 0;
+    this.unlockedSpells = [];
+    this.equippedSpells = [null, null];
+    this.facingDir      = 'down';
   }
 
-  /** Recalcula maxHp, maxMana e attack a partir dos atributos base, nível e bônus de equipamento. */
+  /** Aplica o frame e a animação de idle correspondentes ao frame da classe. */
+  applySkin(frame: number): void {
+    const key = `player.idle.${frame}`;
+    if (!this.scene.anims.exists(key)) {
+      this.scene.anims.create({
+        key,
+        frames: [
+          { key: SPRITES.PLAYER, frame },
+          { key: 'player1',      frame },
+        ],
+        frameRate: 2,
+        repeat: -1,
+      });
+    }
+    this.play(key);
+  }
+
+  /** Recalcula todos os atributos derivados a partir dos stats base, nível e bônus de equipamento. */
   recalcStats(): void {
-    this.maxHp   = this.con * 5 + this.level * 3 + (this._equipmentBonuses.maxHp ?? 0);
-    this.maxMana = this.wis * 4 + this.intel * 2;
-    this.attack  = PLAYER.ATTACK + (this._equipmentBonuses.attack ?? 0);
-    // hp e mana nunca ultrapassam o máximo
+    // VIT (CON): cada ponto = 5 HP + bônus de nível
+    this.maxHp = this.con * 5 + this.level * 3 + (this._equipmentBonuses.maxHp ?? 0);
+
+    // WIS: peso maior para diferenciar de INT; INT contribui menos
+    this.maxMana = this.wis * 5 + this.intel * 2;
+
+    // STR: dano físico base + 0.8 por ponto acima de 10
+    const strBonus = Math.floor((this.str - 10) * 0.8);
+    this.attack = PLAYER.ATTACK + strBonus + (this._equipmentBonuses.attack ?? 0);
+
+    // DEX: +1.5% de crítico por ponto acima de 10, cap 30%
+    this.critChance = Math.min(Math.max((this.dex - 10) * 0.015, 0), 0.30);
+
+    // WIS: +2% de redução de cooldown por ponto acima de 10, cap 40%
+    this.cdReduction = Math.min(Math.max((this.wis - 10) * 0.02, 0), 0.40);
+
+    // INT: +1.2 de dano mágico flat por ponto acima de 10
+    this.spellBonus = Math.floor(Math.max((this.intel - 10) * 1.2, 0));
+
     this.hp   = Math.min(this.hp,   this.maxHp);
     this.mana = Math.min(this.mana, this.maxMana);
   }
@@ -133,6 +194,11 @@ export class Player extends Phaser.GameObjects.Sprite {
     this.gridY = targetY;
     this._lastMoveTime = now;
 
+    if (dx > 0)      this.facingDir = 'right';
+    else if (dx < 0) this.facingDir = 'left';
+    else if (dy > 0) this.facingDir = 'down';
+    else if (dy < 0) this.facingDir = 'up';
+
     this.setPosition(
       this.gridX * TILE_SIZE + TILE_SIZE / 2,
       this.gridY * TILE_SIZE + TILE_SIZE / 2,
@@ -148,6 +214,27 @@ export class Player extends Phaser.GameObjects.Sprite {
     if (this.hp <= 0) {
       this._emitter.emit(EVENTS.PLAYER_DIED, this);
     }
+  }
+
+  applyClassBonus(classDef: PlayerClassDef): void {
+    const b = classDef.statBonus;
+    if (b.str)   this.str   = BASE_STATS.STR + b.str;
+    if (b.intel) this.intel = BASE_STATS.INT + b.intel;
+    if (b.dex)   this.dex   = BASE_STATS.DEX + b.dex;
+    if (b.con)   this.con   = BASE_STATS.CON + b.con;
+    if (b.wis)   this.wis   = BASE_STATS.WIS + b.wis;
+    this.recalcStats();
+    this.hp   = this.maxHp;
+    this.mana = this.maxMana;
+  }
+
+  spendStatPoint(stat: 'str' | 'intel' | 'dex' | 'con' | 'wis'): boolean {
+    if (this.freePoints <= 0) return false;
+    this[stat] += 1;
+    this.freePoints -= 1;
+    this.recalcStats();
+    EventBus.emit(EVENTS.STAT_POINT_SPENT, { stat, value: this[stat], freePoints: this.freePoints });
+    return true;
   }
 
   useMana(amount: number): boolean {
@@ -179,6 +266,12 @@ export class Player extends Phaser.GameObjects.Sprite {
     this.identifiedItems   = {};
     this._equipmentBonuses = {};
     this.gold = 500;
+
+    // Resetar progressão de magias
+    this.freePoints     = 0;
+    this.unlockedSpells = [];
+    this.equippedSpells = [null, null];
+    this.facingDir      = 'down';
 
     this.setPosition(
       gridX * TILE_SIZE + TILE_SIZE / 2,

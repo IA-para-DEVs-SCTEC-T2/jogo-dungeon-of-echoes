@@ -48,6 +48,7 @@ Benefícios diretos para este projeto:
 - Build otimizado para produção com tree-shaking nativo
 - Configuração mínima para projetos Phaser (sem webpack boilerplate)
 - Suporte nativo a ES Modules sem configuração adicional
+- `define: { __APP_VERSION__ }` em `vite.config.ts` expõe a versão de `package.json` ao código cliente; declarada em `src/vite-env.d.ts`; usada em `MainMenuScene` para exibição dinâmica no rodapé
 
 ### Vitest
 - API compatível com Jest — curva de aprendizado mínima
@@ -188,7 +189,7 @@ O MVP não usa:
 | Sem IA generativa | Fora do escopo do MVP; hooks preparados para expansão |
 | Sem backend | Jogo 100% client-side; sem servidor necessário |
 | Sem sistema de save | Permadeath intencional; simplifica implementação |
-| Sem animações complexas | Sprites simples ou formas geométricas são suficientes |
+| Animações limitadas a ping-pong 2fps por inimigo | Registradas globalmente em `BootScene._registerEnemyAnims()`; sem timelines ou tweens por entidade |
 | Sem banco de dados | Estado apenas em memória durante a sessão |
 | API key de IA exposta no frontend | Aceitável para protótipo acadêmico; inaceitável em produção |
 | Sem pipelines/shaders customizados | Fora do escopo; usar API padrão do Phaser 4 |

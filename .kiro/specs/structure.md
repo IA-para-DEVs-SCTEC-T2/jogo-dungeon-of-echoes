@@ -18,10 +18,11 @@ dungeon-of-echoes/
 │   ├── main.ts
 │   │
 │   ├── config/
-│   │   ├── constants.ts        ← EVENTS, SHOP, TAVERN, TILE, COLORS, UI, INVENTORY…
+│   │   ├── constants.ts        ← EVENTS, SHOP, TAVERN, TILE, COLORS, UI, INVENTORY…; DEV_CONFIG (godMode, devMode)
 │   │   ├── town.config.ts      ← TownNPCDef[], TownBuildingDef[], TownConfig
 │   │   ├── sprites-config.ts   ← FLOOR_ATLAS, LAYER_*, DAWNLIKE_FRAMES
-│   │   └── shop.catalog.ts     ← SHOP_CATALOG[], createItemFromCatalogEntry(), buildBonusText()
+│   │   ├── shop.catalog.ts     ← SHOP_CATALOG[], createItemFromCatalogEntry(), buildBonusText()
+│   │   └── enemies.config.ts   ← EnemyDef[], EnemyCategory, CATEGORY_TEXTURE_KEYS, pickEnemyDef(), buildAnimKey()
 │   │
 │   ├── types/
 │   │   ├── town.ts             ← NPCInstanceDef, ProcessedTownLayout, DialogMenuOption
@@ -35,7 +36,9 @@ dungeon-of-echoes/
 │   │   └── CityLayoutProcessor.ts
 │   │
 │   ├── scenes/
-│   │   ├── BootScene.ts        ← Pré-carregamento de assets
+│   │   ├── BootScene.ts        ← Pré-carregamento de assets; transita para MainMenuScene (ou GameScene se devMode)
+│   │   ├── MainMenuScene.ts    ← Menu principal: fundo game_bg.png, botões Novo Jogo / Créditos, rodapé Equipe 7 + versão
+│   │   ├── CreditsScene.ts     ← Tela de créditos com roles e nomes da equipe; botão voltar ao menu
 │   │   ├── GameScene.ts        ← Orquestra sistemas; sem lógica de domínio
 │   │   ├── UIScene.ts          ← HUD e painéis via dirty flag; sem lógica de domínio
 │   │   └── GameOverScene.ts
@@ -86,7 +89,9 @@ Cenas Phaser que gerenciam o ciclo de vida visual do jogo. Não contêm lógica 
 
 | Arquivo | Responsabilidade |
 |---------|-----------------|
-| `BootScene.ts` | Pré-carregamento de assets, inicialização do RNG, transição para GameScene |
+| `BootScene.ts` | Pré-carregamento de assets, registro de animações; transita para `MainMenuScene` (ou `GameScene` se `DEV_CONFIG.devMode`) |
+| `MainMenuScene.ts` | Menu principal: fundo `game_bg.png`, botões "Novo Jogo" / "Créditos", rodapé "Equipe 7 + versão" |
+| `CreditsScene.ts` | Exibe roles e nomes da equipe; botão voltar ao `MainMenuScene` |
 | `GameScene.ts` | Loop principal; captura input via `InputModeManager`; delega para sistemas; sem lógica de domínio |
 | `UIScene.ts` | HUD persistente + painéis (inventory, shop, dialog, log, action bar); dirty flag por painel |
 | `GameOverScene.ts` | Exibe resumo da partida (andar, XP, nível) |
@@ -126,9 +131,10 @@ Cenas Phaser que gerenciam o ciclo de vida visual do jogo. Não contêm lógica 
 
 | Arquivo | Conteúdo |
 |---------|---------|
-| `constants.js` | `TILE_SIZE`, `GRID_W`, `GRID_H`, `VISION_RADIUS`, `XP_BASE`, etc. |
+| `constants.ts` | `TILE_SIZE`, `GRID_W`, `GRID_H`, `VISION_RADIUS`, `XP_BASE`, etc.; `DEV_CONFIG` com `godMode` e `devMode` |
 | `town.config.ts` | `TownConfig` com layout fixo da cidade e `biomeOverrides?` por tile key |
 | `sprites-config.ts` | `FLOOR_ATLAS` (bioma→frames+pesos), `OBJECT_ATLAS`, `NPC_ATLAS`; constantes `LAYER_GROUND`, `LAYER_WORLD_BASE`, `LAYER_OVERHEAD`, `LAYER_UI_LABELS` |
+| `enemies.config.ts` | `EnemyDef[]` com atributos base, `EnemyCategory`, `CATEGORY_TEXTURE_KEYS` (par DawnLike *0/*1), `pickEnemyDef(floor)`, `buildAnimKey()` |
 
 ### Configuração — `/src/config/`
 Constantes globais que evitam magic numbers espalhados pelo código.

@@ -63,6 +63,7 @@ export interface ShopViewModel {
   /** @deprecated use buyItems */
   items: ShopItemViewModel[];
   buyItems: ShopItemViewModel[];
+  buyItemsCount?: number;
   sellItems: SellItemViewModel[];
   tab: 'buy' | 'sell';
   playerGold: number;

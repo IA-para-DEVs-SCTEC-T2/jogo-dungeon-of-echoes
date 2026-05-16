@@ -33,13 +33,13 @@ Dungeon of Echoes é um RPG 2D tile-based jogado no navegador. O jogador explora
 | Engine | Phaser 4 |
 | Linguagem | TypeScript (novos sistemas) + JavaScript legado |
 | Build | Vite |
-| Testes | Vitest (17+ testes) |
+| Testes | Vitest (125+ testes) |
 | Qualidade | Husky + Commitlint |
 | Assets | Dawnlike 16×16 tileset (CC-BY) |
 
 ## Restrições
 
-- **Sem IA generativa** neste estágio (preparar hooks para expansão futura)
+- **IA generativa integrada de forma não-bloqueante** — `AIService.ts` + `NarrativeService.ts` geram descrições de itens raros e variantes de inimigos elite; fallback gracioso quando API indisponível; cache por sessão para evitar chamadas duplicadas
 - **Sem banco de dados** — estado apenas em memória durante a sessão
 - **Sem servidor backend** — jogo 100% client-side
 - **Sem animações complexas** — sprites estáticos (frame fixo por entidade)
@@ -57,28 +57,55 @@ Dungeon of Echoes é um RPG 2D tile-based jogado no navegador. O jogador explora
 - **InputModeManager** controla qual painel recebe input — `push()` ao abrir, `pop()` ao fechar; em modo ≠ GAMEPLAY o personagem não se move
 - **`INVENTORY_OPENED` é o único evento que autoriza `_inventoryPanel.show()`** — `INVENTORY_STATE_RESPONSE` apenas atualiza dados; nunca abre o painel
 - **Bônus de equipamento são reversíveis** — `Player.applyEquipmentBonuses()` / `removeEquipmentBonuses()` acumulam em `_equipmentBonuses`; `recalcStats()` é a fonte de verdade dos stats derivados
+- **Renderização de dungeon é delegada ao `DungeonRenderer`** — `GameScene` apenas itera `RenderCommand[]` e cria sprites; zero lógica de autotiling na cena
+- **`AutoTileResolver` nunca instancia objetos Phaser** — opera sobre `grid[][]` + `SemanticGrid` e retorna `TileRenderData`; extensão futura: adicionar entrada em `TileSemanticsProvider` + `TileCategory` + `AutoTileSet` no tema
+- **Temas visuais em `dungeon-themes.ts`** — `TileCategory` extensível (inclui `wall_edge`, `void`, `string` para biomas); frames organizados por `AutoTileSet` (campos legados) e `BitmaskFrameSet` (campos de bitmask); `themeForFloor()` mapeia andar → tema
+- **Pipeline de renderização dungeon = 3 etapas em ordem**: (1) `classifyGrid(grid)` → `SemanticGrid`, (2) `DungeonRenderer.buildCommands()` skipa VOID e delega ao resolver, (3) `GameScene` cria sprites e define `cameras.main.setBackgroundColor(0x000000)`
+- **`SemanticClassifier` usa apenas 4 vizinhos cardinais** para classificar a shell — diagonais participam apenas no bitmask; isso garante `WALL_EDGE` de exatamente 1 tile de espessura e evita silhuetas diagonais grossas
+- **`TileSemanticsProvider` é a fonte de verdade de abertura visual** — bitmask usa `isVisuallyOpen`, não `=== TILE.FLOOR`; futuras categorias (water, lava, chasm) registram suas flags aqui sem alterar o resolver
+- **Variação de body walls deve ser mínima** — `bodyFrames` de `wall_edge` contém 1 frame; silhueta legível tem prioridade absoluta sobre detalhe de textura
+- **`BONUS_AREA_OVERRIDES` é estritamente isolado de `MANUAL_MAP_OVERRIDES`** — nunca cruzar importações entre `BonusAreaData.ts` e `TileProperties.ts`
+- **`DEV_CONFIG.godMode`** em `constants.ts` — flag de desenvolvimento; `CombatSystem` consulta antes de aplicar dano ao player; manter `false` em produção
+- **`DEV_CONFIG.devMode`** em `constants.ts` — quando `true`, `BootScene` transita diretamente para `GameScene` pulando o `MainMenuScene`; útil em desenvolvimento; manter `false` em produção
+- **Magias são data-driven** — `spells.db.ts` é a única fonte de verdade para atributos de magia; `spell-progression.ts` define quando cada magia é desbloqueada; nunca hardcodar IDs ou dano em Systems
+- **`SpellCastingSystem` nunca importa `SpellSystem` diretamente** — recebe instância como parâmetro em `cast()`; retorna `SpellCastResult` com `hitEnemies: EnemySystem[]`
+- **Magias são melee-range** — `SpellCastingSystem.cast()` verifica os 4 tiles cardinais adjacentes ao player e aplica dano em todos os inimigos encontrados; sem projétil
+- **Dois slots de magia (`equippedSpells[0]`, `equippedSpells[1]`)** — mapeados para teclas `J` e `K` no gameplay; slots exibidos no footer (action bar), canto direito, tamanho 20×20
+- **`facingDir`** em `Player` mantido para uso futuro (direcionalidade); não é usado pelo `SpellCastingSystem` atual
+- **Navegação de magias no painel `I`** — ←/→ trocam aba; na aba Magias, ↓ entra na lista, ↑ na primeira magia volta às abas; Enter/E equipa em J, K equipa em K; `SPELLS_SELECTION_CHANGED` sincroniza seleção visual no `SpellsPanel`
 
 ## Estrutura de Pastas
 
 ```
 /src
-  /scenes       → Cenas Phaser (Boot, Game, GameOver, UI)
-  /systems      → Lógica de jogo:
+  /scenes       → Cenas Phaser (Boot, MainMenu, Credits, Game, GameOver, UI, VisualRegression*)
+                   * VisualRegressionScene existe exclusivamente para regressão de autotiling; não é cena de produção
+                   * Fluxo normal: BootScene → MainMenuScene → GameScene
+                   * Com devMode=true: BootScene → GameScene (pula menu)
+  /systems      → Lógica de jogo (sem dependência de Phaser):
                    TurnManager, CombatSystem, EnemySystem, XPSystem
                    InventorySystem, EquipmentSystem, ShopSystem
                    InputModeManager, LootSystem, WorldSystem, LogSystem
-                   NPCController, InteractiveObjectSystem, CityDecorationSystem
+                   NPCController, NPCSystem, InteractiveObjectSystem, CityDecorationSystem
                    MapTransitionSystem, DungeonFloorManager, DifficultyScalingSystem
-  /entities     → Entidades puras (Player — gold, equipmentBonuses; Item — slotId, bonuses)
-  /generators   → DungeonGenerator, CityLayoutProcessor, TileVariantResolver
+                   AutoTileResolver, DungeonRenderer, BonusAreaRenderer
+                   SemanticClassifier, TileSemanticsProvider, WallVariantLUT
+                   DebugOverlayRenderer, MaskFrequencyLogger
+                   SpellSystem, SpellCastingSystem
+                   PlayerMetrics, DifficultyManager, EventMemory
+  /entities     → Entidades puras (Player — gold, equipmentBonuses, facingDir, spells; Item — slotId, bonuses)
+  /generators   → DungeonGenerator, DungeonFeatureGenerator, CityLayoutProcessor, TileVariantResolver
   /config       → constants.ts, town.config.ts, sprites-config.ts, shop.catalog.ts
-  /types        → town.ts, equipment.ts, viewmodels.ts, input.ts
-  /utils        → EventBus
-  /ui           → InventoryPanel, ShopPanel, DialogPanel, LogPanel, ActionBarPanel
+                   spells.db.ts, spell-progression.ts, dungeon-themes.ts, difficulty.config.ts
+                   BonusAreaData.ts, TileProperties.ts, enemies.config.ts
+  /types        → town.ts, equipment.ts, viewmodels.ts, input.ts, spells.ts, difficulty.ts
+  /utils        → EventBus, constants
+  /ui           → InventoryPanel, ShopPanel, DialogPanel, LogPanel, ActionBarPanel, SpellsPanel, StatusPanel
+  /ai           → AIService, NarrativeService, AIIntegration (não-bloqueante, fallback gracioso)
 .kiro/
   /steering     → Diretrizes do projeto (este arquivo)
   /specs        → Especificações de cada sistema
-/tests          → Testes unitários (Vitest): combat, dungeon, xp, shop
+/tests          → Testes unitários (Vitest, 125+ testes)
 /public/assets/dawnlike → Tileset Dawnlike 16×16 (CC-BY)
 ```
 
@@ -90,12 +117,19 @@ Dungeon of Echoes é um RPG 2D tile-based jogado no navegador. O jogador explora
 4. Validar manualmente o comportamento
 5. Escrever testes automatizados em `/tests`
 
+## Regras Arquiteturais Adicionais
+
+- **`DifficultyManager` e `PlayerMetrics`** vivem em `src/systems/` e não têm dependência de Phaser; são testáveis em Node puro
+- **`AIService` é assíncrono e não-bloqueante** — nunca aguarda resposta da API no game loop; usa cache por sessão; falha silenciosamente com fallback para conteúdo padrão
+- **`VisualRegressionScene`** é exclusivamente para testes de regressão de autotiling (teclas 1-4 toggleiam debug modes); não deve ser incluída em builds de produção
+- **`PlayerMetrics` alimenta `DifficultyManager`** via sliding window de 20 turnos; `DifficultyScalingSystem` aplica os multiplicadores por andar; os três sistemas são independentes entre si
+
 ## Expansões Futuras Planejadas
 
 Estes sistemas NÃO fazem parte do MVP atual mas o código deve ser estruturado para suportá-los:
 
 - **Fog of War**: visibilidade por tile (spec pronta em `.kiro/specs/fog-of-war.spec.md`)
-- **Minimap**: overlay com estado de exploração (spec em `.kiro/specs/minimap.spec.md`)
+- **Minimap**: overlay com estado de exploração (spec pronta em `.kiro/specs/minimap.spec.md`)
 - **Habilidades**: árvore de habilidades por classe
 - **IA de Inimigos**: pathfinding A*, comportamentos variados por tipo
-- **Narrativa por IA**: lores geradas por LLM — Claude Haiku (hooks preparados em `AIService.ts`)
+- **Save / Placar local**: persistência entre sessões

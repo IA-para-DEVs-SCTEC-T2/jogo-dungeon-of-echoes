@@ -1,5 +1,7 @@
 import * as Phaser from 'phaser';
 import { EQUIPMENT_SLOT_ORDER, EQUIPMENT_SLOT_LABELS } from '../types/equipment';
+import { EventBus } from '../utils/EventBus';
+import { EVENTS } from '../utils/constants';
 import type { InventoryViewModel, InventoryItemViewModel, EquipmentSlotViewModel } from '../types/viewmodels';
 
 const DEPTH        = 500;
@@ -47,7 +49,7 @@ export class InventoryPanel {
   private _detailActions!: Phaser.GameObjects.Text;
 
   private readonly ITEM_POOL_SIZE = 20;
-  private readonly SLOT_COUNT     = 6;
+  private readonly SLOT_COUNT     = 7;
 
   constructor(scene: Phaser.Scene) {
     this._root = scene.add.container(0, 0).setScrollFactor(0).setDepth(DEPTH).setVisible(false);
@@ -74,24 +76,26 @@ export class InventoryPanel {
     const bg = scene.add.rectangle(ox, oy, panelW, panelH, PANEL_BG, 0.95).setOrigin(0, 0);
     const border = scene.add.rectangle(ox, oy, panelW, panelH).setOrigin(0, 0)
       .setStrokeStyle(2, PANEL_BORDER).setFillStyle(0, 0);
-    const title = scene.add.text(ox + panelW / 2, oy + 10, 'INVENTÁRIO', TEXT_TITLE).setOrigin(0.5, 0);
     const hint  = scene.add.text(ox + panelW / 2, oy + panelH - 16,
-      '[E] Equipar  [U] Usar  [D] Dropar  [ESC/I] Fechar', TEXT_HINT).setOrigin(0.5, 0);
+      '[E/Enter/Clique] Usar/Equipar  [D] Dropar  [ESC/I] Fechar', TEXT_HINT).setOrigin(0.5, 0);
+
+    // Deslocado 32px para baixo das abas
+    const contentY = oy + 30;
 
     // Divisórias
     const divX1 = ox + eqW;
     const divX2 = ox + eqW + itemW;
-    const divLine1 = scene.add.rectangle(divX1, oy + 30, 1, innerH, PANEL_BORDER, 0.5).setOrigin(0, 0);
-    const divLine2 = scene.add.rectangle(divX2, oy + 30, 1, innerH, PANEL_BORDER, 0.5).setOrigin(0, 0);
+    const divLine1 = scene.add.rectangle(divX1, contentY, 1, innerH, PANEL_BORDER, 0.5).setOrigin(0, 0);
+    const divLine2 = scene.add.rectangle(divX2, contentY, 1, innerH, PANEL_BORDER, 0.5).setOrigin(0, 0);
 
     // Subtítulos das colunas
-    const eqLabel     = scene.add.text(ox + padding, oy + 30, 'EQUIPAMENTOS', { ...TEXT_BASE, color: '#8888cc' });
-    const itemLabel   = scene.add.text(divX1 + padding, oy + 30, 'ITENS', { ...TEXT_BASE, color: '#8888cc' });
-    const detailLabel = scene.add.text(divX2 + padding, oy + 30, 'DETALHES', { ...TEXT_BASE, color: '#8888cc' });
+    const eqLabel     = scene.add.text(ox + padding,      contentY, 'EQUIPAMENTOS', { ...TEXT_BASE, color: '#8888cc' });
+    const itemLabel   = scene.add.text(divX1 + padding,   contentY, 'ITENS',        { ...TEXT_BASE, color: '#8888cc' });
+    const detailLabel = scene.add.text(divX2 + padding,   contentY, 'DETALHES',     { ...TEXT_BASE, color: '#8888cc' });
 
     // Pool de slots de equipamento
     for (let i = 0; i < this.SLOT_COUNT; i++) {
-      const y = oy + 48 + i * (rowH + 4);
+      const y = oy + 44 + i * (rowH + 4);
       const bg2 = scene.add.rectangle(ox + padding, y, eqW - padding * 2, rowH, EMPTY_COLOR).setOrigin(0, 0);
       const label = scene.add.text(ox + padding + 4, y + 2, '', TEXT_DIM);
       const value = scene.add.text(ox + eqW - padding - 4, y + 2, '', TEXT_DIM).setOrigin(1, 0);
@@ -102,16 +106,21 @@ export class InventoryPanel {
 
     // Pool de itens do inventário
     for (let i = 0; i < this.ITEM_POOL_SIZE; i++) {
-      const y = oy + 48 + i * (rowH + 2);
+      const y = oy + 44 + i * (rowH + 2);
       const itemBg = scene.add.rectangle(divX1 + padding, y, itemW - padding * 2, rowH, EMPTY_COLOR).setOrigin(0, 0);
       const itemTxt = scene.add.text(divX1 + padding + 4, y + 2, '', TEXT_DIM);
+      itemBg.setInteractive({ useHandCursor: true });
+      const idx = i;
+      itemBg.on('pointerdown', () => EventBus.emit(EVENTS.INVENTORY_ITEM_CLICKED, { index: idx }));
+      itemBg.on('pointerover', () => { if (this._visible) itemBg.setFillStyle(0x223355, 1); });
+      itemBg.on('pointerout',  () => { if (this._visible) this._dirty = true; });
       this._itemBgs.push(itemBg);
       this._itemTexts.push(itemTxt);
     }
 
     // Área de detalhes
-    this._detailName    = scene.add.text(divX2 + padding, oy + 48, '', { ...TEXT_BASE, color: '#ffffff' });
-    this._detailDesc    = scene.add.text(divX2 + padding, oy + 66, '', {
+    this._detailName    = scene.add.text(divX2 + padding, oy + 44, '', { ...TEXT_BASE, color: '#ffffff' });
+    this._detailDesc    = scene.add.text(divX2 + padding, oy + 62, '', {
       ...TEXT_BASE, color: '#aabbcc',
       wordWrap: { width: detailW - padding * 2 },
     });
@@ -120,7 +129,7 @@ export class InventoryPanel {
     });
 
     this._root.add([
-      bg, border, title, hint, divLine1, divLine2,
+      bg, border, hint, divLine1, divLine2,
       eqLabel, itemLabel, detailLabel,
       ...this._slotBgs, ...this._slotTexts, ...this._slotValueTexts,
       ...this._itemBgs, ...this._itemTexts,

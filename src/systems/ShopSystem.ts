@@ -49,6 +49,10 @@ export class ShopSystem {
       return { success: false, message: 'Este item não pode ser vendido.', goldGained: 0 };
     }
 
+    if (item.noSell) {
+      return { success: false, message: 'Este item não pode ser vendido.', goldGained: 0 };
+    }
+
     const goldGained = Math.floor(basePrice * SHOP.SELL_RATIO);
     inventory.removeItem(itemIndex);
     player.gold += goldGained;
@@ -73,7 +77,7 @@ export class ShopSystem {
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       if (!item) continue;
-      const canSell = (item.price != null && item.price > 0) && !equippedIds.has(item.id);
+      const canSell = (item.price != null && item.price > 0) && !equippedIds.has(item.id) && !item.noSell;
       const sellPrice = Math.floor((item.price ?? 0) * SHOP.SELL_RATIO);
       result.push({
         inventoryIndex: i,
@@ -95,16 +99,20 @@ export class ShopSystem {
     inventory?: InventorySystem,
     equippedIds?: Set<string>,
   ): ShopViewModel {
-    const buyItems = this._catalog.map((entry, i) => ({
-      index:      i,
-      id:         entry.id,
-      name:       entry.name,
-      price:      entry.price,
-      rarity:     entry.rarity,
-      bonusText:  buildBonusText(entry.bonuses),
-      canAfford:  player.gold >= entry.price,
-      isSelected: tab === 'buy' && i === selectedIndex,
-    }));
+    let filteredIndex = 0;
+    const buyItems = this._catalog.map((entry) => {
+      const fi = filteredIndex++;
+      return {
+        index:      fi,
+        id:         entry.id,
+        name:       entry.name,
+        price:      entry.price,
+        rarity:     entry.rarity,
+        bonusText:  buildBonusText(entry.bonuses),
+        canAfford:  player.gold >= entry.price,
+        isSelected: tab === 'buy' && fi === selectedIndex,
+      };
+    });
 
     const sellItems: SellItemViewModel[] = (inventory && equippedIds)
       ? this.buildSellItems({ inventory }, equippedIds, tab === 'sell' ? selectedIndex : -1)
@@ -113,6 +121,7 @@ export class ShopSystem {
     return {
       items: buyItems,
       buyItems,
+      buyItemsCount: buyItems.length,
       sellItems,
       tab,
       playerGold: player.gold,

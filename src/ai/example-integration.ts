@@ -138,7 +138,7 @@ export class GameSceneWithAI extends Phaser.Scene {
     // Exemplo: poções de cura são comuns (0.3), veneno é raro (0.9)
     const rarities: Record<string, number> = {
       potion_heal: 0.3,
-      potion_poison: 0.9,
+      potion_mana: 0.9,
       gold: 0.1,
     };
     return rarities[item.type] || 0.5;

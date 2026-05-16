@@ -9,6 +9,7 @@ export interface ShopItemDef {
   price: number;
   rarity: ItemRarity;
   bonuses: StatBonuses;
+  quantity?: number;
 }
 
 export const SHOP_CATALOG: ShopItemDef[] = [
@@ -34,6 +35,12 @@ export const SHOP_CATALOG: ShopItemDef[] = [
   { id: 'amulet_stone_1',  name: 'Amuleto de Pedra',  type: 'amulet_stone',  slotId: 'amulet', price: 100, rarity: 'common',   bonuses: { str: 1 } },
   { id: 'amulet_silver_1', name: 'Amuleto de Prata',  type: 'amulet_silver', slotId: 'amulet', price: 220, rarity: 'uncommon', bonuses: { str: 2, attack: 2 } },
   { id: 'amulet_gold_1',   name: 'Amuleto de Ouro',   type: 'amulet_gold',   slotId: 'amulet', price: 450, rarity: 'rare',     bonuses: { str: 3, attack: 5, maxHp: 5 } },
+  // Arco
+  { id: 'bow_wood', name: 'Arco de Madeira', type: 'bow', slotId: 'sword', price: 80, rarity: 'common', bonuses: { attack: 2 } },
+  // Flechas (equipáveis no slot Extra)
+  { id: 'arrows_20',  name: 'Flechas (x20)',  type: 'arrows_20',  slotId: 'extra', quantity: 20,  price: 40,  rarity: 'common',   bonuses: {} },
+  { id: 'arrows_50',  name: 'Flechas (x50)',  type: 'arrows_50',  slotId: 'extra', quantity: 50,  price: 90,  rarity: 'common',   bonuses: {} },
+  { id: 'arrows_100', name: 'Flechas (x100)', type: 'arrows_100', slotId: 'extra', quantity: 100, price: 160, rarity: 'uncommon', bonuses: {} },
   // Poções
   { id: 'potion_heal_shop', name: 'Poção de Cura',    type: 'potion_heal',   slotId: null,     price: 30,  rarity: 'common',   bonuses: {} },
 ];
@@ -45,10 +52,24 @@ export function createItemFromCatalogEntry(entry: ShopItemDef): Item {
   item.bonuses = Object.keys(entry.bonuses).length > 0 ? { ...entry.bonuses } : undefined;
   item.price   = entry.price;
   item.rarity  = entry.rarity;
-  // Poções de cura compradas chegam já identificadas
-  if (entry.type === 'potion_heal') item.identified = true;
+  item.identified = true;
+  if (entry.quantity !== undefined) item.quantity = entry.quantity;
   return item;
 }
+
+export const STARTING_ITEMS = {
+  spellbook_basic: {
+    id: 'spellbook_basic',
+    name: 'Livro de Magia',
+    type: 'spellbook' as const,
+    slotId: 'sword' as const,
+    price: 0,
+    rarity: 'uncommon' as const,
+    bonuses: { int: 2 } as Record<string, number>,
+  },
+  bow_wood: SHOP_CATALOG.find(e => e.id === 'bow_wood')!,
+  arrows_100: SHOP_CATALOG.find(e => e.id === 'arrows_100')!,
+};
 
 export function buildBonusText(bonuses: StatBonuses): string {
   const parts: string[] = [];

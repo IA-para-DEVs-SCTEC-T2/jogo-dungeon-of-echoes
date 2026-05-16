@@ -69,3 +69,61 @@ Resultado:
 108 testes passando. Sistema de inventário completo e funcional seguindo o padrão roguelike clássico.
 
 Branch criada: `feature/inventory-system`
+
+## Prompt 5 — test(guide): testes guia para LogSystem e PlayerMetrics
+Autor: Andrea
+Data: 2026-05-05
+
+Prompt utilizado:
+> "Pense como um professor especialista em desenvolvimento de jogos, analise o código do jogo e sugira alguma atividade para que uma aluna iniciante na área possa fazer e que seja uma melhoria que beneficie a toda a equipe."
+
+O que foi feito:
+
+1. Identificado que LogSystem e PlayerMetrics não tinham nenhum teste, apesar de serem sistemas críticos usados por toda a equipe.
+
+2. Criada branch `feature/tests-log-metrics` a partir de `staging`.
+
+3. Criado `tests/log-system.test.js`:
+   - 10 testes prontos (testes guia) que passam imediatamente
+   - 6 exercícios comentados com dicas para a aluna completar
+   - Comentários explicativos sobre describe(), it(), expect()
+
+4. Criado `tests/player-metrics.test.js`:
+   - 11 testes prontos (testes guia) que passam imediatamente
+   - 7 exercícios comentados com dicas para a aluna completar
+   - Cobre: estado inicial, registro de eventos, score de performance, janela deslizante, reset
+
+Resultado:
+159 testes passando. Arquivos servem como material de aprendizado e contribuição real ao projeto.
+
+Branch criada: `feature/tests-log-metrics`
+
+## Prompt 6 — test: completar exercícios guia de LogSystem e PlayerMetrics
+Autor: Andrea
+Data: 2026-05-05
+
+Prompt utilizado:
+> "eu preciso que agora você assuma o papel de aluna e complete os exercícios"
+
+O que foi feito:
+
+Completados todos os 13 exercícios dos arquivos de teste guia:
+
+**tests/log-system.test.js** (6 exercícios):
+- Exercício 1: verificar timestamp da mensagem com toBeGreaterThan(0)
+- Exercício 2: verificar categoria da mensagem com toBe('item')
+- Exercício 3: verificar getVisible(2) retorna as 2 mensagens mais recentes
+- Exercício 4: verificar isDirty fica true novamente após nova mensagem
+- Exercício 5: verificar alpha nunca menor que 0.4 com entries.every()
+- Exercício 6: verificar que é possível adicionar mensagens após clear()
+
+**tests/player-metrics.test.js** (7 exercícios):
+- Exercício 1: recordEnemyKilled incrementa enemiesKilled
+- Exercício 2: recordItemUsed incrementa itemsUsed
+- Exercício 3: recordDeath incrementa deaths
+- Exercício 4: score nunca fica abaixo de -100 com toBeGreaterThanOrEqual(-100)
+- Exercício 5: score recente negativo quando recebe mais dano do que causa
+- Exercício 6: getPerformanceScore retorna 0 após reset
+- Exercício 7: permite registrar eventos normalmente após reset
+
+Resultado: 159 testes passando.

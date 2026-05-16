@@ -48,13 +48,140 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ---
 
-## [Unreleased]
+## [0.6.0] — 2026-05-16
+
+### Added
+
+#### Classes de Herói com Bônus de Atributo
+
+- **`Player.applyClassBonus(classDef)`**: aplica os bônus de `classDef.statBonus` aos campos individuais de atributo (`str`, `intel`, `dex`, `con`, `wis`), chama `recalcStats()` e restaura HP/Mana ao máximo — garante que cada classe inicie com os stats corretos
+- `GameScene` chama `applyClassBonus()` após atribuir a classe selecionada ao Player, corrigindo o bug em que todas as classes iniciavam com STR/INT/DEX/WIS = 10 e CON = 18 independente da classe
+
+#### Sistema de Drops Visuais de Ouro por Quantidade
+
+- **Frames de ouro por tier** em `DAWNLIKE_FRAMES` (`constants.ts`): `GOLD_SMALL: 10` (moeda única, `goldAmount < 20`), `GOLD_MEDIUM: 9` (pilha média, 20–49), `GOLD_LARGE: 8` (pilha grande, ≥ 50) — todos da Row 2 de `Money.png`
+- `_getItemVisual()` em `GameScene` seleciona o frame correto baseado em `goldAmount` do item; gold dropado por inimigos agora escala visualmente com a quantidade
+- Valor de ouro escalado por andar: `base = 5 + floor × 6` com ±30% de variação aleatória; inimigos elite dropamd 1.8× mais ouro
+
+#### Sistema de Baús nas Dungeons
+
+- **`FeatureType.chest`** em `DungeonFeatureGenerator`: além de escadas, cada andar spawna 1–2 baús em rooms intermediárias (excluindo a primeira e última sala), armazenados com `metadata: { opened: false }`
+- **Renderização de baú**: `_renderDungeonFeatures()` cria sprite com frame `DAWNLIKE_FRAMES.CHEST` (14) para cada baú não aberto; sprites rastreados em `_chestSprites: Map<string, Phaser.GameObjects.Sprite>` para destruição controlada
+- **`LootSystem.rollChestLoot(floor)`**: loot de baú por tier de andar:
+  - Andar 1–2: 60% ouro (maior que drop comum) | 40% poção
+  - Andar 3–5: 50% ouro | 30% poção | 20% mímica (player toma 15–25 de dano)
+  - Andar 6+: 50% equipamento gerado para o andar | 30% ouro | 20% poção forte
+- **`_checkChestInteraction()`** em `GameScene`: ao pisar em baú não aberto, processa resultado — mímica aplica dano direto, ouro/poção são criados e coletados imediatamente, equipamento vai direto ao inventário; sprite do baú destruído e `metadata.opened = true` persiste no cache do andar
+- Baús abertos não reaparecem ao re-entrar no mesmo andar
+- Equipamentos de baú com 3 pools por tier de andar (mid/advanced/elite) e raridade escalada com profundidade
+
+#### Testes e Cobertura
+
+- Testes guia para `LogSystem` (`tests/log-system.test.js`): 10 testes prontos + 6 exercícios completados
+- Testes guia para `PlayerMetrics` (`tests/player-metrics.test.js`): 11 testes prontos + 7 exercícios completados
+- Cobertura completa de `LogSystem` (buffer, limite máximo, isDirty, buildViewModel, clear) e `PlayerMetrics` (contadores, score de performance, janela deslizante, reset)
+- **Tela de Game Over com estatísticas da partida**: ao morrer, o jogador vê nível alcançado, XP total, andares explorados, inimigos mortos, dano causado, dano recebido, turnos sobrevividos e itens usados — dados coletados pelo `PlayerMetrics` e passados via `scene.start()`
+
+### Fixed
+
+- **Classes não aplicavam bônus de atributo ao iniciar**: `player.classDef` era atribuído mas `statBonus` nunca aplicado aos campos individuais; corrigido com `applyClassBonus()` chamado na inicialização
+- **Sprites de moeda de ouro não desapareciam ao coletar**: `_spawnDroppedItem()` tornada idempotente — destrói sprite existente antes de criar novo e guarda com `includes()` check para não adicionar o mesmo item a `_items` duas vezes; `goldAmount` declarada como propriedade formal em `Item` (era assignment dinâmico sem declaração de tipo)
+- Sprites de itens no chão da dungeon desaparecem corretamente após coleta: cache do andar (`_dungeonCache`) atualizado após o filtro de coleta para manter consistência ao re-entrar no mesmo andar
+
+---
+
+## [0.5.4] — 2026-05-12
+
+### Added
+
+#### Sistema de Magias (Spells)
+
+- **`SpellSystem`** (`src/systems/SpellSystem.ts`): gerencia desbloqueio e equipamento de magias; dois slots (`equippedSpells[0]` e `[1]`); `unlockSpellsForLevel()` consulta `SPELL_PROGRESSION` data-driven; `canCast()` verifica cooldown; `recordCast()` registra timestamp
+- **`SpellCastingSystem`** (`src/systems/SpellCastingSystem.ts`): verifica cooldown e mana, desconta custo, aplica dano em **todos** os inimigos adjacentes (4 cardinais); retorna `SpellCastResult` com a lista de `hitEnemies`; sem projétil — mecânica melee-range igual ao ataque normal
+- **`SpellsPanel`** (`src/ui/SpellsPanel.ts`): painel de magias integrado ao painel `I`; mesmas dimensões do inventário (85%×80%); navegação por teclado — ↓ entra na lista, ↑ na primeira magia volta para as abas, **Enter/E** equipa no slot J, **K** equipa no slot K
+- **`StatusPanel`** (`src/ui/StatusPanel.ts`): painel de atributos detalhados do player (STR/INT/DEX/CON/WIS/CHA, HP, Mana, nível)
+- **`spells.db.ts`** (`src/config/spells.db.ts`): 5 magias data-driven — `fire_bolt` (nv 1), `ice_shard` (nv 5), `wind_cyclone` (nv 10), `fire_explosion` (nv 15), `blizzard` (nv 20)
+- **`spell-progression.ts`** (`src/config/spell-progression.ts`): tabela de desbloqueio por nível, extendível sem alterar `SpellSystem`
+- **`types/spells.ts`**: interfaces `SpellDef`, `SpellSlotState`, `SpellElement`, `Direction`
+- Slots J/K movidos para dentro da action bar (footer), canto direito — mesmo tamanho dos slots de poção (20×20); barra de cooldown azul na base de cada slot
+- `EVENTS.SPELL_CAST`, `EVENTS.SPELL_EQUIPPED`, `EVENTS.SPELLS_SELECTION_CHANGED`, `EVENTS.PLAYER_MANA_CHANGED` adicionados a `constants.ts`
+
+### Changed
+
+- `Player`: campos `facingDir: Direction`, `unlockedSpells: string[]`, `equippedSpells: [string | null, string | null]` adicionados à entidade
+- `UIScene`: slots J/K no footer com cooldown visual; mana atualizada em tempo real via `PLAYER_MANA_CHANGED`
+- `XPSystem`: chama `SpellSystem.unlockSpellsForLevel()` ao subir de nível — desbloqueia magias automaticamente
+- `_handleInventoryInput` (GameScene): ←/→ trocam de aba; na aba Magias, ↓ entra na lista e ↑ na primeira magia retorna às abas
+- Barra de HP do inimigo sincronizada imediatamente após dano de magia (`_syncEnemySprite` chamado em `_castSpell`)
+
+### Fixed
+
+- `SpellCastingSystem` tipado com `EnemySystem` (não `Enemy`) — corrige `takeDamage` chamado sem o `emitter` obrigatório, eliminando o `TypeError: can't access property "emit", emitter is undefined`
+- Testes atualizados: `potion_poison` removido de `Item.ts` → substituído por `potion_mana`; HP no teste de cura ajustado para não ultrapassar o cap com `POTION_HEAL_AMOUNT = 25`; gold esperado no shop corrigido (preço 30→40)
+
+---
+
+## [0.5.3] — 2026-05-11
+
+### Added
+
+#### Renderização de dungeon — Shell-not-Volume (8-bit bitmask autotiling)
+
+- **`TileSemanticsProvider`** (`src/systems/TileSemanticsProvider.ts`): desacopla semântica visual (`isVisuallyOpen`) de semântica de colisão (`isWalkable`, `isSolid`) — o bitmask não hardcoda `=== TILE.FLOOR`; extensível para water/lava/chasm sem alterar o resolver
+- **`SemanticClassifier`** (`src/systems/SemanticClassifier.ts`): classifica cada tile como `FLOOR`, `WALL_EDGE` ou `VOID`; shell de exatamente **1 tile de espessura** usando apenas 4 vizinhos cardinais — sem silhuetas diagonais grossas
+- **`WallVariantLUT`** (`src/systems/WallVariantLUT.ts`): LUT canônica de 256 entradas; `sanitizeMask()` fecha diagonais sem suporte cardinal (evita artefatos); `classifyVariant()` pura sem chain de overwrites; 7 variantes confirmadas no atlas DawnLike: `FACE`, `FACE_END_W`, `FACE_END_E`, `FACE_T`, `INNER_NW`, `INNER_NE`, `BODY`
+- **`BitmaskFrameSet`** em `dungeon-themes.ts`: interface com campos semânticos por variante; nenhum frame hardcoded no resolver (atlas-agnostic)
+- **`wall_edge`** como nova `TileCategory` em todos os 4 temas (dungeon, mine, underworld, underworld_boss): bitmask frames mapeados para sprites corretos de Wall.png
+- **`void`** como nova `TileCategory`: tiles de parede profunda sem contato com piso não emitem `RenderCommand` — câmera preta preenche o vazio
+- Variação de body walls reduzida a **1 frame fixo** por tema — silhueta tem prioridade sobre detalhe; floors mantêm pool de variação intacto
+- Background da câmera definido como `0x000000` em `_loadDungeonFloor()` — nenhuma área de void fica transparente
+
+#### Ferramental de debug visual (dev-only, tree-shakeable)
+
+- **`DebugOverlayRenderer`** (`src/systems/DebugOverlayRenderer.ts`): substitui output do `DungeonRenderer` em modos `semantic` (categorias), `variant` (LUT result) e `bitmask` (valor numérico da mask)
+- **`MaskFrequencyLogger`** (`src/systems/MaskFrequencyLogger.ts`): loga frequência de masks e variantes após `buildCommands()` — identifica masks dominantes, detecta estados impossíveis, verifica que `BODY` aparece raramente
+- **`VisualRegressionScene`** (`src/scenes/VisualRegressionScene.ts`): cena determinística com grid hardcoded cobrindo todos os casos críticos (paredes retas, cantos externos/côncavos, corredor de 1 tile, T-junction, sala aberta); teclas `1–4` alternam modos de visualização, `L` dispara log de frequências
+
+### Changed
+
+- `DungeonRenderer.buildCommands()`: integra `classifyGrid()` como primeiro passo; tiles `VOID` são skippados sem emitir `RenderCommand` (~50% menos sprites em dungeons típicas BSP); `AutoTileResolver.resolve()` recebe `SemanticGrid` como novo parâmetro
+- `AutoTileResolver.resolve()`: nova assinatura `(grid, sem, x, y, theme, floorNum)` — usa `SemanticGrid` para resolveCategory; branch `wall_edge` usa bitmask 8-bit quando `bitmaskFrames` presente no tema; fallback legado preservado para temas sem migração
+- `dungeon-themes.ts`: `TileCategory` estendido com `'wall_edge'`, `'void'` e `string` (biomas futuros); `AutoTileSet` com campos opcionais `bitmaskFrames?` e `voidFrame?`
+- `GameScene._loadDungeonFloor()`: adicionado `cameras.main.setBackgroundColor(0x000000)` antes do loop de sprites
+
+## [0.5.2] — 2026-05-10
+
+### Added
+
+#### Renderização semântica de dungeon com autotiling
+
+- **`AutoTileResolver`** (`src/systems/AutoTileResolver.ts`): resolve frames de tile com base no contexto espacial (vizinhos cardinais) — substitui seleção por hash simples; sem instanciar objetos Phaser
+- **`DungeonRenderer`** (`src/systems/DungeonRenderer.ts`): itera o grid, delega ao resolver e emite `RenderCommand[]` — `GameScene` apenas consome os comandos para criar sprites
+- **`dungeon-themes.ts`** reestruturado: `TileCategory` extensível, `AutoTileSet` com `face`, `cornerOuter_TL/TR`, `bodyFrames`, `cornerInner_TL/TR`; 4 temas completos (dungeon, mine, underworld, underworld_boss) com frames corretos de Wall.png e Floor.png
+- Temas visuais por andar: andares 1–2 → Dungeon (pedra cinza), 3–4 → Mine (terra), 5–6 → Underworld (pedra escura), 7+ → Underworld Boss (mix abismo)
+- Inner corners compartilhados (`cornerInner_TL: 362`, `cornerInner_TR: 360`) em todos os temas
+- Variação determinística de frames por hash posicional — mesma seed, visual idêntico em reentrada
+
+#### Configuração de desenvolvimento
+
+- **`DEV_CONFIG`** em `constants.ts`: flag `godMode` — quando `true`, player não recebe dano de inimigos; permite testes de exploração sem preocupação com HP
+
+### Fixed
+
+- Sprite de poção não desaparecia do mapa ao ser coletada: `delayedCall(0, s.destroy)` substituído por `item.sprite?.destroy()` imediato, eliminando race condition entre agendamento e cleanup de andar
+- Loop de recriação de sprites (`_loadDungeonFloor`) agora destrói sprite anterior antes de criar novo, evitando leak se sprite ainda estiver ativo
+- `ReferenceError: W is not defined` ao entrar na dungeon: `width: W, height: H` removidos inadvertidamente do destructuring durante refatoração; restaurados
+
+### Changed
+
+- `GameScene._loadDungeonFloor()`: loop inline de tiles substituído por `DungeonRenderer.buildCommands()` — zero lógica visual na cena
+- `dungeon-themes.ts`: removidas funções `pickFloorFrame` e `pickWallFrame` (encapsuladas no `AutoTileResolver`)
 
 ### Changed
 
 - Removidos arquivos de resumo/documentação obsoletos da raiz do repositório: `KIRO_RESUMO.md`, `IMPLEMENTATION_SUMMARY.md`, `fase_3.md`, `fase_5.md` — conteúdo migrado para `.kiro/` e `docs/`
 
-## [5.1.0] — 2026-05-10
+## [0.5.1] — 2026-05-10
 
 ### Added
 
@@ -497,7 +624,11 @@ procedural de masmorras, combate turno-a-turno e progressão de personagem.
 
 ---
 
-[Unreleased]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.3.0...HEAD
+[0.6.0]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.5.4...v0.6.0
+[0.5.4]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.5.3...v0.5.4
+[0.5.3]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.5.2...v0.5.3
+[0.5.2]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.5.1...v0.5.2
+[0.5.1]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.3.0...v0.5.1
 [0.3.0]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.1.1...v0.1.2

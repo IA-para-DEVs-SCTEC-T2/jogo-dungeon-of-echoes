@@ -7,7 +7,10 @@ type PlayerLike = {
   level: number;
   maxHp: number;
   hp: number;
+  maxMana?: number;
+  mana?: number;
   attack: number;
+  freePoints?: number;
   recalcStats?: () => void;
 };
 
@@ -50,6 +53,10 @@ export class XPSystem {
     player.level += 1;
     player.attack += XP.ATTACK_BONUS;
 
+    if (player.freePoints !== undefined) {
+      player.freePoints += 3;
+    }
+
     // Delega recálculo de maxHp para o Player (fórmula CON×5 + nível×3)
     if (player.recalcStats) {
       player.recalcStats();
@@ -59,13 +66,24 @@ export class XPSystem {
     }
 
     player.hp = player.maxHp;
+    if (player.maxMana !== undefined) player.mana = player.maxMana;
 
     this.emitter.emit(EVENTS.PLAYER_LEVELED_UP, {
       level: player.level,
       maxHp: player.maxHp,
       attack: player.attack,
+      freePoints: player.freePoints ?? 0,
+    });
+    EventBus.emit(EVENTS.PLAYER_LEVELED_UP, {
+      level: player.level,
+      maxHp: player.maxHp,
+      attack: player.attack,
+      freePoints: player.freePoints ?? 0,
     });
 
     EventBus.emit(EVENTS.PLAYER_HP_CHANGED, { hp: player.hp, maxHp: player.maxHp });
+    if (player.mana !== undefined && player.maxMana !== undefined) {
+      EventBus.emit(EVENTS.PLAYER_MANA_CHANGED, { mana: player.mana, maxMana: player.maxMana });
+    }
   }
 }

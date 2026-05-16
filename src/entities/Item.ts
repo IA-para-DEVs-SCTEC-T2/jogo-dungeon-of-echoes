@@ -1,20 +1,31 @@
 import type { EquipmentSlotId, StatBonuses, ItemRarity, EquippableItemType } from '../types/equipment';
 
-export type ConsumableItemType = 'potion_heal' | 'potion_poison' | 'gold';
+export type ConsumableItemType =
+  | 'potion_heal_light' | 'potion_heal' | 'potion_heal_high'
+  | 'potion_mana_light' | 'potion_mana' | 'potion_mana_high'
+  | 'gold';
 export type ItemType = ConsumableItemType | EquippableItemType;
 
 /** Mapa de nomes genéricos (desconhecidos) por tipo consumível */
 export const UNKNOWN_NAMES: Record<ConsumableItemType, string> = {
-  potion_heal:   'Poção Vermelha',
-  potion_poison: 'Poção Azul',
-  gold:          'Moeda de Ouro',
+  potion_heal_light: 'Poção Vermelha Fraca',
+  potion_heal:       'Poção Vermelha',
+  potion_heal_high:  'Poção Vermelha Forte',
+  potion_mana_light: 'Poção Azul Fraca',
+  potion_mana:       'Poção Azul',
+  potion_mana_high:  'Poção Azul Forte',
+  gold:              'Moeda de Ouro',
 };
 
 /** Mapa de nomes reais (após identificação) por tipo consumível */
 export const REAL_NAMES: Record<ConsumableItemType, string> = {
-  potion_heal:   'Poção de Cura',
-  potion_poison: 'Poção de Veneno',
-  gold:          'Moeda de Ouro',
+  potion_heal_light: 'Poção de Cura Fraca',
+  potion_heal:       'Poção de Cura',
+  potion_heal_high:  'Poção de Cura Forte',
+  potion_mana_light: 'Poção de Mana Fraca',
+  potion_mana:       'Poção de Mana',
+  potion_mana_high:  'Poção de Mana Forte',
+  gold:              'Moeda de Ouro',
 };
 
 export class Item {
@@ -38,6 +49,10 @@ export class Item {
   bonuses?: StatBonuses;
   price?: number;
   rarity?: ItemRarity;
+  noSell?: boolean;
+  noUnequip?: boolean;
+  quantity?: number;
+  goldAmount?: number;
 
   constructor(id: string, type: ItemType, gridX: number | null = null, gridY: number | null = null) {
     this.id         = id;

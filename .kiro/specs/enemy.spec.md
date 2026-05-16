@@ -7,17 +7,39 @@ Inimigos são entidades hostis posicionadas na dungeon. No MVP, possuem comporta
 
 ## Atributos
 
-| Atributo | Tipo   | Valor Padrão | Descrição                        |
-|----------|--------|--------------|----------------------------------|
-| hp       | number | 30           | Pontos de vida atuais            |
-| maxHp    | number | 30           | Pontos de vida máximos           |
-| attack   | number | 8            | Dano base causado ao player      |
-| xpReward | number | 25           | XP concedido ao player ao morrer |
-| gridX    | number | —            | Posição X no grid                |
-| gridY    | number | —            | Posição Y no grid                |
-| alive    | boolean| true         | Se o inimigo está vivo           |
+| Atributo    | Tipo          | Valor Padrão | Descrição                                                        |
+|-------------|---------------|--------------|------------------------------------------------------------------|
+| hp          | number        | —            | Pontos de vida atuais (derivado de `EnemyDef.hpBase` × escala)  |
+| maxHp       | number        | —            | Pontos de vida máximos                                           |
+| attack      | number        | —            | Dano base causado ao player (`EnemyDef.damageBase` × escala)    |
+| xpReward    | number        | —            | XP concedido ao player ao morrer (`EnemyDef.xpBase` × escala)   |
+| gridX       | number        | —            | Posição X no grid                                                |
+| gridY       | number        | —            | Posição Y no grid                                                |
+| alive       | boolean       | true         | Se o inimigo está vivo                                           |
+| category    | EnemyCategory | `'undead'`   | Categoria DawnLike — determina o par de spritesheets (*0/*1)     |
+| frameIndex  | number        | 0            | Índice do frame no spritesheet (mesmo em *0.png e *1.png)        |
+| enemyDefId  | string        | `'skeleton'` | ID da definição em `enemies.config.ts`                           |
+| enemyName   | string        | `'Inimigo'`  | Nome de exibição base (pode ser sobrescrito por `aiName`)        |
+| animKey     | string        | `''`         | Chave da animação Phaser pré-calculada em spawn via `buildAnimKey()` |
 
 ---
+
+## Spawn Procedural
+
+Os atributos base de cada inimigo são definidos em `src/config/enemies.config.ts` via `EnemyDef[]`. A função `pickEnemyDef(floor)` escolhe aleatoriamente uma definição válida para o andar atual (filtrada pelo campo `minFloor`). HP, ATK e XP são então escalados pelos multiplicadores de `DifficultyScalingSystem`.
+
+`EnemyCategory` determina o par de spritesheets DawnLike (`CATEGORY_TEXTURE_KEYS`):
+
+| Categoria   | Spritesheet *0        | Spritesheet *1        |
+|-------------|----------------------|-----------------------|
+| `undead`    | `undead` (Undead0)   | `undead1` (Undead1)   |
+| `humanoid`  | `humanoid0`          | `humanoid1`           |
+| `pest`      | `pest0`              | `pest1`               |
+| `misc`      | `misc0`              | `misc1`               |
+| `reptile`   | `reptile0`           | `reptile1`            |
+| `demon`     | `demon0`             | `demon1`              |
+
+A chave de animação (`animKey`) é construída por `buildAnimKey(category, frameIndex)` no momento do spawn e pré-armazenada — nunca reconstruída por frame. Animações são registradas globalmente em `BootScene._registerEnemyAnims()` com ping-pong de 2 fps entre os dois frames da categoria.
 
 ## Inputs
 

@@ -42,6 +42,7 @@ export class CombatSystem {
   resolve(
     player: { hp: number; maxHp: number; attack: number; xp: number; level: number; getPixelPos?: () => { x: number; y: number } },
     enemy: { hp: number; maxHp: number; attack: number; xpReward: number; alive: boolean; getPixelPos?: () => { x: number; y: number } },
+    _equippedExtraItemType?: string | null,
   ): CombatResult | null {
     if (!player || !enemy) return null;
     if (!enemy.alive) return null;
