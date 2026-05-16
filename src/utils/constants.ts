@@ -258,4 +258,5 @@ export const AI = {
 // ─── Configurações de desenvolvimento ────────────────────────────────────────
 export const DEV_CONFIG = {
   godMode: false,  // true → player não toma dano
+  devMode: false,  // true → pula o menu principal e inicia direto na GameScene
 };

@@ -1,5 +1,7 @@
 import * as Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
+import { MainMenuScene } from './scenes/MainMenuScene';
+import { CreditsScene } from './scenes/CreditsScene';
 import { GameScene } from './scenes/GameScene';
 import { UIScene } from './scenes/UIScene';
 import { GameOverScene } from './scenes/GameOverScene';
@@ -32,7 +34,7 @@ const config: Phaser.Types.Core.GameConfig = {
     },
   },
 
-  scene: [BootScene, GameScene, UIScene, GameOverScene],
+  scene: [BootScene, MainMenuScene, CreditsScene, GameScene, UIScene, GameOverScene],
 };
 
 const game = new Phaser.Game(config);

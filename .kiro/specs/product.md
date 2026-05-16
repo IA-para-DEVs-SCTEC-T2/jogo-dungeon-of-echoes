@@ -12,6 +12,19 @@ O projeto é de contexto acadêmico e serve como demonstração de arquitetura m
 - Desenvolvedores e avaliadores acadêmicos interessados em arquitetura de jogos com JS/Phaser
 - Entusiastas de jogos browser-based sem necessidade de instalação
 
+## Fluxo de Entrada
+
+```
+BootScene (preload de assets + registro de animações)
+    ↓ 200ms
+MainMenuScene  →  [Novo Jogo]  →  GameScene
+               →  [Créditos]  →  CreditsScene  →  [Voltar]  →  MainMenuScene
+```
+
+- `MainMenuScene`: fundo `game_bg.png`, botões "Novo Jogo" / "Créditos", rodapé "Equipe 7 / vX.Y.Z" (versão lida dinamicamente do `package.json` via `__APP_VERSION__`)
+- `CreditsScene`: exibe roles e nomes da equipe (Bardo, Magos, Paladinos); botão voltar
+- `DEV_CONFIG.devMode = true` faz o `BootScene` pular o menu e ir direto à `GameScene`
+
 ## Core Gameplay
 
 O loop central é turn-based e tile-based:
@@ -118,6 +131,8 @@ Input do jogador → Resolve ação (mover/atacar/item/magia/esperar) → Turno 
 - Agression score (0–1) pelo `DifficultyManager`: alto → raio 1.5×, perseguição garantida
 - Variantes elite geradas por IA generativa (nome, habilidade especial, descrição narrativa)
 - Recompensa de XP ao morrer
+- **Spawn procedural por categoria**: `pickEnemyDef(floor)` seleciona um `EnemyDef` de `enemies.config.ts` filtrado por `minFloor`; atributos base (HP/ATK/XP) escalados por `DifficultyScalingSystem`
+- **Animação ping-pong**: cada inimigo toca uma animação 2fps entre os dois frames DawnLike de sua categoria (*0/*1); registradas globalmente em `BootScene._registerEnemyAnims()`; sprites criados em `GameScene._buildEnemySprite()` com fallback para `SPRITES.ENEMY` se textura ausente
 
 ### Progressão
 - XP necessário: `100 × N × (N + 1) / 2`

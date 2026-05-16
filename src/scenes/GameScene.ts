@@ -32,6 +32,7 @@ import type { GameEventType } from '../systems/EventMemory';
 import { EquipmentSystem } from '../systems/EquipmentSystem';
 import { ShopSystem } from '../systems/ShopSystem';
 import { SHOP_CATALOG } from '../config/shop.catalog';
+import { CATEGORY_TEXTURE_KEYS } from '../config/enemies.config';
 import { SpellSystem } from '../systems/SpellSystem';
 import { SpellCastingSystem } from '../systems/SpellCastingSystem';
 import { SPELLS_DB } from '../config/spells.db';
@@ -629,12 +630,36 @@ export class GameScene extends Phaser.Scene {
   // ─── Sprites de Inimigos ─────────────────────────────────────────────────
 
   private _createEnemySprites(): void {
-    this._enemies.forEach((enemy) => {
-      const pos = enemy.getPixelPos();
-      enemy.sprite  = this.add.sprite(pos.x, pos.y, SPRITES.ENEMY, DAWNLIKE_FRAMES.ENEMY).setDepth(5);
-      enemy.hpBarBg = this.add.rectangle(pos.x, pos.y - TILE_SIZE / 2 - 2, TILE_SIZE, 3, 0x330000).setDepth(6);
-      enemy.hpBar   = this.add.rectangle(pos.x, pos.y - TILE_SIZE / 2 - 2, TILE_SIZE, 3, 0xff2222).setDepth(6);
-    });
+    this._enemies.forEach((enemy) => this._buildEnemySprite(enemy));
+  }
+
+  /**
+   * Cria o sprite e as barras de HP de um único inimigo.
+   * Isolado em método próprio para facilitar futura object pooling.
+   *
+   * Lógica de textura:
+   *   1. Usa CATEGORY_TEXTURE_KEYS para obter a chave padronizada do par DawnLike.
+   *   2. Verifica se a textura está carregada no TextureManager antes de usá-la.
+   *   3. Fallback em cascata: chave canônica → SPRITES.ENEMY (undead), evitando tela magenta.
+   * Animação:
+   *   Toca a animKey pré-calculada em createEnemies() se ela estiver registrada.
+   *   O AnimationManager é global — sem criação duplicada em runtime.
+   */
+  private _buildEnemySprite(enemy: EnemySystem): void {
+    const pos = enemy.getPixelPos();
+
+    // Chave da textura base (*0): ex. 'pest0', 'undead' (alias legado), 'humanoid0'
+    const [tex0] = CATEGORY_TEXTURE_KEYS[enemy.category];
+    const texKey = this.textures.exists(tex0) ? tex0 : SPRITES.ENEMY;
+
+    enemy.sprite  = this.add.sprite(pos.x, pos.y, texKey, enemy.frameIndex).setDepth(5);
+    enemy.hpBarBg = this.add.rectangle(pos.x, pos.y - TILE_SIZE / 2 - 2, TILE_SIZE, 3, 0x330000).setDepth(6);
+    enemy.hpBar   = this.add.rectangle(pos.x, pos.y - TILE_SIZE / 2 - 2, TILE_SIZE, 3, 0xff2222).setDepth(6);
+
+    // Toca animação ping-pong se registrada pela BootScene
+    if (enemy.animKey && this.anims.exists(enemy.animKey)) {
+      enemy.sprite.play(enemy.animKey);
+    }
   }
 
   // ─── Easter Egg: Platino (DragonDePlatino, CC-BY 4.0) ───────────────────
@@ -870,7 +895,7 @@ export class GameScene extends Phaser.Scene {
         anyDroppedOnPlayerTile = true;
       }
       // Registrar morte de inimigo na memória narrativa
-      this._recordGameEvent('ENEMY_KILLED', { enemyName: e.aiName ?? 'Inimigo' });
+      this._recordGameEvent('ENEMY_KILLED', { enemyName: e.aiName ?? e.enemyName });
     });
     // Coletar drops que caíram no mesmo tile que o player (o pickup anterior rodou antes dos drops)
     if (anyDroppedOnPlayerTile) this._checkItemPickup();

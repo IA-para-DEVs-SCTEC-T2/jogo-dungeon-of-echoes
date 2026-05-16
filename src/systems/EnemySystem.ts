@@ -2,6 +2,8 @@ import * as Phaser from 'phaser';
 import { ENEMY, EVENTS, TILE_SIZE } from '../utils/constants';
 import type { DungeonGenerator, GridPos } from '../generators/DungeonGenerator';
 import type { FloorDifficulty } from '../config/difficulty.config';
+import { pickEnemyDef, buildAnimKey } from '../config/enemies.config';
+import type { EnemyCategory } from '../config/enemies.config';
 
 export type EnemyState = 'IDLE' | 'CHASING' | 'ATTACKING';
 
@@ -31,6 +33,21 @@ export class EnemySystem {
   aggressionLevel: number;
   isElite: boolean = false;
   aiName: string | null = null;
+
+  // ── Dados visuais e de identidade (definidos em enemies.config.ts) ──────────
+  /** Categoria DawnLike — determina o par de spritesheets e a animação. */
+  category: EnemyCategory = 'undead';
+  /** Índice do frame no spritesheet (mesmo em *0.png e *1.png). */
+  frameIndex: number = 0;
+  /** Identificador da definição de inimigo (enemies.config.ts). */
+  enemyDefId: string = 'skeleton';
+  /** Nome de exibição base (pode ser sobrescrito por aiName em elites). */
+  enemyName: string = 'Inimigo';
+  /**
+   * Chave da animação Phaser registrada em BootScene.
+   * Pré-calculada no spawn para evitar reconstrução a cada frame.
+   */
+  animKey: string = '';
 
   sprite: Phaser.GameObjects.Sprite | null = null;
   hpBar: Phaser.GameObjects.Rectangle | null = null;
@@ -186,12 +203,24 @@ export function createEnemies(
 
     if (!occupied.has(`${pos.x},${pos.y}`)) {
       occupied.add(`${pos.x},${pos.y}`);
-      const enemy = new EnemySystem(pos.x, pos.y, i);
-      enemy.hp             = Math.round(ENEMY.HP        * hpScale);
-      enemy.maxHp          = Math.round(ENEMY.HP        * hpScale);
-      enemy.attack         = Math.round(ENEMY.ATTACK    * atkScale);
-      enemy.xpReward       = Math.round(ENEMY.XP_REWARD * xpScale);
-      enemy.aggressionLevel = aggression;
+
+      // Seleção procedural: escolhe um EnemyDef válido para o andar atual.
+      // O scaling de HP/ATK/XP é aplicado em cima dos valores base do def,
+      // mantendo compatibilidade total com difficulty.config.ts e AIIntegration.
+      const def = pickEnemyDef(floor);
+
+      const enemy            = new EnemySystem(pos.x, pos.y, i);
+      enemy.hp               = Math.round(def.hpBase     * hpScale);
+      enemy.maxHp            = Math.round(def.hpBase     * hpScale);
+      enemy.attack           = Math.round(def.damageBase * atkScale);
+      enemy.xpReward         = Math.round(def.xpBase     * xpScale);
+      enemy.aggressionLevel  = aggression;
+      enemy.category         = def.category;
+      enemy.frameIndex       = def.frameIndex;
+      enemy.enemyDefId       = def.id;
+      enemy.enemyName        = def.name;
+      enemy.animKey          = buildAnimKey(def.category, def.frameIndex);
+
       enemies.push(enemy);
     }
   }
