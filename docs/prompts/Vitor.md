@@ -712,14 +712,14 @@ O mapa da cidade (Town.tmx) apresentava tiles problemáticos: animais estáticos
 Objetivo:
 Implementar um sistema de override por coordenada que permita ajustes manuais rápidos no mapa, com aliases de GID amigáveis e modo debug visual.
 
-Tarefas realizadas:
+Tarefas:
 1. Criar `TILE_GID` em `TileProperties.ts` com ~70 aliases de TMX GID organizados por tileset
 2. Criar `MANUAL_MAP_OVERRIDES` com suporte a `forceGid`, `forceGidLike`, `overlayGid` e `walkable`
 3. Implementar `DEBUG_SHOW_COORDINATES` no renderer com textos estáticos por tile e label interativo ao clicar
 4. Corrigir frames pretos do Tree0.png (frames 0–47 vazios, árvores visíveis a partir do frame 48)
 5. Corrigir GIDs incorretos no `TILE_GID` (frame index vs TMX GID real)
 
-Arquivos modificados:
+Arquivos a modificar:
 - `src/config/TileProperties.ts` — TILE_GID, MANUAL_MAP_OVERRIDES
 - `src/systems/TownTMXRenderer.ts` — DEBUG_SHOW_COORDINATES, lógica de override, fix árvores
 - `docs/guia-sprites.md` — seção "Override Manual por Coordenada"
@@ -734,13 +734,13 @@ A área de padding (fundo escuro com flores) fora dos limites do TMX (20×15) n�
 Objetivo:
 Expandir o loop de grama de preenchimento para suportar MANUAL_MAP_OVERRIDES e DEBUG_SHOW_COORDINATES em todas as 750 células (30×25), incluindo as de padding com coordenadas negativas.
 
-Tarefas realizadas:
+Tarefas:
 1. Refatorar o loop de grama em TownTMXRenderer.ts para verificar MANUAL_MAP_OVERRIDES por coordenada (incluindo chaves negativas como "-5,-3")
 2. Renderizar tile customizado via forceGid quando override presente; grama padrão caso contrário
 3. Exibir DEBUG_SHOW_COORDINATES em todas as células de padding
 4. Respeitar walkable: false nos overrides de padding (padrão é walkable)
 
-Arquivos modificados:
+Arquivos a modificar:
 - `src/systems/TownTMXRenderer.ts` — loop de grama expandido com override e debug
 
 ## Prompt 21
@@ -753,7 +753,7 @@ O modo DEBUG_SHOW_COORDINATES exibia coordenadas nos tiles mas não havia feedba
 Objetivo:
 Melhorar o ferramental de debug de tiles para facilitar a identificação e configuração de overrides no mapa da cidade.
 
-Tarefas realizadas:
+Tarefas:
 1. Adicionar console.log ao clicar num tile com coordenadas TMX, world, forceGid das layers Tiles e Sprites, e override atual
 2. Corrigir cálculo de coordenadas do clique usando pointer.worldX/worldY em vez de cálculo manual incorreto
 3. Adicionar botão toggle "[ coords: ON/OFF ]" na UIScene para mostrar/esconder os labels de coordenada dinamicamente sem interromper o console.log
@@ -761,7 +761,7 @@ Tarefas realizadas:
 5. Corrigir overlayGid para funcionar também no loop de padding (coordenadas negativas como "-1,8")
 6. Adicionar carregamento do spritesheet Decor0.png no BootScene (estava ausente, impedindo renderização de GIDs 2136–2311)
 
-Arquivos modificados:
+Arquivos a modificar:
 - `src/systems/TownTMXRenderer.ts` — console.log de clique, botão toggle, overlayGid no loop de padding
 - `src/scenes/BootScene.ts` — carregamento de decor0
 - `src/config/TileProperties.ts` — ajustes de overrides
@@ -787,18 +787,18 @@ Objetivo:
 8. `TMX_REMOVED_POSITIONS` expandido para cobrir sprites estáticos (não só NPCs)
 9. Estalajadeiro com `interactRange: 2` para interação do balcão
 
-Tarefas realizadas:
+Tarefas:
 1. Remover `TOWN_DUNGEON_EXITS` de constants.ts; adicionar `entrarDungeon?` ao `TileOverride`
-2. `GameScene._loadTown()`: escaneia `MANUAL_MAP_OVERRIDES` por `entrarDungeon:true`, computa game coords, registra spawn de retorno dinamicamente
-3. `GameScene._checkAreaTransition()`: usa `_dungeonEntryTiles` em vez de array hardcoded
-4. `TownTMXRenderer`: pit0 não sobrepõe tile com `forceGid`; check de `TMX_REMOVED_POSITIONS` movido para antes de todo rendering de sprite
-5. `TownTMXRenderer`: fórmula do clique substituída por `cam.getWorldPoint()`; debug exibe `→ game(x,y)`
-6. `NPCController.getAllNPCs()`: retorna `{...n.def, gridX: n.gridX, gridY: n.gridY}` com posição atual
-7. `TileOverride`: adicionados `npcName?` e `interaction?`; sprites com interaction viram sign NPCs no renderer
-8. `TownTMXData`: removidos Ajudante e Viajante via `TMX_REMOVED_POSITIONS`; guardas com `wanderBounds` restritos a `maxX:16, maxY:17`
+2. Em `GameScene._loadTown()`: escanear `MANUAL_MAP_OVERRIDES` por `entrarDungeon:true`, computar game coords, registrar spawn de retorno dinamicamente
+3. Em `GameScene._checkAreaTransition()`: usar `_dungeonEntryTiles` em vez de array hardcoded
+4. Em `TownTMXRenderer`: não sobrepor tile com `forceGid` no pit0; mover check de `TMX_REMOVED_POSITIONS` para antes de todo rendering de sprite
+5. Em `TownTMXRenderer`: substituir fórmula do clique por `cam.getWorldPoint()`; exibir `→ game(x,y)` no debug
+6. Em `NPCController.getAllNPCs()`: retornar `{...n.def, gridX: n.gridX, gridY: n.gridY}` com posição atual
+7. Em `TileOverride`: adicionar `npcName?` e `interaction?`; sprites com interaction viram sign NPCs no renderer
+8. Em `TownTMXData`: remover Ajudante e Viajante via `TMX_REMOVED_POSITIONS`; restringir guardas com `wanderBounds` a `maxX:16, maxY:17`
 
-Arquivos modificados:
-- `src/utils/constants.ts` — removido TOWN_DUNGEON_EXITS, TOWN.BONUS_ENTRY_Y = 0
+Arquivos a modificar:
+- `src/utils/constants.ts` — remover TOWN_DUNGEON_EXITS, TOWN.BONUS_ENTRY_Y = 0
 - `src/config/TileProperties.ts` — TileOverride com entrarDungeon, npcName, interaction; MANUAL_MAP_OVERRIDES com placa
 - `src/config/TownTMXData.ts` — TMX_REMOVED_POSITIONS expandido, overrides de NPC atualizados
 - `src/scenes/GameScene.ts` — _dungeonEntryTiles, scan de entrarDungeon, pit0 condicional
@@ -817,12 +817,12 @@ Objetivo:
 2. Atualizar `.kiro/specs/product.md` com placa interativa, `entrarDungeon` data-driven, `interactRange` e debug
 3. Atualizar `.kiro/steering/game-steering.md` com 5 novas restrições arquiteturais
 
-Tarefas realizadas:
-1. `world.spec.md`: pipeline substituído por `TownTMXRenderer + MANUAL_MAP_OVERRIDES`; NPCs com posições TMX, `interactRange` e comportamento corretos; transição cidade→dungeon documenta `_dungeonEntryTiles`
-2. `product.md`: seções Cidade e NPCs atualizadas — placa, `entrarDungeon`, `interactRange`, debug de tiles
-3. `game-steering.md`: adicionadas restrições para `interactRange`, objetos estáticos interativos, entradas data-driven, `TMX_REMOVED_POSITIONS` e `getAllNPCs()`
+Tarefas:
+1. Em `world.spec.md`: substituir pipeline por `TownTMXRenderer + MANUAL_MAP_OVERRIDES`; atualizar NPCs com posições TMX, `interactRange` e comportamento corretos; documentar transição cidade→dungeon via `_dungeonEntryTiles`
+2. Em `product.md`: atualizar seções Cidade e NPCs — placa, `entrarDungeon`, `interactRange`, debug de tiles
+3. Em `game-steering.md`: adicionar restrições para `interactRange`, objetos estáticos interativos, entradas data-driven, `TMX_REMOVED_POSITIONS` e `getAllNPCs()`
 
-Arquivos modificados:
+Arquivos a modificar:
 - `.kiro/specs/world.spec.md` — pipeline, NPCs, transição data-driven
 - `.kiro/specs/product.md` — seções Cidade e NPCs
 - `.kiro/steering/game-steering.md` — novas restrições arquiteturais
@@ -840,15 +840,17 @@ Objetivo:
 3. Criar `BonusAreaRenderer` com debug idêntico ao `TownTMXRenderer` (labels, toggle, clique → console)
 4. Corrigir condição de saída da área bônus (estava hardcoded em `gridY >= 9`)
 
-Tarefas realizadas:
-1. `src/config/BonusAreaData.ts` criado: `BONUS_W=30`, `BONUS_H=22`, `BONUS_AREA_OVERRIDES`, `BONUS_AREA_NPCS`
-2. `src/systems/BonusAreaRenderer.ts` criado: renderiza chão com suporte a `forceGid`, labels de coord, toggle ON/OFF, clique exibe `[DEBUG bonus] (x,y)` e override atual
-3. `GameScene._loadBonusArea()` reescrito para delegar ao `BonusAreaRenderer` (igual ao `_loadTown` com `TownTMXRenderer`)
-4. Condição de saída corrigida: `gridY >= 9` → `gridY >= BONUS_H - 1`
+Tarefas:
+1. Criar `src/config/BonusAreaData.ts`: `BONUS_W=30`, `BONUS_H=22`, `BONUS_AREA_OVERRIDES`, `BONUS_AREA_NPCS`
+2. Criar `src/systems/BonusAreaRenderer.ts`: renderizar chão com suporte a `forceGid`, labels de coord, toggle ON/OFF, clique exibe `[DEBUG bonus] (x,y)` e override atual
+3. Reescrever `GameScene._loadBonusArea()` para delegar ao `BonusAreaRenderer` (igual ao `_loadTown` com `TownTMXRenderer`)
+4. Corrigir condição de saída: `gridY >= 9` → `gridY >= BONUS_H - 1`
 
-Arquivos modificados:
-- `src/config/BonusAreaData.ts` — novo, config isolada da área bônus
-- `src/systems/BonusAreaRenderer.ts` — novo, renderer com debug completo
+Arquivos a criar:
+- `src/config/BonusAreaData.ts` — config isolada da área bônus
+- `src/systems/BonusAreaRenderer.ts` — renderer com debug completo
+
+Arquivos a modificar:
 - `src/scenes/GameScene.ts` — `_loadBonusArea()` reescrito, import de `BonusAreaRenderer`, condição de saída corrigida
 
 ---
@@ -861,15 +863,15 @@ Limpeza de arquivos de documentação obsoletos da raiz do repositório.
 Objetivo:
 Remover `KIRO_RESUMO.md`, `IMPLEMENTATION_SUMMARY.md`, `fase_3.md` e `fase_5.md` — conteúdo já migrado para `.kiro/` e `docs/`.
 
-Tarefas realizadas:
-1. Arquivos deletados e staged para remoção
-2. CHANGELOG.md e Vitor.md atualizados para o commit passar
+Tarefas:
+1. Deletar e fazer stage para remoção dos arquivos obsoletos
+2. Atualizar CHANGELOG.md e Vitor.md para o commit passar
 
-Arquivos modificados:
-- `KIRO_RESUMO.md` — removido
-- `IMPLEMENTATION_SUMMARY.md` — removido
-- `fase_3.md` — removido
-- `fase_5.md` — removido
+Arquivos a modificar:
+- `KIRO_RESUMO.md` — remover
+- `IMPLEMENTATION_SUMMARY.md` — remover
+- `fase_3.md` — remover
+- `fase_5.md` — remover
 
 ---
 
@@ -884,16 +886,18 @@ Objetivo:
 3. Temas visuais distintos por faixa de andares (dungeon/mine/underworld/boss)
 4. Preparar extensão futura (water, lava, chasm) sem alterar renderer
 
-Tarefas realizadas:
-1. `dungeon-themes.ts` reestruturado: `TileCategory`, `AutoTileSet` (face, cornerOuter_TL/TR, bodyFrames, cornerInner_TL/TR), `DungeonTheme` com `autoTileSets`; 4 temas com frames corretos de Wall.png e Floor.png
-2. `AutoTileResolver` criado: interpreta vizinhos cardinais, resolve `TileRenderData`; sem objetos Phaser
-3. `DungeonRenderer` criado: itera grid, delega ao resolver, emite `RenderCommand[]`
-4. `GameScene._loadDungeonFloor()`: loop inline substituído por `DungeonRenderer.buildCommands()`; imports de `pickFloorFrame`/`pickWallFrame` removidos
+Tarefas:
+1. Reestruturar `dungeon-themes.ts`: `TileCategory`, `AutoTileSet` (face, cornerOuter_TL/TR, bodyFrames, cornerInner_TL/TR), `DungeonTheme` com `autoTileSets`; 4 temas com frames corretos de Wall.png e Floor.png
+2. Criar `AutoTileResolver`: interpretar vizinhos cardinais, resolver `TileRenderData`; sem objetos Phaser
+3. Criar `DungeonRenderer`: iterar grid, delegar ao resolver, emitir `RenderCommand[]`
+4. Em `GameScene._loadDungeonFloor()`: substituir loop inline por `DungeonRenderer.buildCommands()`; remover imports de `pickFloorFrame`/`pickWallFrame`
 
-Arquivos modificados:
-- `src/config/dungeon-themes.ts` — reescrito com AutoTileSet e 4 temas
-- `src/systems/AutoTileResolver.ts` — novo
-- `src/systems/DungeonRenderer.ts` — novo
+Arquivos a criar:
+- `src/systems/AutoTileResolver.ts`
+- `src/systems/DungeonRenderer.ts`
+
+Arquivos a modificar:
+- `src/config/dungeon-themes.ts` — reescrever com AutoTileSet e 4 temas
 - `src/scenes/GameScene.ts` — delegação ao DungeonRenderer, `width: W, height: H` restaurados
 
 ---
@@ -907,13 +911,13 @@ Objetivo:
 1. Corrigir sprite de item não desaparecendo ao coletar
 2. Adicionar flag `godMode` em configuração de desenvolvimento
 
-Tarefas realizadas:
-1. `_checkItemPickup()`: substituído `delayedCall(0, s.destroy)` por `item.sprite?.destroy()` imediato
-2. Loop de recriação de sprites em `_loadDungeonFloor()`: adicionado `item.sprite?.destroy()` antes de criar novo sprite
-3. `constants.ts`: adicionado `DEV_CONFIG = { godMode: false }` ao final do arquivo
-4. `CombatSystem`: importado `DEV_CONFIG`; dano ao player condicionado a `!DEV_CONFIG.godMode`
+Tarefas:
+1. Em `_checkItemPickup()`: substituir `delayedCall(0, s.destroy)` por `item.sprite?.destroy()` imediato
+2. No loop de recriação de sprites em `_loadDungeonFloor()`: adicionar `item.sprite?.destroy()` antes de criar novo sprite
+3. Em `constants.ts`: adicionar `DEV_CONFIG = { godMode: false }` ao final do arquivo
+4. Em `CombatSystem`: importar `DEV_CONFIG`; condicionar dano ao player a `!DEV_CONFIG.godMode`
 
-Arquivos modificados:
+Arquivos a modificar:
 - `src/scenes/GameScene.ts` — destroy imediato, destroy antes de recriar
 - `src/utils/constants.ts` — DEV_CONFIG
 - `src/systems/CombatSystem.ts` — godMode check
@@ -928,15 +932,15 @@ Após implementação do autotiling semântico, godMode e correções de bugs, a
 Objetivo:
 Manter documentação sincronizada com o estado atual do código.
 
-Tarefas realizadas:
-1. `CHANGELOG.md`: nova seção `[0.5.2]` com Added, Fixed e Changed
-2. `docs/guia-sprites.md`: seção de dungeon reescrita para API de autotiling; tabela resumo atualizada
-3. `docs/PRD.md`: versão 0.5.2, status atualizado, seção dungeon com múltiplos andares/temas, escopo expandido
-4. `.kiro/steering/game-steering.md`: estrutura de pastas e 6 novas restrições arquiteturais
-5. `.kiro/specs/product.md`: tabela de sistemas e seção Dungeon atualizadas; área bônus documentada
-6. `.kiro/specs/world.spec.md`: tabela de áreas e transições expandida com área bônus e múltiplos andares
+Tarefas:
+1. Em `CHANGELOG.md`: adicionar nova seção `[0.5.2]` com Added, Fixed e Changed
+2. Em `docs/guia-sprites.md`: reescrever seção de dungeon para API de autotiling; atualizar tabela resumo
+3. Em `docs/PRD.md`: atualizar para versão 0.5.2, status e seção dungeon com múltiplos andares/temas, expandir escopo
+4. Em `.kiro/steering/game-steering.md`: atualizar estrutura de pastas e adicionar 6 novas restrições arquiteturais
+5. Em `.kiro/specs/product.md`: atualizar tabela de sistemas e seção Dungeon; documentar área bônus
+6. Em `.kiro/specs/world.spec.md`: expandir tabela de áreas e transições com área bônus e múltiplos andares
 
-Arquivos modificados:
+Arquivos a modificar:
 - `CHANGELOG.md`
 - `docs/guia-sprites.md`
 - `docs/PRD.md`
@@ -967,7 +971,7 @@ Requisitos principais submetidos ao agente:
 - Ferramental dev: DebugOverlayRenderer (semantic/variant/bitmask), MaskFrequencyLogger, VisualRegressionScene
 - Filosofia: validação visual iterativa > completude teórica; quando em dúvida, remover variação
 
-Constraints técnicas adicionais (refinamentos iterativos durante o planejamento):
+Decisões técnicas:
 - LUT não pode ser chain de set() com overwrites — deve ser classifyVariant() pura
 - Diagonais sem cardinais de suporte devem ser sanitizadas (fechadas)
 - WALL_EDGE deve ter espessura de exatamente 1 tile (cardinais apenas para classificação)
@@ -977,19 +981,19 @@ Constraints técnicas adicionais (refinamentos iterativos durante o planejamento
 - MaskFrequencyLogger para diagnóstico de distribuição de masks em runtime
 - VisualRegressionScene determinística para screenshot comparison após mudanças
 
-Tarefas realizadas:
-1. `TileSemanticsProvider.ts` (novo): interface TileSemantics, tabela extensível, getTileSemantics()
-2. `SemanticClassifier.ts` (novo): classifyGrid() com 4 vizinhos cardinais, SemanticValue enum, SemanticGrid type
-3. `WallVariantLUT.ts` (novo): BIT constants, sanitizeMask(), WallVariant enum (7 variantes), classifyVariant() pura, buildWallVariantLUT(), computeRawMask()
-4. `dungeon-themes.ts` (modificado): TileCategory estendido com wall_edge/void/string; BitmaskFrameSet interface; AutoTileSet com bitmaskFrames?/voidFrame?; wall_edge + bitmaskFrames para todos os 4 temas; body = 1 frame por tema
-5. `AutoTileResolver.ts` (modificado): nova assinatura resolve(grid, sem, ...); resolveCategory usa SemanticGrid; branch wall_edge com bitmask; fallback legado preservado; _computeRawMask, _frameForVariant adicionados
-6. `DungeonRenderer.ts` (modificado): integra classifyGrid(); skip VOID sem RenderCommand; passa sem para resolver
-7. `GameScene.ts` (modificado): setBackgroundColor(0x000000) em _loadDungeonFloor()
-8. `DebugOverlayRenderer.ts` (novo): modos semantic/variant/bitmask, atlas-agnostic via DEBUG_FRAMES
-9. `MaskFrequencyLogger.ts` (novo): record() por tile, report() com top masks + variant totals + unused count
-10. `VisualRegressionScene.ts` (novo): grid hardcoded 20×15 cobrindo casos críticos, toggle de modos via teclas 1–4, L para log
+Tarefas:
+1. Criar `TileSemanticsProvider.ts`: interface TileSemantics, tabela extensível, getTileSemantics()
+2. Criar `SemanticClassifier.ts`: classifyGrid() com 4 vizinhos cardinais, SemanticValue enum, SemanticGrid type
+3. Criar `WallVariantLUT.ts`: BIT constants, sanitizeMask(), WallVariant enum (7 variantes), classifyVariant() pura, buildWallVariantLUT(), computeRawMask()
+4. Modificar `dungeon-themes.ts`: estender TileCategory com wall_edge/void/string; adicionar BitmaskFrameSet interface; incluir AutoTileSet com bitmaskFrames?/voidFrame?; wall_edge + bitmaskFrames para todos os 4 temas; body = 1 frame por tema
+5. Modificar `AutoTileResolver.ts`: nova assinatura resolve(grid, sem, ...); resolveCategory usa SemanticGrid; branch wall_edge com bitmask; preservar fallback legado; adicionar _computeRawMask, _frameForVariant
+6. Modificar `DungeonRenderer.ts`: integrar classifyGrid(); skip VOID sem RenderCommand; passar sem para resolver
+7. Modificar `GameScene.ts`: chamar setBackgroundColor(0x000000) em _loadDungeonFloor()
+8. Criar `DebugOverlayRenderer.ts`: modos semantic/variant/bitmask, atlas-agnostic via DEBUG_FRAMES
+9. Criar `MaskFrequencyLogger.ts`: record() por tile, report() com top masks + variant totals + unused count
+10. Criar `VisualRegressionScene.ts`: grid hardcoded 20×15 cobrindo casos críticos, toggle de modos via teclas 1–4, L para log
 
-Arquivos criados:
+Arquivos a criar:
 - `src/systems/TileSemanticsProvider.ts`
 - `src/systems/SemanticClassifier.ts`
 - `src/systems/WallVariantLUT.ts`
@@ -997,7 +1001,7 @@ Arquivos criados:
 - `src/systems/MaskFrequencyLogger.ts`
 - `src/scenes/VisualRegressionScene.ts`
 
-Arquivos modificados:
+Arquivos a modificar:
 - `src/config/dungeon-themes.ts`
 - `src/systems/AutoTileResolver.ts`
 - `src/systems/DungeonRenderer.ts`
@@ -1021,26 +1025,26 @@ Branch `feature/game-structure-fixes`. Implementação do sistema de magias inte
 Objetivo:
 Adicionar sistema de magias jogável: desbloqueio por nível, dois slots equipáveis (J/K), mecânica melee-range (sem projétil), painel de magias integrado ao `I`, slots no footer e navegação por teclado.
 
-Decisões técnicas tomadas com IA:
-- Magias melee-range (4 cardinais adjacentes) em vez de projétil — eliminado `Projectile` para evitar bugs de ciclo de vida do sprite fora da cena
+Decisões técnicas:
+- Magias melee-range (4 cardinais adjacentes) em vez de projétil — eliminar `Projectile` para evitar bugs de ciclo de vida do sprite fora da cena
 - `SpellCastingSystem` tipado com `EnemySystem` (não `Enemy`) para compatibilidade com `takeDamage(amount, emitter)`
 - `hitEnemies: EnemySystem[]` em vez de `hitEnemy | null` — dano em todos os adjacentes simultâneo
 - Slots J/K movidos para dentro do footer (action bar), tamanho 20×20, mesmo padrão dos slots de poção
 - Navegação por teclado no painel de magias: estado `_spellsFocus: 'tabs' | 'list'` em GameScene; `SPELLS_SELECTION_CHANGED` sincroniza visual no SpellsPanel
 - `INVENTORY_TAB_CHANGED` com flag `_fromKeyboard` para distinguir origem teclado vs clique e evitar loop de eventos
 
-Tarefas realizadas:
-1. `SpellSystem.ts` (novo): desbloqueio, equipamento, cooldown por slot
-2. `SpellCastingSystem.ts` (novo/reescrito): cast melee — 4 tiles cardinais, retorna `SpellCastResult` com `hitEnemies[]`
-3. `SpellsPanel.ts` (novo): painel integrado ao `I`, 85%×80%, `clearSelection()` adicionado
-4. `StatusPanel.ts` (novo): atributos detalhados do player
-5. `spells.db.ts` + `spell-progression.ts` + `types/spells.ts` (novos): definições data-driven
-6. `GameScene.ts` (modificado): `_castSpell()` melee, `_inventoryTab`, `_spellsFocus`, `_spellsSelectedIndex`, navegação ←/→/↑/↓ no painel
-7. `UIScene.ts` (modificado): slots J/K no footer (20×20), `SPELLS_SELECTION_CHANGED` ouvido, `INVENTORY_TAB_CHANGED` com `_fromKeyboard`
-8. `constants.ts` (modificado): `SPELLS_SELECTION_CHANGED` adicionado
-9. Testes corrigidos: `potion_poison` → `potion_mana`; HP ajustado para cap de `POTION_HEAL_AMOUNT=25`; gold do shop 470→460
+Tarefas:
+1. Criar `SpellSystem.ts`: desbloqueio, equipamento, cooldown por slot
+2. Criar `SpellCastingSystem.ts`: cast melee — 4 tiles cardinais, retornar `SpellCastResult` com `hitEnemies[]`
+3. Criar `SpellsPanel.ts`: painel integrado ao `I`, 85%×80%, adicionar `clearSelection()`
+4. Criar `StatusPanel.ts`: atributos detalhados do player
+5. Criar `spells.db.ts` + `spell-progression.ts` + `types/spells.ts`: definições data-driven
+6. Modificar `GameScene.ts`: implementar `_castSpell()` melee, `_inventoryTab`, `_spellsFocus`, `_spellsSelectedIndex`, navegação ←/→/↑/↓ no painel
+7. Modificar `UIScene.ts`: adicionar slots J/K no footer (20×20), ouvir `SPELLS_SELECTION_CHANGED`, tratar `INVENTORY_TAB_CHANGED` com `_fromKeyboard`
+8. Modificar `constants.ts`: adicionar `SPELLS_SELECTION_CHANGED`
+9. Corrigir testes: `potion_poison` → `potion_mana`; HP ajustado para cap de `POTION_HEAL_AMOUNT=25`; gold do shop 470→460
 
-Arquivos criados:
+Arquivos a criar:
 - `src/systems/SpellSystem.ts`
 - `src/systems/SpellCastingSystem.ts`
 - `src/ui/SpellsPanel.ts`
@@ -1050,7 +1054,7 @@ Arquivos criados:
 - `src/types/spells.ts`
 - `.kiro/specs/spells.spec.md`
 
-Arquivos modificados:
+Arquivos a modificar:
 - `src/scenes/GameScene.ts`
 - `src/scenes/UIScene.ts`
 - `src/entities/Player.ts`
@@ -1072,12 +1076,108 @@ Data: 2026-05-12
 Contexto:
 Correção de bug visual: sprites de itens no chão da dungeon não desapareciam após o jogador coletá-los. O item era adicionado ao inventário corretamente (lógica de coleta funcionando), mas o sprite permanecia visível na dungeon.
 
-Decisões tomadas:
-1. **Causa raiz identificada**: as chamadas `setVisible(false).setActive(false)` antes de `destroy()` em `_checkItemPickup` eram problemáticas no Phaser 4 — desativar o sprite antes de destruí-lo pode impedir que o objeto seja removido corretamente da display list do Phaser. A correção foi usar `item.sprite.destroy()` diretamente, sem as chamadas intermediárias.
-2. **Cache sincronizado**: após `this._items = this._items.filter(i => i.gridX !== null)`, o cache do andar (`_dungeonCache`) agora é atualizado com a referência filtrada (`cached.items = this._items`). Isso garante que ao re-entrar no mesmo andar, apenas os itens ainda no chão tenham sprites recriados.
-3. Em Phaser 4, `destroy()` é síncrono e remove o objeto da display list imediatamente — não requer `setVisible(false)` ou `setActive(false)` préviamente.
+Decisões técnicas:
+1. **Causa raiz**: as chamadas `setVisible(false).setActive(false)` antes de `destroy()` em `_checkItemPickup` são problemáticas no Phaser 4 — desativar o sprite antes de destruí-lo pode impedir que o objeto seja removido corretamente da display list do Phaser. Usar `item.sprite.destroy()` diretamente, sem as chamadas intermediárias.
+2. **Cache sincronizado**: após `this._items = this._items.filter(i => i.gridX !== null)`, atualizar o cache do andar (`_dungeonCache`) com a referência filtrada (`cached.items = this._items`). Isso garante que ao re-entrar no mesmo andar, apenas os itens ainda no chão tenham sprites recriados.
+3. Em Phaser 4, `destroy()` é síncrono e remove o objeto da display list imediatamente — não requer `setVisible(false)` ou `setActive(false)` previamente.
 
-Arquivos modificados:
-- `src/scenes/GameScene.ts`: `_checkItemPickup()` — removidos `setVisible(false).setActive(false)` antes de `destroy()` em ambos os branches (gold e regular items); cache atualizado após o filtro
-- `CHANGELOG.md`: entrada na seção `[Unreleased]` descrevendo a correção
+Tarefas:
+1. Em `_checkItemPickup()`: remover `setVisible(false).setActive(false)` antes de `destroy()` em ambos os branches (gold e regular items)
+2. Após o filtro de items, atualizar o cache: `cached.items = this._items`
+3. Em `CHANGELOG.md`: adicionar entrada na seção `[Unreleased]` descrevendo a correção
 
+Arquivos a modificar:
+- `src/scenes/GameScene.ts` — `_checkItemPickup()` corrigido e cache atualizado após o filtro
+- `CHANGELOG.md` — entrada na seção `[Unreleased]`
+
+---
+
+## Prompt 32 — fix(classes): aplicar bônus de atributo da classe selecionada ao iniciar o jogo
+Autor: Vitor
+Data: 2026-05-16
+
+Contexto:
+Ao iniciar uma nova partida com qualquer classe diferente do Guerreiro padrão, todos os personagens começam com os mesmos atributos base (STR/INT/DEX/WIS = 10, CON = 18). O campo `classDef.statBonus` existe e contém os bônus corretos por classe, mas nenhum código chama `recalcStats()` com esses bônus — o `player.classDef` é atribuído, mas os campos individuais de atributo (`str`, `intel`, `dex`, `con`, `wis`) nunca são atualizados.
+
+Objetivo:
+Garantir que a classe selecionada pelo jogador aplique corretamente seus bônus de atributo ao Player na inicialização da partida.
+
+Tarefas:
+1. Em `src/entities/Player.ts`, adicionar método `applyClassBonus(classDef: PlayerClassDef)`:
+   - Para cada stat em `classDef.statBonus`, calcular `BASE_STATS.<STAT> + bonus` e atribuir ao campo correspondente do Player
+   - Chamar `recalcStats()` após aplicar todos os atributos
+   - Restaurar `this.hp = this.maxHp` e `this.mana = this.maxMana` após recalcular
+2. Em `src/scenes/GameScene.ts`, na função que inicializa o Player com a classe selecionada:
+   - Após `this.player.classDef = classDef`, chamar `this.player.applyClassBonus(classDef)`
+
+Requisitos:
+- Os valores de `BASE_STATS` não devem ser mutados — apenas os campos individuais do Player recebem o valor calculado
+- `recalcStats()` deve ser chamado depois de todos os atributos ajustados para derivar `maxHp`, `maxMana`, `attack`, `critChance`, `cdReduction` e `spellBonus` corretamente
+- HP e Mana do player devem refletir os novos máximos imediatamente ao entrar no jogo
+
+Arquivos a modificar:
+- `src/entities/Player.ts` — novo método `applyClassBonus(classDef: PlayerClassDef)`
+- `src/scenes/GameScene.ts` — chamada a `applyClassBonus()` ao iniciar com classe selecionada
+
+---
+
+## Prompt 33 — feat(loot): drops visuais por quantidade de ouro e sistema de baús na dungeon
+Autor: Vitor
+Data: 2026-05-16
+
+Contexto:
+O spritesheet `Money.png` é 128×128 pixels com frames 16×16 (8 colunas × 8 linhas = 64 frames). A Row 2 (linha de índice 1, frames 8 a 15) contém representações visuais de quantidades de ouro e um baú vermelho fechado. Atualmente todos os drops de ouro usam frame 0 (frame errado). Não existem baús nas dungeons.
+
+Objetivo:
+1. Usar frames da Row 2 para mostrar a quantidade visual de ouro dropado por inimigos
+2. Implementar baús gerados proceduralmente nas dungeons com sistema de loot por profundidade
+3. Corrigir a propriedade `goldAmount` que está sendo atribuída dinamicamente em `LootSystem` sem declaração formal na classe `Item`
+
+Especificação de frames (Money.png, 0-indexed):
+- Frame 8 (Row 2, Col 1): pilha grande — usar quando `goldAmount >= 50`
+- Frame 9 (Row 2, Col 2): pilha média — usar quando `20 <= goldAmount < 50`
+- Frame 10 (Row 2, Col 3): moeda única — usar quando `goldAmount < 20`
+- Frame 14 (Row 2, Col 7): baú vermelho fechado
+
+Tarefas:
+1. `src/utils/constants.ts` — substituir `GOLD: 0` por:
+   ```ts
+   GOLD_SMALL:  10,  // moeda única
+   GOLD_MEDIUM:  9,  // pilha média
+   GOLD_LARGE:   8,  // pilha grande
+   CHEST:       14,  // baú fechado
+   ```
+2. `src/entities/Item.ts` — declarar `goldAmount?: number` como propriedade formal da classe
+3. `src/systems/LootSystem.ts`:
+   - Escalar o valor de ouro dropado por inimigos com o andar (base + andar × 6, ±30% de variação)
+   - Adicionar interface `ChestLootResult` e método `rollChestLoot(floor: number): ChestLootResult`
+   - Loot de baú por profundidade:
+     - Andar 1–2: 60% ouro | 40% poção
+     - Andar 3–5: 50% ouro | 30% poção | 20% mímica (player toma 15–25 de dano)
+     - Andar 6+: 50% equipamento (gerado para o andar) | 30% ouro | 20% poção forte
+   - Para equipamentos: sortear pool adequada ao andar, atribuir `name`, `slotId`, `rarity`, `bonuses` e `price` proporcionais ao andar
+4. `src/generators/DungeonFeatureGenerator.ts`:
+   - Adicionar `'chest'` ao union `FeatureType`
+   - Após gerar as escadas, spawnar 1–2 baús em rooms intermediárias (excluindo rooms 0 e última)
+   - Excluir posições já ocupadas por escadas e `startPos`; adicionar `metadata: { opened: false }` a cada baú
+5. `src/scenes/GameScene.ts`:
+   - Adicionar campo `_chestSprites = new Map<string, Phaser.GameObjects.Sprite>()` para rastrear sprites de baús
+   - `_cleanup()`: destruir e limpar `_chestSprites`
+   - `_getItemVisual(type, goldAmount?)`: selecionar frame baseado nos limiares de `goldAmount`; adicionar `default` case no switch
+   - `_renderDungeonFeatures()`: para features `chest` não abertas, criar sprite com frame `DAWNLIKE_FRAMES.CHEST` e registrar em `_chestSprites`
+   - Novo método `_checkChestInteraction()`: ao pisar em feature `chest` não aberta, chamar `lootSystem.rollChestLoot()`, processar resultado (mímica → dano, ouro/poção → spawn+coleta, equipamento → inventário), destruir sprite do baú, marcar `metadata.opened = true`
+   - Chamar `_checkChestInteraction()` imediatamente após `_checkItemPickup()` no fluxo de movimento (`result.playerMoved`)
+6. `src/ui/ActionBarPanel.ts` — atualizar referência de `DAWNLIKE_FRAMES.GOLD` para `DAWNLIKE_FRAMES.GOLD_SMALL`
+
+Requisitos:
+- `_spawnDroppedItem()` deve ser idempotente: destruir sprite existente antes de criar novo; não adicionar o mesmo item a `_items` duas vezes (`includes()` check)
+- Baús abertos não devem reaparecer ao re-entrar no andar (flag `metadata.opened` persiste no cache)
+- Equipamentos de baú não emitem `ITEM_DROPPED` — são adicionados diretamente ao inventário
+
+Arquivos a modificar:
+- `src/utils/constants.ts`
+- `src/entities/Item.ts`
+- `src/systems/LootSystem.ts`
+- `src/generators/DungeonFeatureGenerator.ts`
+- `src/scenes/GameScene.ts`
+- `src/ui/ActionBarPanel.ts`

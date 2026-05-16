@@ -48,17 +48,45 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ---
 
-## [Unreleased]
+## [0.6.0] — 2026-05-16
 
 ### Added
+
+#### Classes de Herói com Bônus de Atributo
+
+- **`Player.applyClassBonus(classDef)`**: aplica os bônus de `classDef.statBonus` aos campos individuais de atributo (`str`, `intel`, `dex`, `con`, `wis`), chama `recalcStats()` e restaura HP/Mana ao máximo — garante que cada classe inicie com os stats corretos
+- `GameScene` chama `applyClassBonus()` após atribuir a classe selecionada ao Player, corrigindo o bug em que todas as classes iniciavam com STR/INT/DEX/WIS = 10 e CON = 18 independente da classe
+
+#### Sistema de Drops Visuais de Ouro por Quantidade
+
+- **Frames de ouro por tier** em `DAWNLIKE_FRAMES` (`constants.ts`): `GOLD_SMALL: 10` (moeda única, `goldAmount < 20`), `GOLD_MEDIUM: 9` (pilha média, 20–49), `GOLD_LARGE: 8` (pilha grande, ≥ 50) — todos da Row 2 de `Money.png`
+- `_getItemVisual()` em `GameScene` seleciona o frame correto baseado em `goldAmount` do item; gold dropado por inimigos agora escala visualmente com a quantidade
+- Valor de ouro escalado por andar: `base = 5 + floor × 6` com ±30% de variação aleatória; inimigos elite dropamd 1.8× mais ouro
+
+#### Sistema de Baús nas Dungeons
+
+- **`FeatureType.chest`** em `DungeonFeatureGenerator`: além de escadas, cada andar spawna 1–2 baús em rooms intermediárias (excluindo a primeira e última sala), armazenados com `metadata: { opened: false }`
+- **Renderização de baú**: `_renderDungeonFeatures()` cria sprite com frame `DAWNLIKE_FRAMES.CHEST` (14) para cada baú não aberto; sprites rastreados em `_chestSprites: Map<string, Phaser.GameObjects.Sprite>` para destruição controlada
+- **`LootSystem.rollChestLoot(floor)`**: loot de baú por tier de andar:
+  - Andar 1–2: 60% ouro (maior que drop comum) | 40% poção
+  - Andar 3–5: 50% ouro | 30% poção | 20% mímica (player toma 15–25 de dano)
+  - Andar 6+: 50% equipamento gerado para o andar | 30% ouro | 20% poção forte
+- **`_checkChestInteraction()`** em `GameScene`: ao pisar em baú não aberto, processa resultado — mímica aplica dano direto, ouro/poção são criados e coletados imediatamente, equipamento vai direto ao inventário; sprite do baú destruído e `metadata.opened = true` persiste no cache do andar
+- Baús abertos não reaparecem ao re-entrar no mesmo andar
+- Equipamentos de baú com 3 pools por tier de andar (mid/advanced/elite) e raridade escalada com profundidade
+
+#### Testes e Cobertura
+
 - Testes guia para `LogSystem` (`tests/log-system.test.js`): 10 testes prontos + 6 exercícios completados
 - Testes guia para `PlayerMetrics` (`tests/player-metrics.test.js`): 11 testes prontos + 7 exercícios completados
-- Cobertura completa de LogSystem (buffer, limite máximo, isDirty, buildViewModel, clear) e PlayerMetrics (contadores, score de performance, janela deslizante, reset)
+- Cobertura completa de `LogSystem` (buffer, limite máximo, isDirty, buildViewModel, clear) e `PlayerMetrics` (contadores, score de performance, janela deslizante, reset)
 - **Tela de Game Over com estatísticas da partida**: ao morrer, o jogador vê nível alcançado, XP total, andares explorados, inimigos mortos, dano causado, dano recebido, turnos sobrevividos e itens usados — dados coletados pelo `PlayerMetrics` e passados via `scene.start()`
 
 ### Fixed
 
-- Sprites de itens no chão da dungeon agora desaparecem corretamente após o jogador coletá-los: removidos os calls `setVisible(false).setActive(false)` antes de `destroy()` — em Phaser 4 desativar o sprite antes de destruí-lo impedia a remoção da display list; cache do andar (`_dungeonCache`) agora é atualizado após o filtro de coleta para manter consistência ao re-entrar no mesmo andar
+- **Classes não aplicavam bônus de atributo ao iniciar**: `player.classDef` era atribuído mas `statBonus` nunca aplicado aos campos individuais; corrigido com `applyClassBonus()` chamado na inicialização
+- **Sprites de moeda de ouro não desapareciam ao coletar**: `_spawnDroppedItem()` tornada idempotente — destrói sprite existente antes de criar novo e guarda com `includes()` check para não adicionar o mesmo item a `_items` duas vezes; `goldAmount` declarada como propriedade formal em `Item` (era assignment dinâmico sem declaração de tipo)
+- Sprites de itens no chão da dungeon desaparecem corretamente após coleta: cache do andar (`_dungeonCache`) atualizado após o filtro de coleta para manter consistência ao re-entrar no mesmo andar
 
 ---
 
@@ -596,7 +624,7 @@ procedural de masmorras, combate turno-a-turno e progressão de personagem.
 
 ---
 
-[Unreleased]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.5.4...HEAD
+[0.6.0]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.5.4...v0.6.0
 [0.5.4]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.5.1...v0.5.2

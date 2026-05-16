@@ -69,7 +69,10 @@ export const DAWNLIKE_FRAMES = {
   PLATINO: 0,         // Reptiles0.png — lagartixa do DragonDePlatino (easter egg)
   POTION_HEAL: 0,     // Potion.png — frasco vermelho (poção de cura)
   POTION_MANA: 7,     // Potion.png — frasco azul (poção de mana)
-  GOLD: 0,            // Money.png — moeda de ouro (frame fixo)
+  GOLD_SMALL:  10,    // Money.png Row 2 Col 3 — moeda única (pouca quantidade)
+  GOLD_MEDIUM:  9,    // Money.png Row 2 Col 2 — poucas moedas agrupadas
+  GOLD_LARGE:   8,    // Money.png Row 2 Col 1 — pilha grande de moedas
+  CHEST:       14,    // Money.png Row 2 Col 7 — baú vermelho fechado
 };
 
 // --- Chaves dos spritesheets carregados na BootScene ---

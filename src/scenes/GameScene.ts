@@ -102,6 +102,7 @@ export class GameScene extends Phaser.Scene {
   // ─── GameObjects rastreados por área (destruídos no cleanup) ─────────────
   private _tileObjects: Phaser.GameObjects.Image[] = [];
   private _decorObjects: Phaser.GameObjects.GameObject[] = [];
+  private _chestSprites = new Map<string, Phaser.GameObjects.Sprite>();
 
   // ─── Sistemas de cidade (recriados em cada _loadTown) ────────────────────
   private _npcController: NPCController | null = null;
@@ -189,7 +190,10 @@ export class GameScene extends Phaser.Scene {
     const initData = this.scene.settings.data as { playerClass?: string } | undefined;
     if (initData?.playerClass) {
       const classDef = PLAYER_CLASSES.find(c => c.id === initData.playerClass) ?? null;
-      if (classDef) this.player.classDef = classDef;
+      if (classDef) {
+        this.player.classDef = classDef;
+        this.player.applyClassBonus(classDef);
+      }
     }
 
     // Desbloquear magias do nível 1 para novo jogo
@@ -305,6 +309,9 @@ export class GameScene extends Phaser.Scene {
 
     this._decorObjects.forEach(o => o.destroy());
     this._decorObjects = [];
+
+    this._chestSprites.forEach(s => s.destroy());
+    this._chestSprites.clear();
 
     this._npcController?.destroy();
     this._npcController = null;
@@ -463,7 +470,7 @@ export class GameScene extends Phaser.Scene {
       item.sprite?.destroy();
       const px = item.gridX * TILE_SIZE + TILE_SIZE / 2;
       const py = item.gridY * TILE_SIZE + TILE_SIZE / 2;
-      const { texture, frame } = this._getItemVisual(item.type);
+      const { texture, frame } = this._getItemVisual(item.type, item.goldAmount);
       item.sprite = this.add.sprite(px, py, texture, frame).setDepth(3);
     }
 
@@ -540,7 +547,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private _getItemVisual(type: ItemType): { texture: string; frame: number } {
+  private _getItemVisual(type: ItemType, goldAmount?: number): { texture: string; frame: number } {
     switch (type) {
       case 'potion_heal_light':
       case 'potion_heal':
@@ -548,7 +555,14 @@ export class GameScene extends Phaser.Scene {
       case 'potion_mana_light':
       case 'potion_mana':
       case 'potion_mana_high':  return { texture: SPRITES.POTION, frame: DAWNLIKE_FRAMES.POTION_MANA };
-      case 'gold':              return { texture: SPRITES.MONEY,  frame: DAWNLIKE_FRAMES.GOLD };
+      case 'gold': {
+        const amt = goldAmount ?? 0;
+        const frame = amt >= 50 ? DAWNLIKE_FRAMES.GOLD_LARGE
+          : amt >= 20 ? DAWNLIKE_FRAMES.GOLD_MEDIUM
+          : DAWNLIKE_FRAMES.GOLD_SMALL;
+        return { texture: SPRITES.MONEY, frame };
+      }
+      default:                  return { texture: SPRITES.POTION, frame: 0 };
     }
   }
 
@@ -556,9 +570,12 @@ export class GameScene extends Phaser.Scene {
     if (item.gridX === null || item.gridY === null) return;
     const px = item.gridX * TILE_SIZE + TILE_SIZE / 2;
     const py = item.gridY * TILE_SIZE + TILE_SIZE / 2;
-    const { texture, frame } = this._getItemVisual(item.type);
+    const { texture, frame } = this._getItemVisual(item.type, item.goldAmount);
+    item.sprite?.destroy();
     item.sprite = this.add.sprite(px, py, texture, frame).setDepth(3);
-    this._items.push(item);
+    if (!this._items.includes(item)) {
+      this._items.push(item);
+    }
   }
 
   private _renderDungeonFeatures(floor: number): void {
@@ -580,6 +597,9 @@ export class GameScene extends Phaser.Scene {
             fontSize: '5px', color: '#44aaff', fontFamily: 'monospace',
           }).setOrigin(0.5, 1).setDepth(3),
         );
+      } else if (feature.type === 'chest' && !feature.metadata?.['opened']) {
+        const sprite = this.add.sprite(px, py, SPRITES.MONEY, DAWNLIKE_FRAMES.CHEST).setDepth(3);
+        this._chestSprites.set(`${feature.gridX},${feature.gridY}`, sprite);
       }
     }
   }
@@ -755,6 +775,57 @@ export class GameScene extends Phaser.Scene {
     if (cached) cached.items = this._items;
   }
 
+  private _checkChestInteraction(): void {
+    if (this._currentArea !== 'dungeon') return;
+    const px = this.player.gridX;
+    const py = this.player.gridY;
+    const floor = this.floorManager.currentFloor;
+
+    const chest = this._dungeonFeatures.find(
+      f => f.type === 'chest' && f.gridX === px && f.gridY === py && !f.metadata?.['opened'],
+    );
+    if (!chest) return;
+
+    // Marcar baú como aberto e remover sprite
+    chest.metadata!['opened'] = true;
+    const key = `${px},${py}`;
+    this._chestSprites.get(key)?.destroy();
+    this._chestSprites.delete(key);
+
+    const result = this.lootSystem.rollChestLoot(floor);
+
+    if (result.type === 'mimic') {
+      const dmg = result.mimicDamage ?? 20;
+      this.player.hp = Math.max(0, this.player.hp - dmg);
+      EventBus.emit(EVENTS.UI_LOG, `Era uma mímica! Você tomou ${dmg} de dano!`);
+      EventBus.emit(EVENTS.PLAYER_HP_CHANGED, { hp: this.player.hp, maxHp: this.player.maxHp });
+      this._recordGameEvent('TRAP_TRIGGERED', { damage: dmg });
+      return;
+    }
+
+    const item = result.item;
+    if (!item) return;
+
+    if (result.type === 'equipment') {
+      if (this.player.inventory.isFull()) {
+        EventBus.emit(EVENTS.UI_LOG, 'Inventário cheio! Você não conseguiu pegar o item do baú.');
+        return;
+      }
+      this.player.inventory.addItem(item);
+      const slotIndex = this.player.inventory.items.findIndex(i => i === item);
+      EventBus.emit(EVENTS.UI_LOG, `Você encontrou no baú: ${item.name}!`);
+      EventBus.emit(EVENTS.ITEM_PICKED_UP, { item, slotIndex });
+      this._recordGameEvent('ITEM_FOUND', { itemName: item.name });
+      return;
+    }
+
+    // Ouro ou poção: colocar no tile do player e coletar imediatamente
+    item.gridX = px;
+    item.gridY = py;
+    this._spawnDroppedItem(item);
+    this._checkItemPickup();
+  }
+
   // ─── Input ───────────────────────────────────────────────────────────────
 
   private _setupInput(): void {
@@ -908,6 +979,7 @@ export class GameScene extends Phaser.Scene {
 
     if (result.playerMoved) {
       this._checkItemPickup();
+      this._checkChestInteraction();
       this._checkAreaTransition();
     }
 

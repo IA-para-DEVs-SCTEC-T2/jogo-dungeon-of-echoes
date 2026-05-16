@@ -440,7 +440,7 @@ export class UIScene extends Phaser.Scene {
 
     const xpY = PANEL_Y + 32;
     this._levelLabel = this.add
-      .text(PANEL_X, xpY, 'Nv 1  ATK 10', TEXT_STYLE)
+      .text(PANEL_X, xpY, 'Nv 1', TEXT_STYLE)
       .setScrollFactor(0).setDepth(d + 1);
     this._xpLabel = this.add
       .text(PANEL_X, xpY + 12, 'XP: 0 / 100', TEXT_STYLE)
@@ -651,7 +651,7 @@ export class UIScene extends Phaser.Scene {
 
   private _onLevelUp(data: { level: number; maxHp: number; attack: number; freePoints?: number }): void {
     if (!this.sys.isActive()) return;
-    this._levelLabel.setText(`Nv ${data.level}  ATK ${data.attack}`);
+    this._levelLabel.setText(`Nv ${data.level}`);
     if (this._statusPanel.isVisible()) {
       EventBus.emit(EVENTS.STATUS_STATE_REQUESTED, { timestamp: Date.now() });
     }

@@ -216,6 +216,18 @@ export class Player extends Phaser.GameObjects.Sprite {
     }
   }
 
+  applyClassBonus(classDef: PlayerClassDef): void {
+    const b = classDef.statBonus;
+    if (b.str)   this.str   = BASE_STATS.STR + b.str;
+    if (b.intel) this.intel = BASE_STATS.INT + b.intel;
+    if (b.dex)   this.dex   = BASE_STATS.DEX + b.dex;
+    if (b.con)   this.con   = BASE_STATS.CON + b.con;
+    if (b.wis)   this.wis   = BASE_STATS.WIS + b.wis;
+    this.recalcStats();
+    this.hp   = this.maxHp;
+    this.mana = this.maxMana;
+  }
+
   spendStatPoint(stat: 'str' | 'intel' | 'dex' | 'con' | 'wis'): boolean {
     if (this.freePoints <= 0) return false;
     this[stat] += 1;

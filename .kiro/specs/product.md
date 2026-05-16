@@ -76,13 +76,18 @@ Input do jogador → Resolve ação (mover/atacar/item/magia/esperar) → Turno 
 | NPCController | FSM Idle → Wander para NPCs da cidade; `customWanderBounds` por NPC |
 | InteractiveObjectSystem | Detecta proximidade player↔NPC; respeita `houseBounds`; dispara SHOP_OPENED ou DIALOG_OPENED |
 | CityDecorationSystem | Renderização de objetos do mundo com Y-sort automático |
-| LootSystem | Drop probability data-driven (40% nada, 30% heal, 20% poison, 10% gold) |
+| LootSystem | Drop probability data-driven por andar; `rollChestLoot()` para baús (ouro/poção/mímica/equipamento por tier) |
 | WorldSystem | Cache singleton: estado de dungeon e itens persistem dentro da sessão |
 | MapTransitionSystem | Orquestra transições town ↔ dungeon ↔ bonus |
 
+### Classes de Herói
+- Selecionadas na tela de menu antes de iniciar a partida
+- Cada classe define `statBonus` aplicado via `Player.applyClassBonus()`: atributos reais calculados como `BASE_STAT + bonus`, `recalcStats()` chamado em seguida, HP/Mana restaurados ao máximo
+- `classDef` é a fonte de verdade para regras de combate (corpo a corpo, arco, magia) via `ClassRulesEngine`
+
 ### Funcionalidades do Jogador
-- 6 atributos: STR, INT, DEX, CON, WIS, CHA
-- HP (`CON × 5 + Level × 3`) e Mana (`WIS × 4 + INT × 2`) derivados dos atributos; stats recalculados ao equipar/desequipar
+- 6 atributos: STR, INT, DEX, CON, WIS, CHA — inicializados com `BASE_STATS` + bônus da classe
+- HP (`CON × 5 + Level × 3`) e Mana (`WIS × 5 + INT × 2`) derivados dos atributos; stats recalculados ao equipar/desequipar
 - Movimento por teclado (setas ou WASD) no grid; cooldown 150ms por tile
 - Gold (começa com 500) exibido no HUD; atualizado em tempo real
 - 2 slots de magia (J/K) com cooldown independente
@@ -102,8 +107,9 @@ Input do jogador → Resolve ação (mover/atacar/item/magia/esperar) → Turno 
 
 ### Dungeon
 - Geração por BSP (Binary Space Partitioning) com corredores L-shaped
-- Múltiplos andares com cache de estado por andar: inimigos reiniciam, itens persistem
+- Múltiplos andares com cache de estado por andar: inimigos reiniciam, itens e baús persistem
 - Escadas bidirecionais: descida (andar N+1), subida (andar N-1), retorno à cidade pelo andar 1
+- **Baús**: 1–2 por andar gerados em rooms intermediárias; loot escalado por profundidade (ouro → poção → mímica → equipamento); baú aberto não reaparece ao re-entrar
 - **Autotiling semântico**: `AutoTileResolver` interpreta vizinhos cardinais e escolhe frame — face, cantos externos, cantos côncavos, corpo sólido
 - **Temas visuais por andar**: andares 1–2 Dungeon (pedra cinza), 3–4 Mine (terra), 5–6 Underworld (pedra escura), 7+ Underworld Boss (mix abismo)
 - `DungeonRenderer` emite `RenderCommand[]` — `GameScene` apenas cria sprites; arquitetura extensível para novas categorias (water, lava, chasm)

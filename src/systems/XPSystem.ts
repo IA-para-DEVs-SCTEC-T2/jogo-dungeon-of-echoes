@@ -74,6 +74,12 @@ export class XPSystem {
       attack: player.attack,
       freePoints: player.freePoints ?? 0,
     });
+    EventBus.emit(EVENTS.PLAYER_LEVELED_UP, {
+      level: player.level,
+      maxHp: player.maxHp,
+      attack: player.attack,
+      freePoints: player.freePoints ?? 0,
+    });
 
     EventBus.emit(EVENTS.PLAYER_HP_CHANGED, { hp: player.hp, maxHp: player.maxHp });
     if (player.mana !== undefined && player.maxMana !== undefined) {

@@ -52,6 +52,7 @@ export class Item {
   noSell?: boolean;
   noUnequip?: boolean;
   quantity?: number;
+  goldAmount?: number;
 
   constructor(id: string, type: ItemType, gridX: number | null = null, gridY: number | null = null) {
     this.id         = id;

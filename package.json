@@ -1,6 +1,6 @@
 {
   "name": "jogo-dungeon-of-echoes",
-  "version": "0.5.4",
+  "version": "0.6.0",
   "type": "module",
   "description": "Dungeon of Echoes – RPG 2D tile-based com geração procedural",
   "scripts": {
