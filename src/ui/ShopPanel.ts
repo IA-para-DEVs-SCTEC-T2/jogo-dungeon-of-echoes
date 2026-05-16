@@ -28,11 +28,9 @@ const TEXT_GOLD: Phaser.Types.GameObjects.Text.TextStyle = {
 };
 
 const RARITY_COLORS: Record<string, string> = {
-  common:    '#aaaaaa',
-  uncommon:  '#55ff55',
-  rare:      '#aaaaff',
-  epic:      '#cc44ff',
-  legendary: '#ffaa00',
+  common:   '#aaaaaa',
+  uncommon: '#55ff55',
+  rare:     '#aaaaff',
 };
 
 export class ShopPanel {
@@ -92,6 +90,14 @@ export class ShopPanel {
     this._tabSellBg = scene.add.rectangle(ox + padding + tabW + 4, oy + 26, tabW, 14, EMPTY_COLOR).setOrigin(0, 0);
     this._tabBuyTxt  = scene.add.text(ox + padding + tabW / 2, oy + 28, 'Comprar', { ...TEXT_BASE, fontSize: '9px' }).setOrigin(0.5, 0);
     this._tabSellTxt = scene.add.text(ox + padding + tabW + 4 + tabW / 2, oy + 28, 'Vender', { ...TEXT_DIM, fontSize: '9px' }).setOrigin(0.5, 0);
+
+    // Abas clicáveis
+    this._tabBuyBg
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => EventBus.emit(EVENTS.SHOP_TAB_SWITCHED, { tab: 'buy' }));
+    this._tabSellBg
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => EventBus.emit(EVENTS.SHOP_TAB_SWITCHED, { tab: 'sell' }));
 
     const divLine = scene.add.rectangle(ox + listW, oy + 30, 1, panelH - 40, PANEL_BORDER, 0.5).setOrigin(0, 0);
     const detailLabel = scene.add.text(ox + listW + padding, oy + 30, 'DETALHES', { ...TEXT_BASE, color: '#8888cc' });

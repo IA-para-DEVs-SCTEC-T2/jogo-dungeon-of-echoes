@@ -43,15 +43,15 @@ export class Item {
   /** Descrição gerada por IA (opcional, apenas para itens raros/especiais) */
   aiDescription: string | null = null;
 
-  /** Quantidade de ouro (apenas para type === 'gold') */
-  goldAmount?: number;
-
   // Campos opcionais para equipamentos
   name?: string;
   slotId?: EquipmentSlotId;
   bonuses?: StatBonuses;
   price?: number;
   rarity?: ItemRarity;
+  noSell?: boolean;
+  noUnequip?: boolean;
+  quantity?: number;
 
   constructor(id: string, type: ItemType, gridX: number | null = null, gridY: number | null = null) {
     this.id         = id;

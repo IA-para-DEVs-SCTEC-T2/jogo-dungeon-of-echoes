@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { EVENTS, DEV_CONFIG } from '../utils/constants';
+import { EVENTS } from '../utils/constants';
 import type { XPSystem } from './XPSystem';
 
 export interface CombatResult {
@@ -40,8 +40,9 @@ export class CombatSystem {
   }
 
   resolve(
-    player: { hp: number; maxHp: number; attack: number; xp: number; level: number; critChance?: number; getPixelPos?: () => { x: number; y: number } },
+    player: { hp: number; maxHp: number; attack: number; xp: number; level: number; getPixelPos?: () => { x: number; y: number } },
     enemy: { hp: number; maxHp: number; attack: number; xpReward: number; alive: boolean; getPixelPos?: () => { x: number; y: number } },
+    _equippedExtraItemType?: string | null,
   ): CombatResult | null {
     if (!player || !enemy) return null;
     if (!enemy.alive) return null;
@@ -53,14 +54,12 @@ export class CombatSystem {
       playerDied: false,
     };
 
-    // Player ataca — DEX concede chance de crítico (1.5x dano)
-    const isCrit = Math.random() < (player.critChance ?? 0);
-    const playerDmg = isCrit ? Math.floor(player.attack * 1.5) : player.attack;
-    result.playerDamage = playerDmg;
-    enemy.hp = Math.max(0, enemy.hp - playerDmg);
-    this.emitter.emit(EVENTS.COMBAT_HIT, { attacker: player, defender: enemy, damage: playerDmg, crit: isCrit });
+    // Player ataca
+    result.playerDamage = player.attack;
+    enemy.hp = Math.max(0, enemy.hp - player.attack);
+    this.emitter.emit(EVENTS.COMBAT_HIT, { attacker: player, defender: enemy, damage: player.attack });
     if (enemy.getPixelPos) {
-      this.emitter.emit(EVENTS.DAMAGE_ENEMY, { pos: enemy.getPixelPos(), damage: playerDmg });
+      this.emitter.emit(EVENTS.DAMAGE_ENEMY, { pos: enemy.getPixelPos(), damage: player.attack });
     }
 
     if (enemy.hp <= 0) {
@@ -73,7 +72,7 @@ export class CombatSystem {
 
     // Inimigo contra-ataca
     result.enemyDamage = enemy.attack;
-    if (!DEV_CONFIG.godMode) player.hp = Math.max(0, player.hp - enemy.attack);
+    player.hp = Math.max(0, player.hp - enemy.attack);
     this.emitter.emit(EVENTS.COMBAT_HIT, { attacker: enemy, defender: player, damage: enemy.attack });
     if (player.getPixelPos) {
       this.emitter.emit(EVENTS.DAMAGE_PLAYER, { pos: player.getPixelPos(), damage: enemy.attack });
