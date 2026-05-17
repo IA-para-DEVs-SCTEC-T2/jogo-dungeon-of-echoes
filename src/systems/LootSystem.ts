@@ -7,11 +7,11 @@ import type { EquippableItemType, EquipmentSlotId, ItemRarity, StatBonuses } fro
 
 // Tabela de loot por andar — ouro é a recompensa principal e deve ser frequente.
 const LOOT_TABLE: Array<{ nothing: number; potion: number; gold: number }> = [
-  { nothing: 0.50, potion: 0.08, gold: 0.42 }, // andar 1
-  { nothing: 0.47, potion: 0.08, gold: 0.45 }, // andar 2
-  { nothing: 0.44, potion: 0.07, gold: 0.49 }, // andar 3
-  { nothing: 0.41, potion: 0.07, gold: 0.52 }, // andar 4
-  { nothing: 0.38, potion: 0.06, gold: 0.56 }, // andar 5+
+  { nothing: 0.35, potion: 0.08, gold: 0.57 }, // andar 1
+  { nothing: 0.32, potion: 0.08, gold: 0.60 }, // andar 2
+  { nothing: 0.29, potion: 0.07, gold: 0.64 }, // andar 3
+  { nothing: 0.26, potion: 0.07, gold: 0.67 }, // andar 4
+  { nothing: 0.23, potion: 0.06, gold: 0.71 }, // andar 5+
 ];
 
 function getTable(floor: number) {

@@ -1403,26 +1403,42 @@ export class GameScene extends Phaser.Scene {
     );
     if (!result) return;
 
-    if (result.hitEnemies.length === 0) {
-      EventBus.emit(EVENTS.UI_LOG, `${result.spellName} — nenhum alvo adjacente.`);
+    // Cura: sem turno de inimigos (não é ofensivo)
+    if (result.heal !== undefined) {
+      EventBus.emit(EVENTS.UI_LOG, `${result.spellName} recuperou ${result.heal} de vida!`);
       return;
     }
 
-    for (const enemy of result.hitEnemies) {
-      enemy.takeDamage(result.damage, this.events);
-      EventBus.emit(EVENTS.UI_LOG, `${result.spellName} causou ${result.damage} de dano!`);
+    if (result.hitEnemies.length === 0) {
+      EventBus.emit(EVENTS.UI_LOG, `${result.spellName} — nenhum alvo no alcance.`);
+    } else {
+      for (const enemy of result.hitEnemies) {
+        enemy.takeDamage(result.damage, this.events);
+        EventBus.emit(EVENTS.UI_LOG, `${result.spellName} causou ${result.damage} de dano!`);
 
-      if (!enemy.alive) {
-        const pos = enemy.getPixelPos();
-        this._showDamageText(pos, result.damage, COLORS.XP_TEXT);
-        this._removeEnemySprite(enemy);
-        const xpGain = enemy.xpReward ?? 0;
-        if (xpGain > 0) this.xpSystem.addXP(this.player, xpGain);
-      } else {
-        this._syncEnemySprite(enemy);
-        this._showDamageText(enemy.getPixelPos(), result.damage, COLORS.XP_TEXT);
-        if (enemy.sprite) this._flashSprite(enemy.sprite);
+        if (!enemy.alive) {
+          const pos = enemy.getPixelPos();
+          this._showDamageText(pos, result.damage, COLORS.XP_TEXT);
+          this._removeEnemySprite(enemy);
+          const xpGain = enemy.xpReward ?? 0;
+          if (xpGain > 0) this.xpSystem.addXP(this.player, xpGain);
+        } else {
+          this._syncEnemySprite(enemy);
+          this._showDamageText(enemy.getPixelPos(), result.damage, COLORS.XP_TEXT);
+          if (enemy.sprite) this._flashSprite(enemy.sprite);
+        }
       }
+    }
+
+    // Turno dos inimigos após lançar magia ofensiva
+    const enemyResult = this.turnManager.processEnemyTurns(
+      this.player, this._enemies, this._currentMap, this.combatSystem, this.playerMetrics,
+    );
+    enemyResult.messages.forEach(msg => EventBus.emit(EVENTS.UI_LOG, msg));
+    this._enemies.forEach(e => this._syncEnemySprite(e));
+
+    if (enemyResult.playerDied) {
+      this.events.emit(EVENTS.PLAYER_DIED);
     }
   }
 

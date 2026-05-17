@@ -180,4 +180,52 @@ export class TurnManager {
     this.playerTurn = true;
     return result;
   }
+
+  /** Processa apenas o turno dos inimigos (usado após magias do jogador). */
+  processEnemyTurns(
+    player: Player,
+    enemies: EnemySystem[],
+    dungeon: DungeonGenerator,
+    combat: CombatSystem,
+    metrics?: PlayerMetrics,
+  ): TurnResult {
+    const result: TurnResult = {
+      messages: [],
+      playerMoved: false,
+      playerDied: false,
+      enemiesDied: [],
+    };
+
+    for (const enemy of enemies) {
+      if (!enemy.alive) continue;
+
+      const ai = enemy.update(player.gridX, player.gridY, dungeon, enemies, player.classDef);
+
+      if (ai.attacked) {
+        const atk = combat.attack(enemy, player);
+        if (atk.hit) {
+          const rawDmg = atk.damage;
+          const dmgMultiplier = player.classDef
+            ? ClassRulesEngine.physicalDamageMultiplier(player.classDef)
+            : 1.0;
+          const reduced = Math.max(1, Math.round(rawDmg * dmgMultiplier));
+          if (!DEV_CONFIG.godMode) player.hp = Math.max(0, player.hp - reduced);
+          metrics?.recordDamageTaken(reduced);
+          EventBus.emit(EVENTS.PLAYER_HP_CHANGED, { hp: player.hp, maxHp: player.maxHp });
+          result.messages.push(`Inimigo atacou você por ${reduced}`);
+          if (player.hp <= 0) {
+            result.playerDied = true;
+            metrics?.recordDeath();
+            result.messages.push('Você morreu');
+          }
+        } else {
+          result.messages.push('Inimigo errou');
+        }
+      }
+
+      if (result.playerDied) break;
+    }
+
+    return result;
+  }
 }

@@ -151,7 +151,7 @@ export const PLAYER_CLASSES: PlayerClassDef[] = [
     startingArrows: 0,
     manaCostMultiplier: 0.65,
     manaRegenPerTurn: 3,
-    exclusiveSpells: ['ice_bolt'],
+    exclusiveSpells: ['ice_bolt', 'great_fire'],
     maxSpellSlots: 4,
     enemyApproachBias: 0.8,
   },
