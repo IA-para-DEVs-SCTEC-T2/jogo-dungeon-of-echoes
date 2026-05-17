@@ -190,8 +190,8 @@ export class GameScene extends Phaser.Scene {
     // Player criado uma vez — moves between areas
     this.player = new Player(this, TOWN.START_X, TOWN.START_Y);
 
-    // Aplicar classe selecionada na CharacterSelectScene
-    const initData = this.scene.settings.data as { playerClass?: string } | undefined;
+    // Aplicar classe e dificuldade selecionadas na CharacterSelectScene
+    const initData = this.scene.settings.data as { playerClass?: string; difficulty?: string } | undefined;
     if (initData?.playerClass) {
       const classDef = PLAYER_CLASSES.find(c => c.id === initData.playerClass) ?? null;
       if (classDef) {
@@ -199,6 +199,10 @@ export class GameScene extends Phaser.Scene {
         this.player.applyClassBonus(classDef);
       }
     }
+    // Deve ocorrer ANTES de qualquer createEnemies/_loadArea
+    this.difficultyManager.setGlobalDifficulty(
+      (initData?.difficulty ?? 'medium') as import('../config/global-difficulty.config').GlobalDifficultyLevel,
+    );
 
     // Desbloquear magias do nível 1 para novo jogo
     this._spellSystem.unlockSpellsForLevel(this.player, 1);
@@ -990,6 +994,8 @@ export class GameScene extends Phaser.Scene {
         ? { type: 'ATTACK' as const, target: targetEnemy }
         : { type: 'MOVE' as const, dx, dy };
 
+    const enemyAtkMult = this.difficultyManager
+      .getAdaptiveDifficulty(this.floorManager.currentFloor).enemyAtkMultiplier;
     const result = this.turnManager.processPlayerAction(
       action,
       this.player,
@@ -997,6 +1003,7 @@ export class GameScene extends Phaser.Scene {
       this._currentMap,
       this.combatSystem,
       this.playerMetrics,
+      enemyAtkMult,
     );
 
     result.messages.forEach(msg => EventBus.emit(EVENTS.UI_LOG, msg));
@@ -1017,7 +1024,11 @@ export class GameScene extends Phaser.Scene {
     result.enemiesDied.forEach(e => {
       EventBus.emit(EVENTS.UI_LOG, `+${e.xpReward} XP`);
       this._removeEnemySprite(e);
-      const dropped = this.lootSystem.roll(e.gridX, e.gridY, this.floorManager.currentFloor, e.isElite);
+      const dropped = this.lootSystem.roll(
+        e.gridX, e.gridY, this.floorManager.currentFloor, e.isElite,
+        this.player.classDef,
+        this.difficultyManager.globalConfig.lootModifiers,
+      );
       if (dropped && e.gridX === this.player.gridX && e.gridY === this.player.gridY) {
         anyDroppedOnPlayerTile = true;
       }
@@ -1431,8 +1442,11 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Turno dos inimigos após lançar magia ofensiva
+    const spellEnemyAtkMult = this.difficultyManager
+      .getAdaptiveDifficulty(this.floorManager.currentFloor).enemyAtkMultiplier;
     const enemyResult = this.turnManager.processEnemyTurns(
       this.player, this._enemies, this._currentMap, this.combatSystem, this.playerMetrics,
+      spellEnemyAtkMult,
     );
     enemyResult.messages.forEach(msg => EventBus.emit(EVENTS.UI_LOG, msg));
     this._enemies.forEach(e => this._syncEnemySprite(e));
@@ -1904,6 +1918,8 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    const rangedAtkMult = this.difficultyManager
+      .getAdaptiveDifficulty(this.floorManager.currentFloor).enemyAtkMultiplier;
     const result = this.turnManager.processPlayerAction(
       { type: 'ATTACK', target: enemy },
       this.player,
@@ -1911,6 +1927,7 @@ export class GameScene extends Phaser.Scene {
       this._currentMap,
       this.combatSystem,
       this.playerMetrics,
+      rangedAtkMult,
     );
 
     result.messages.forEach(msg => EventBus.emit(EVENTS.UI_LOG, msg));
@@ -1918,7 +1935,11 @@ export class GameScene extends Phaser.Scene {
     result.enemiesDied.forEach(e => {
       EventBus.emit(EVENTS.UI_LOG, `+${e.xpReward} XP`);
       this._removeEnemySprite(e);
-      this.lootSystem.roll(e.gridX, e.gridY, this.floorManager.currentFloor, e.isElite, this.player.classDef);
+      this.lootSystem.roll(
+        e.gridX, e.gridY, this.floorManager.currentFloor, e.isElite,
+        this.player.classDef,
+        this.difficultyManager.globalConfig.lootModifiers,
+      );
     });
   }
 }

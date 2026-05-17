@@ -1,7 +1,13 @@
 import * as Phaser from 'phaser';
 import { PLAYER_CLASSES, type PlayerClassDef } from '../config/player-classes.config';
+import {
+  GLOBAL_DIFFICULTY_CONFIGS,
+  type GlobalDifficultyLevel,
+} from '../config/global-difficulty.config';
 
 const PREVIEW_SCALE = 6;
+
+const DIFFICULTY_ORDER: GlobalDifficultyLevel[] = ['easy', 'medium', 'hard'];
 
 export class CharacterSelectScene extends Phaser.Scene {
   private _selectedIdx = 0;
@@ -14,6 +20,10 @@ export class CharacterSelectScene extends Phaser.Scene {
   private _transitioning = false;
   private _escKey!: Phaser.Input.Keyboard.Key;
 
+  private _selectedDifficulty: GlobalDifficultyLevel = 'medium';
+  private _difficultyButtons: Array<{ btn: Phaser.GameObjects.Text; level: GlobalDifficultyLevel }> = [];
+  private _difficultyDescText!: Phaser.GameObjects.Text;
+
   private get _selected(): PlayerClassDef { return PLAYER_CLASSES[this._selectedIdx]; }
 
   constructor() {
@@ -25,10 +35,12 @@ export class CharacterSelectScene extends Phaser.Scene {
 
     // Reset state from previous visit
     this._buttons = [];
+    this._difficultyButtons = [];
     this._animTimer = undefined;
     this._animFrame = 0;
     this._animCurrentFrame = PLAYER_CLASSES[0].frame;
     this._transitioning = false;
+    this._selectedDifficulty = 'medium';
 
     // Fundo
     this.add.rectangle(0, 0, width, height, 0x0d0d1e).setOrigin(0);
@@ -93,21 +105,68 @@ export class CharacterSelectScene extends Phaser.Scene {
       this._buttons.push({ btn, def });
     });
 
-    // Separador
+    // ── Seção de Dificuldade ─────────────────────────────────────────────────
     this.add.line(width / 2, height * 0.77, 0, 0, width * 0.8, 0, 0x444466).setOrigin(0.5);
 
+    this.add.text(width / 2, height * 0.80, 'Dificuldade', {
+      fontSize: '14px',
+      color: '#888888',
+      fontFamily: 'monospace',
+    }).setOrigin(0.5);
+
+    const diffBtnY    = height * 0.855;
+    const diffSpacing = width * 0.18;
+    const diffStartX  = width / 2 - diffSpacing;
+
+    DIFFICULTY_ORDER.forEach((level, i) => {
+      const cfg = GLOBAL_DIFFICULTY_CONFIGS[level];
+      const bx  = diffStartX + i * diffSpacing;
+      const btn = this.add.text(bx, diffBtnY, cfg.label, {
+        fontSize: '16px',
+        color: '#ffffff',
+        fontFamily: 'monospace',
+        backgroundColor: '#2a2a4a',
+        padding: { x: 14, y: 7 },
+        stroke: '#000',
+        strokeThickness: 2,
+      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+      btn.on('pointerdown', () => {
+        this._selectedDifficulty = level;
+        this._applyDifficultySelection();
+      });
+      btn.on('pointerover', () => {
+        if (this._selectedDifficulty !== level) btn.setStyle({ color: '#ffd700' });
+      });
+      btn.on('pointerout', () => {
+        if (this._selectedDifficulty !== level) btn.setStyle({ color: '#ffffff' });
+      });
+
+      this._difficultyButtons.push({ btn, level });
+    });
+
+    this._difficultyDescText = this.add.text(width / 2, height * 0.905, '', {
+      fontSize: '12px',
+      color: '#888888',
+      fontFamily: 'monospace',
+      align: 'center',
+    }).setOrigin(0.5);
+
+    this.add.line(width / 2, height * 0.935, 0, 0, width * 0.8, 0, 0x444466).setOrigin(0.5);
+
     // Botões de ação
-    this._makeActionBtn(width * 0.34, height * 0.88, 'Voltar', () => {
+    this._makeActionBtn(width * 0.34, height * 0.965, 'Voltar', () => {
       if (this._transitioning) return;
       this._transitioning = true;
       this._stopAnim();
       this.scene.start('MainMenuScene');
     });
 
-    this._makeActionBtn(width * 0.66, height * 0.88, 'Confirmar', () => this._confirm());
+    this._makeActionBtn(width * 0.66, height * 0.965, 'Confirmar', () => this._confirm());
 
-    // Seleciona classe inicial
+    // Seleciona estado inicial
     this._applySelection();
+    this._applyDifficultySelection();
 
     // Teclado
     this._escKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
@@ -165,11 +224,27 @@ export class CharacterSelectScene extends Phaser.Scene {
     this._startAnim(this._selected.frame);
   }
 
+  private _applyDifficultySelection(): void {
+    for (const { btn, level } of this._difficultyButtons) {
+      if (level === this._selectedDifficulty) {
+        btn.setStyle({ color: '#ffd700', backgroundColor: '#3a3a6a' });
+      } else {
+        btn.setStyle({ color: '#ffffff', backgroundColor: '#2a2a4a' });
+      }
+    }
+    this._difficultyDescText.setText(
+      GLOBAL_DIFFICULTY_CONFIGS[this._selectedDifficulty].description,
+    );
+  }
+
   private _confirm(): void {
     if (this._transitioning) return;
     this._transitioning = true;
     this._stopAnim();
-    this.scene.start('GameScene', { playerClass: this._selected.id });
+    this.scene.start('GameScene', {
+      playerClass: this._selected.id,
+      difficulty:  this._selectedDifficulty,
+    });
   }
 
   private _startAnim(frame: number): void {

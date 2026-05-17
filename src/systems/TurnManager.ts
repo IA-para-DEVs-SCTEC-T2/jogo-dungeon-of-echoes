@@ -34,6 +34,7 @@ export class TurnManager {
     dungeon: DungeonGenerator,
     combat: CombatSystem,
     metrics?: PlayerMetrics,
+    enemyAtkMult = 1.0,
   ): TurnResult {
     const result: TurnResult = {
       messages: [],
@@ -159,7 +160,7 @@ export class TurnManager {
           const dmgMultiplier = player.classDef
             ? ClassRulesEngine.physicalDamageMultiplier(player.classDef)
             : 1.0;
-          const reduced = Math.max(1, Math.round(rawDmg * dmgMultiplier));
+          const reduced = Math.max(1, Math.round(rawDmg * dmgMultiplier * enemyAtkMult));
           if (!DEV_CONFIG.godMode) player.hp = Math.max(0, player.hp - reduced);
           metrics?.recordDamageTaken(reduced);
           EventBus.emit(EVENTS.PLAYER_HP_CHANGED, { hp: player.hp, maxHp: player.maxHp });
@@ -188,6 +189,7 @@ export class TurnManager {
     dungeon: DungeonGenerator,
     combat: CombatSystem,
     metrics?: PlayerMetrics,
+    enemyAtkMult = 1.0,
   ): TurnResult {
     const result: TurnResult = {
       messages: [],
@@ -208,7 +210,7 @@ export class TurnManager {
           const dmgMultiplier = player.classDef
             ? ClassRulesEngine.physicalDamageMultiplier(player.classDef)
             : 1.0;
-          const reduced = Math.max(1, Math.round(rawDmg * dmgMultiplier));
+          const reduced = Math.max(1, Math.round(rawDmg * dmgMultiplier * enemyAtkMult));
           if (!DEV_CONFIG.godMode) player.hp = Math.max(0, player.hp - reduced);
           metrics?.recordDamageTaken(reduced);
           EventBus.emit(EVENTS.PLAYER_HP_CHANGED, { hp: player.hp, maxHp: player.maxHp });
