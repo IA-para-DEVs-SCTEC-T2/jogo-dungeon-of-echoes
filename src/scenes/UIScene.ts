@@ -185,10 +185,10 @@ export class UIScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(DEPTH_SPELL_BAR);
 
-    const slotKeys = ['J', 'K'] as const;
+    const slotKeys = ['H', 'J', 'K', 'L'] as const;
     this._spellBarSlots = [];
 
-    // Slots da direita para a esquerda: K é mais à direita, J fica à sua esquerda
+    // Slots da direita para a esquerda: L é mais à direita, H fica à esquerda
     slotKeys.forEach((key, i) => {
       const slotX = rightEdge - (slotKeys.length - i) * (slotSize + slotGap);
 
@@ -216,17 +216,35 @@ export class UIScene extends Phaser.Scene {
         .rectangle(slotX, slotY + slotSize - 3, 0, 3, 0x4499ff)
         .setOrigin(0, 0);
 
+      // Slots H e L (índices 0 e 3) iniciam ocultos; só o Mago os recebe via updateSpellBar
+      const isExtraSlot = i === 0 || i === 3;
+      [bg, keyTxt, nameTxt, cdBar, cdBarFill].forEach(obj => obj.setVisible(!isExtraSlot));
+
       this._spellBarContainer!.add([bg, keyTxt, nameTxt, cdBar, cdBarFill]);
       this._spellBarSlots.push({ bg, keyTxt, nameTxt, cdBar, cdBarFill });
     });
   }
 
-  updateSpellBar(slots: Array<{ spellId: string | null; spellName: string; cooldownRatio: number }>): void {
+  updateSpellBar(slots: Array<{ spellId: string | null; spellName: string; cooldownRatio: number; physicalIndex?: number }>): void {
     if (!this._spellBarContainer) return;
     const slotSize = 20;
+    // Ocultar todos os slots e depois mostrar apenas os ativos
+    this._spellBarSlots.forEach(s => {
+      s.bg.setVisible(false);
+      s.keyTxt.setVisible(false);
+      s.nameTxt.setVisible(false);
+      s.cdBar.setVisible(false);
+      s.cdBarFill.setVisible(false);
+    });
     slots.forEach((slot, i) => {
-      const s = this._spellBarSlots[i];
+      const physIdx = slot.physicalIndex ?? i;
+      const s = this._spellBarSlots[physIdx];
       if (!s) return;
+      s.bg.setVisible(true);
+      s.keyTxt.setVisible(true);
+      s.nameTxt.setVisible(true);
+      s.cdBar.setVisible(true);
+      s.cdBarFill.setVisible(true);
 
       const hasSpell = !!slot.spellId;
       // Abreviar nome para caber no slot 20px

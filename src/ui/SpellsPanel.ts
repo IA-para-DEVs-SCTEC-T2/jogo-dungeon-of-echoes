@@ -26,7 +26,7 @@ const ELEMENT_COLORS: Record<string, string> = {
   arcane: '#cc88ff',
 };
 
-const SLOT_POOL = 2;
+const SLOT_POOL = 4;
 const LIST_POOL = 10;
 
 export class SpellsPanel {
@@ -69,21 +69,27 @@ export class SpellsPanel {
       .setStrokeStyle(2, PANEL_BORDER).setFillStyle(0, 0);
 
     // ── Slots ativos ─────────────────────────────────────────────────────────────
-    const slotLabels = ['[J]', '[K]'];
-    const slotW = Math.floor(panelW * 0.20);
+    const slotLabels = ['[H]', '[J]', '[K]', '[L]'];
+    const slotW = Math.floor(panelW * 0.22);
     for (let i = 0; i < SLOT_POOL; i++) {
-      const x = ox + pad + i * (slotW + 8);
+      const x = ox + pad + i * (slotW + 4);
       const y = oy + 36; // abaixo das abas
       const bg2 = scene.add.rectangle(x, y, slotW, rowH + 4, EMPTY_COLOR).setOrigin(0, 0);
       const txt  = scene.add.text(x + 4, y + 2, `${slotLabels[i]}: —`, { ...TEXT_BASE, color: '#aaddff' });
 
       bg2.setInteractive({ useHandCursor: true });
-      const idx = i as 0 | 1;
+      const idx = i;
       bg2.on('pointerdown', () => {
         if (this._selectedId) {
           EventBus.emit(EVENTS.SPELL_EQUIPPED, { slotIndex: idx, spellId: this._selectedId, action: 'equip' });
         }
       });
+
+      // Slots 2 e 3 iniciam ocultos; o render os ativa apenas para o Mago
+      if (i >= 2) {
+        bg2.setVisible(false);
+        txt.setVisible(false);
+      }
 
       this._slotBgs.push(bg2);
       this._slotTexts.push(txt);
@@ -114,19 +120,22 @@ export class SpellsPanel {
       wordWrap: { width: Math.floor(panelW * 0.38) - pad * 2 },
     });
 
-    // Botões equipar slot J / K
-    for (let i = 0; i < 2; i++) {
+    // Botões equipar slot H/J/K/L (4 slots, visíveis conforme classe)
+    const equipKeys = ['H','J','K','L'];
+    for (let i = 0; i < SLOT_POOL; i++) {
       const bx  = detX;
-      const by  = oy + panelH - 60 + i * (rowH + 4);
-      const btn = scene.add.rectangle(bx, by, 80, rowH, 0x224422).setOrigin(0, 0);
-      const txt = scene.add.text(bx + 4, by + 2, `Equipar [${['J','K'][i]}]`, { ...TEXT_BASE, color: '#88ff88' });
+      const by  = oy + panelH - 80 + i * (rowH + 4);
+      const btn = scene.add.rectangle(bx, by, 90, rowH, 0x224422).setOrigin(0, 0);
+      const txt = scene.add.text(bx + 4, by + 2, `Equipar [${equipKeys[i]}]`, { ...TEXT_BASE, color: '#88ff88' });
       btn.setInteractive({ useHandCursor: true });
-      const idx = i as 0 | 1;
+      const idx = i;
       btn.on('pointerdown', () => {
         if (this._selectedId) {
           EventBus.emit(EVENTS.SPELL_EQUIPPED, { slotIndex: idx, spellId: this._selectedId, action: 'equip' });
         }
       });
+      btn.setVisible(false);
+      txt.setVisible(false);
       this._equipBtns.push(btn);
       this._equipTxts.push(txt);
     }
@@ -172,9 +181,13 @@ export class SpellsPanel {
     if (!this._dirty) return;
     this._dirty = false;
 
-    // Slots ativos
+    // Slots ativos (mostra apenas os slots retornados pela classe)
     for (let i = 0; i < SLOT_POOL; i++) {
       const slot = vm.activeSlots[i];
+      const active = !!slot;
+      this._slotBgs[i].setVisible(active);
+      this._slotTexts[i].setVisible(active);
+      if (!slot) continue;
       const label = slot.key;
       const spellName = slot.spellId ? slot.spellName : '—';
       const coolRatio = slot.cooldownRatio;
@@ -201,11 +214,12 @@ export class SpellsPanel {
 
     // Detalhe
     const sel = vm.unlockedSpells.find(s => s.id === this._selectedId);
+    const activeSlotCount = vm.activeSlots.length;
     if (sel) {
       this._detailName.setText(sel.name);
       this._detailDesc.setText(`[${sel.element}] Dano:${sel.damage} Mana:${sel.manaCost} CD:${(sel.cooldownMs/1000).toFixed(1)}s`);
-      this._equipBtns.forEach(b => b.setVisible(true));
-      this._equipTxts.forEach(t => t.setVisible(true));
+      this._equipBtns.forEach((b, i) => b.setVisible(i < activeSlotCount));
+      this._equipTxts.forEach((t, i) => t.setVisible(i < activeSlotCount));
     } else {
       this._detailName.setText('');
       this._detailDesc.setText('Selecione uma magia para ver detalhes.');

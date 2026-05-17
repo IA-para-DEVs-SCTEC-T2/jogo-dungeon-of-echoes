@@ -54,6 +54,10 @@ export class FogOfWarSystem {
     }
   }
 
+  isVisible(gridX: number, gridY: number): boolean {
+    return this._visible.has(`${gridX},${gridY}`);
+  }
+
   /**
    * Reseta o estado ao trocar de andar ou área.
    * Todos os tiles voltam a ser invisíveis.

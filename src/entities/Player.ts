@@ -42,7 +42,7 @@ export class Player extends Phaser.GameObjects.Sprite {
   // Progressão de magias
   freePoints:     number;
   unlockedSpells: string[];
-  equippedSpells: [string | null, string | null];
+  equippedSpells: (string | null)[];
   facingDir:      Direction;
 
   /** Definição da classe do personagem — fonte de verdade para regras */
@@ -104,7 +104,7 @@ export class Player extends Phaser.GameObjects.Sprite {
     // Magias e pontos livres
     this.freePoints     = 0;
     this.unlockedSpells = [];
-    this.equippedSpells = [null, null];
+    this.equippedSpells = Array(this.classDef.maxSpellSlots).fill(null);
     this.facingDir      = 'down';
   }
 
@@ -223,6 +223,7 @@ export class Player extends Phaser.GameObjects.Sprite {
     if (b.dex)   this.dex   = BASE_STATS.DEX + b.dex;
     if (b.con)   this.con   = BASE_STATS.CON + b.con;
     if (b.wis)   this.wis   = BASE_STATS.WIS + b.wis;
+    this.equippedSpells = Array(classDef.maxSpellSlots).fill(null);
     this.recalcStats();
     this.hp   = this.maxHp;
     this.mana = this.maxMana;
@@ -270,7 +271,7 @@ export class Player extends Phaser.GameObjects.Sprite {
     // Resetar progressão de magias
     this.freePoints     = 0;
     this.unlockedSpells = [];
-    this.equippedSpells = [null, null];
+    this.equippedSpells = Array(this.classDef.maxSpellSlots).fill(null);
     this.facingDir      = 'down';
 
     this.setPosition(

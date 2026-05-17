@@ -60,26 +60,48 @@ export class TurnManager {
     } else if (action.type === 'ATTACK') {
       const target = action.target;
 
-      // Verificar se a classe pode atacar (Mago não pode corpo a corpo; Arqueiro precisa de flechas)
-      if (player.classDef && !ClassRulesEngine.canMelee(player.classDef) && !player.classDef.usesArrows) {
-        result.messages.push(`${player.classDef.label} não pode atacar corpo a corpo. Use magias!`);
-        this.playerTurn = true;
-        return result;
-      }
-      if (player.classDef && !ClassRulesEngine.canAttack(player.classDef, player.arrows ?? 0)) {
-        result.messages.push('Sem flechas! Compre mais na loja.');
+      // Verificar se a classe pode atacar
+      const isMago = player.classDef && !ClassRulesEngine.canMelee(player.classDef) && !player.classDef.usesArrows;
+      if (isMago) {
+        // Mago tenta corpo a corpo: recebe dano como punição
+        const selfDmg = Math.max(1, Math.floor(player.maxHp * 0.05));
+        player.hp = Math.max(0, player.hp - selfDmg);
+        EventBus.emit(EVENTS.PLAYER_HP_CHANGED, { hp: player.hp, maxHp: player.maxHp });
+        result.messages.push(`Você se machucou ao tentar lutar corpo a corpo! (-${selfDmg} HP)`);
+        if (player.hp <= 0) {
+          result.playerDied = true;
+          result.messages.push('Você morreu');
+        }
         this.playerTurn = true;
         return result;
       }
 
+      // Arqueiro: decide entre ranged (tem flechas) e melee (sem flechas)
+      const isArcher = player.classDef?.usesArrows ?? false;
+      const hasArrows = (player.arrows ?? 0) > 0;
+      if (isArcher && !hasArrows) {
+        // Sem flechas → melee fraco (não bloqueia, mas avisa)
+        result.messages.push('Sem flechas! Atacando corpo a corpo com força reduzida.');
+      }
+
       const atk = combat.attack(player, target);
       if (atk.hit) {
-        target.hp = Math.max(0, target.hp - atk.damage);
-        metrics?.recordDamageDealt(atk.damage);
-        const verb = player.classDef?.usesArrows ? 'atirou e causou' : 'atacou e causou';
-        result.messages.push(`Você ${verb} ${atk.damage} de dano`);
-        // Consumir flecha
-        if (player.classDef?.usesArrows) {
+        // Calcular multiplicador de dano baseado no tipo de ataque
+        let dmgMultiplier = 1.0;
+        if (isArcher) {
+          if (hasArrows) {
+            dmgMultiplier = player.classDef?.rangedDamageMultiplier ?? 1.0;
+          } else {
+            dmgMultiplier = player.classDef?.meleeDamageMultiplier ?? 1.0;
+          }
+        }
+        const finalDmg = Math.max(1, Math.round(atk.damage * dmgMultiplier));
+        target.hp = Math.max(0, target.hp - finalDmg);
+        metrics?.recordDamageDealt(finalDmg);
+        const verb = (isArcher && hasArrows) ? 'atirou e causou' : 'atacou e causou';
+        result.messages.push(`Você ${verb} ${finalDmg} de dano`);
+        // Consumir flecha (apenas em ataque ranged)
+        if (isArcher && hasArrows) {
           player.arrows = Math.max(0, player.arrows - 1);
           EventBus.emit(EVENTS.ARROWS_CHANGED, { arrows: player.arrows });
         }

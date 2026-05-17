@@ -11,6 +11,8 @@ export class CharacterSelectScene extends Phaser.Scene {
   private _animTimer?: Phaser.Time.TimerEvent;
   private _animFrame = 0;
   private _animCurrentFrame = PLAYER_CLASSES[0].frame;
+  private _transitioning = false;
+  private _escKey!: Phaser.Input.Keyboard.Key;
 
   private get _selected(): PlayerClassDef { return PLAYER_CLASSES[this._selectedIdx]; }
 
@@ -20,6 +22,13 @@ export class CharacterSelectScene extends Phaser.Scene {
 
   create(): void {
     const { width, height } = this.scale;
+
+    // Reset state from previous visit
+    this._buttons = [];
+    this._animTimer = undefined;
+    this._animFrame = 0;
+    this._animCurrentFrame = PLAYER_CLASSES[0].frame;
+    this._transitioning = false;
 
     // Fundo
     this.add.rectangle(0, 0, width, height, 0x0d0d1e).setOrigin(0);
@@ -89,6 +98,8 @@ export class CharacterSelectScene extends Phaser.Scene {
 
     // Botões de ação
     this._makeActionBtn(width * 0.34, height * 0.88, 'Voltar', () => {
+      if (this._transitioning) return;
+      this._transitioning = true;
       this._stopAnim();
       this.scene.start('MainMenuScene');
     });
@@ -99,11 +110,27 @@ export class CharacterSelectScene extends Phaser.Scene {
     this._applySelection();
 
     // Teclado
-    this.input.keyboard!.on('keydown-UP',     () => this._moveSelection(-1));
-    this.input.keyboard!.on('keydown-DOWN',   () => this._moveSelection(+1));
-    this.input.keyboard!.on('keydown-ENTER',  () => this._confirm());
-    this.input.keyboard!.on('keydown-SPACE',  () => this._confirm());
-    this.input.keyboard!.on('keydown-ESC',    () => { this._stopAnim(); this.scene.start('MainMenuScene'); });
+    this._escKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+    this.input.keyboard!.on('keydown-UP',    () => this._moveSelection(-1));
+    this.input.keyboard!.on('keydown-DOWN',  () => this._moveSelection(+1));
+    this.input.keyboard!.on('keydown-ENTER', () => this._confirm());
+    this.input.keyboard!.on('keydown-SPACE', () => this._confirm());
+
+    this.events.once('shutdown', () => {
+      this._stopAnim();
+      this.input.removeAllListeners();
+      this.input.keyboard?.removeAllListeners();
+      this.input.keyboard?.clearCaptures();
+    });
+  }
+
+  update(): void {
+    if (this._transitioning) return;
+    if (Phaser.Input.Keyboard.JustDown(this._escKey)) {
+      this._transitioning = true;
+      this._stopAnim();
+      this.scene.start('MainMenuScene');
+    }
   }
 
   private _hover(def: PlayerClassDef, btn: Phaser.GameObjects.Text): void {
@@ -139,6 +166,8 @@ export class CharacterSelectScene extends Phaser.Scene {
   }
 
   private _confirm(): void {
+    if (this._transitioning) return;
+    this._transitioning = true;
     this._stopAnim();
     this.scene.start('GameScene', { playerClass: this._selected.id });
   }

@@ -37,6 +37,10 @@ export interface PlayerClassDef {
   // ── Flechas (Arqueiro) ─────────────────────────────────────────────────────
   usesArrows: boolean;
   startingArrows: number;
+  /** Multiplicador de dano em ataques corpo a corpo (padrão 1.0) */
+  meleeDamageMultiplier?: number;
+  /** Multiplicador de dano em ataques à distância (padrão 1.0) */
+  rangedDamageMultiplier?: number;
 
   // ── Magias ─────────────────────────────────────────────────────────────────
   /** Multiplicador no custo de mana das magias (< 1 = mais barato) */
@@ -45,6 +49,8 @@ export interface PlayerClassDef {
   manaRegenPerTurn: number;
   /** IDs de magias exclusivas desta classe (outras classes não desbloqueiam) */
   exclusiveSpells: string[];
+  /** Número máximo de slots de magia equipados (padrão 2; Mago tem 4) */
+  maxSpellSlots: number;
 
   // ── IA inimiga ─────────────────────────────────────────────────────────────
   /**
@@ -75,6 +81,7 @@ export const PLAYER_CLASSES: PlayerClassDef[] = [
     manaCostMultiplier: 1.0,
     manaRegenPerTurn: 0,
     exclusiveSpells: [],
+    maxSpellSlots: 2,
     enemyApproachBias: 0,
   },
   {
@@ -82,7 +89,7 @@ export const PLAYER_CLASSES: PlayerClassDef[] = [
     label: 'Guerreiro',
     description: '+3 FOR, +2 CON. Tanque corpo a corpo.',
     frame: 25,
-    statBonus: { str: 3, con: 2 },
+    statBonus: { str: 3, con: 2, wis: -3, int: -2 },
     statGrowthPerLevel: { str: 1, con: 1 },
     attackType: 'melee',
     attackRange: 1,
@@ -97,6 +104,7 @@ export const PLAYER_CLASSES: PlayerClassDef[] = [
     manaCostMultiplier: 1.3,
     manaRegenPerTurn: 0,
     exclusiveSpells: [],
+    maxSpellSlots: 2,
     enemyApproachBias: 0,
   },
   {
@@ -110,15 +118,18 @@ export const PLAYER_CLASSES: PlayerClassDef[] = [
     attackRange: 4,
     physicalDamageReceived: 1.30,
     moveCooldownMs: 130,
-    canMelee: false,
+    canMelee: true,
     forbiddenSlots: ['sword', 'shield'],
     luckMultiplier: 1.0,
     extraDropChance: 0.0,
     usesArrows: true,
     startingArrows: 100,
+    meleeDamageMultiplier: 0.5,
+    rangedDamageMultiplier: 1.3,
     manaCostMultiplier: 1.0,
     manaRegenPerTurn: 0,
     exclusiveSpells: [],
+    maxSpellSlots: 2,
     enemyApproachBias: 1.0,
   },
   {
@@ -126,7 +137,7 @@ export const PLAYER_CLASSES: PlayerClassDef[] = [
     label: 'Mago',
     description: '+4 INT, +2 SAB. Poder mágico elevado.',
     frame: 31,
-    statBonus: { intel: 4, wis: 2 },
+    statBonus: { intel: 5, wis: 3, con: -3 },
     statGrowthPerLevel: { intel: 1, wis: 1 },
     attackType: 'magic',
     attackRange: 1,
@@ -140,7 +151,8 @@ export const PLAYER_CLASSES: PlayerClassDef[] = [
     startingArrows: 0,
     manaCostMultiplier: 0.65,
     manaRegenPerTurn: 3,
-    exclusiveSpells: [],
+    exclusiveSpells: ['ice_bolt'],
+    maxSpellSlots: 4,
     enemyApproachBias: 0.8,
   },
 ];

@@ -22,7 +22,7 @@ export type SpellCastResult = {
 
 export class SpellCastingSystem {
   cast(
-    slotIndex: 0 | 1,
+    slotIndex: number,
     player: Player,
     spellSystem: SpellSystem,
     enemies: EnemySystem[],
