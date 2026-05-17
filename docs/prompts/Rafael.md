@@ -28,3 +28,17 @@
 - `GameOverScene` atualizada com painel de estatísticas: nível, XP, andares explorados, inimigos mortos, dano causado, dano recebido, turnos sobrevividos e itens usados
 - `GameScene` passa os dados do `PlayerMetrics` e `DungeonFloorManager` via `scene.start()` ao transicionar para o Game Over
 - Interface `GameOverData` estendida com os novos campos opcionais de métricas
+
+## feature/docs-diagrams
+
+**Objetivo:** Gerar documentação técnica com diagramas de casos de uso e diagrama de classes.
+
+**Prompt utilizado:**
+> "Criar uma branch para gerar os diagramas de caso de uso e diagramas de classe."
+
+**O que foi implementado:**
+- `docs/diagrama-casos-de-uso-walktrough.md`: walkthrough técnico completo, 9 casos de uso, fluxos e problemas arquiteturais
+- `docs/diagrama-classes.md`: diagrama de classes completo com Mermaid, diagramas por contexto e guia de evolução
+- `docs/diagrams/casos-de-uso.mmd`: diagrama de casos de uso em Mermaid
+- `docs/diagrams/diagrama-classes.mmd`: diagrama de classes em Mermaid
+- `docs/diagrams/*.png`: exports PNG gerados via mermaid.live

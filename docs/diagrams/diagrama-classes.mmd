@@ -1,0 +1,466 @@
+---
+title: Dungeon of Echoes — Diagrama de Classes (v0.6.0)
+---
+classDiagram
+
+  %% ═══════════════════════════════════════════════════════════════
+  %% ENTITIES
+  %% ═══════════════════════════════════════════════════════════════
+
+  class Player {
+    +gridX: number
+    +gridY: number
+    +str, intel, dex, con, wis, cha: number
+    +hp, maxHp: number
+    +mana, maxMana: number
+    +xp, level, attack: number
+    +critChance, cdReduction, spellBonus: number
+    +gold, arrows, freePoints: number
+    +classDef: PlayerClassDef
+    +inventory: InventorySystem
+    +unlockedSpells: string[]
+    +equippedSpells: [string|null, string|null]
+    +facingDir: Direction
+    +identifiedItems: Record~string,boolean~
+    -_equipmentBonuses: StatBonuses
+    +recalcStats() void
+    +applyClassBonus(classDef) void
+    +applyEquipmentBonuses(bonuses) void
+    +removeEquipmentBonuses(bonuses) void
+    +tryMove(dx, dy, dungeon, enemies, now) MoveResult
+    +takeDamage(amount) void
+    +spendStatPoint(stat) boolean
+    +useMana(amount) boolean
+    +getPixelPos() PixelPos
+    +reset(gridX, gridY) void
+  }
+
+  class EnemySystem {
+    +id: number
+    +hp, maxHp, attack, xpReward: number
+    +gridX, gridY: number
+    +alive: boolean
+    +state: EnemyState
+    +detectionRadius: number
+    +aggressionLevel: number
+    +isElite: boolean
+    +category: EnemyCategory
+    +frameIndex: number
+    +animKey: string
+    +sprite: Sprite|null
+    +hpBar: Rectangle|null
+    +update(playerX, playerY, dungeon, allEnemies, classDef) EnemyAttackResult
+    +takeDamage(amount, emitter) void
+    +getPixelPos() PixelPos
+    -_moveToward(playerX, playerY, dungeon, allEnemies) void
+    -_isInSameRoom(playerX, playerY, dungeon) boolean
+  }
+
+  class Item {
+    +id: string
+    +type: ItemType
+    +identified: boolean
+    +gridX, gridY: number|null
+    +sprite: Sprite|null
+    +name: string
+    +slotId: EquipmentSlotId
+    +bonuses: StatBonuses
+    +price: number
+    +rarity: ItemRarity
+    +noSell, noUnequip: boolean
+    +goldAmount: number
+    +getDisplayName(identifiedItems) string
+  }
+
+  class Projectile {
+    +damage: number
+    +spell: SpellDef
+    -_vx, _vy: number
+    -_alive: boolean
+    +updateMovement(dungeon) void
+    +checkEnemyHit(enemy) boolean
+    +isAlive() boolean
+    -_explode() void
+  }
+
+  %% ═══════════════════════════════════════════════════════════════
+  %% SYSTEMS — COMBAT & TURN
+  %% ═══════════════════════════════════════════════════════════════
+
+  class TurnManager {
+    -playerTurn: boolean
+    +isPlayerTurn() boolean
+    +processPlayerAction(action, player, enemies, dungeon, combat, metrics) TurnResult
+  }
+
+  class CombatSystem {
+    -emitter: EventEmitter
+    -xpSystem: XPSystem
+    +attack(attacker, defender) AttackResult
+    +resolve(player, enemy) CombatResult|null
+  }
+
+  class XPSystem {
+    -emitter: EventEmitter
+    +addXP(player, amount) boolean
+    +getXPToNextLevel(level) number
+    -_xpToNextLevel(level) number
+    -_levelUp(player) void
+  }
+
+  class ClassRulesEngine {
+    +canEquipSlot(classDef, slotId, itemType)$ boolean
+    +canMelee(classDef)$ boolean
+    +canAttack(classDef, arrows)$ boolean
+    +physicalDamageMultiplier(classDef)$ number
+    +luckMultiplier(classDef)$ number
+    +extraDropChance(classDef)$ number
+    +manaCostMultiplier(classDef)$ number
+    +manaRegenPerTurn(classDef)$ number
+    +effectiveDetectionRadius(classDef, base)$ number
+    +canUnlockSpell(classDef, spellId)$ boolean
+    +effectiveManaCost(classDef, base)$ number
+  }
+
+  %% ═══════════════════════════════════════════════════════════════
+  %% SYSTEMS — INVENTORY & EQUIPMENT
+  %% ═══════════════════════════════════════════════════════════════
+
+  class InventorySystem {
+    -_items: Item|null[]
+    +MAX_SLOTS: 20
+    +isFull() boolean
+    +count() number
+    +addItem(item) boolean
+    +removeItem(index) Item|null
+    +useItem(index, identifiedItems, hp, maxHp, mana, maxMana) UseItemResult
+    +reset() void
+  }
+
+  class EquipmentSystem {
+    -_equipped: Record~EquipmentSlotId,string|null~
+    +equip(itemId, slotId, classDef, item) EquipResult
+    +unequip(slotId) string|null
+    +getEquippedId(slotId) string|null
+    +isEquipped(itemId) boolean
+    +getAllEquipped() Record~EquipmentSlotId,string|null~
+    +reset() void
+  }
+
+  class LootSystem {
+    -_nextId: number
+    +roll(gridX, gridY, floor, elite, classDef) Item|null
+    +rollChestLoot(floor) ChestLootResult
+  }
+
+  class ShopSystem {
+    -_catalog: ShopItemDef[]
+    +buyItem(player, index, inventory) BuyResult
+    +sellItem(player, itemIndex, inventory) SellResult
+    +buildViewModel(player, selectedIndex, tab, inventory, equippedIds) ShopViewModel
+    +buildSellItems(player, equippedIds, selectedIndex) SellItemViewModel[]
+  }
+
+  %% ═══════════════════════════════════════════════════════════════
+  %% SYSTEMS — SPELLS
+  %% ═══════════════════════════════════════════════════════════════
+
+  class SpellSystem {
+    -_slots: SpellSlotState[]
+    +unlockSpellsForLevel(player, level) string[]
+    +equipSpell(player, spellId, slotIndex) boolean
+    +canCast(slotIndex, nowMs) boolean
+    +recordCast(slotIndex, nowMs) void
+    +getCooldownRatio(slotIndex, nowMs) number
+    +syncFromPlayer(player) void
+  }
+
+  class SpellCastingSystem {
+    +cast(slotIndex, player, spellSystem, enemies, nowMs) SpellCastResult|null
+  }
+
+  %% ═══════════════════════════════════════════════════════════════
+  %% SYSTEMS — WORLD & DIFFICULTY
+  %% ═══════════════════════════════════════════════════════════════
+
+  class DungeonFloorManager {
+    -_floors: Map~number,DungeonFloorState~
+    -_connections: Map~number,FloorConnectionData~
+    +currentFloor: number
+    +maxFloorReached: number
+    +descend() void
+    +ascend() void
+    +saveFloorConnections(floor, data) void
+    +getFloorConnections(floor) FloorConnectionData|null
+    +reset() void
+  }
+
+  class MapTransitionSystem {
+    -_spawnPoints: Map~string,SpawnPoint~
+    -_transitions: Map~string,TransitionPoint~
+    +registerSpawn(point) void
+    +registerTransition(point) void
+    +requestTransition(id) TransitionResolution|null
+    +completeTransition(resolution) void
+  }
+
+  class DifficultyManager {
+    -_currentLevel: DifficultyLevel
+    -_cyclesBelow, _cyclesAbove: number
+    -_lastRecalcTurn: number
+    +currentLevel: DifficultyLevel
+    +update(metrics) boolean
+    +getAdaptiveDifficulty(floor) AdaptiveDifficulty
+    +reset() void
+  }
+
+  class DifficultyScalingSystem {
+    +getFloorDifficulty(floor) FloorDifficulty
+  }
+
+  class PlayerMetrics {
+    +turnsSurvived: number
+    +damageDealt, damageTaken: number
+    +enemiesKilled, itemsUsed, deaths: number
+    +recordTurn() void
+    +recordDamageDealt(amount) void
+    +recordDamageTaken(amount) void
+    +recordEnemyKilled() void
+    +recordItemUsed() void
+    +recordDeath() void
+    +getPerformanceScore() number
+    +getRecentPerformanceScore() number
+    +reset() void
+  }
+
+  class InputModeManager {
+    -_stack: InputMode[]
+    +push(mode) void
+    +pop() void
+    +is(mode) boolean
+    +current() InputMode
+  }
+
+  class LogSystem {
+    -_history: string[]
+    +bindEventBus() void
+    +add(message) void
+    +getVisible(count) string[]
+  }
+
+  class EventMemory {
+    -_events: GameEvent[]
+    -MAX_EVENTS: 100
+    +addEvent(event) void
+    +getRecentEvents(limit) GameEvent[]
+    +getImportantEvents(limit) GameEvent[]
+    +reset() void
+    +toPromptLines(limit) string[]
+  }
+
+  %% ═══════════════════════════════════════════════════════════════
+  %% GENERATORS
+  %% ═══════════════════════════════════════════════════════════════
+
+  class DungeonGenerator {
+    +width, height: number
+    +grid: number[][]
+    +rooms: Room[]
+    +startPos: GridPos
+    +generate(roomCount) this
+    +isWalkable(x, y) boolean
+    +getTile(x, y) number
+    +getRandomFloorPosition(excludePos) GridPos
+    -_generateRooms(count) void
+    -_connectRooms() void
+  }
+
+  class DungeonFeatureGenerator {
+    +generate(dungeon, floor, options) DungeonFeature[]
+    +extractConnections(features) FloorConnectionData
+  }
+
+  %% ═══════════════════════════════════════════════════════════════
+  %% AI
+  %% ═══════════════════════════════════════════════════════════════
+
+  class AIService {
+    -apiKey: string
+    -cache: Map~string,string~
+    -enabled: boolean
+    +generateItemDescription(item) Promise~string~
+    +generateEnemyVariant(context) Promise~EnemyVariant~
+    +generateEvent(context) Promise~string~
+    -callLLM(prompt) Promise~string~
+  }
+
+  class NarrativeService {
+    -_aiService: AIService
+    +generateNarrative(events) Promise~string~
+    +generateDeathStory(events) Promise~string~
+  }
+
+  %% ═══════════════════════════════════════════════════════════════
+  %% SCENES
+  %% ═══════════════════════════════════════════════════════════════
+
+  class GameScene {
+    -player: Player
+    -xpSystem: XPSystem
+    -combatSystem: CombatSystem
+    -turnManager: TurnManager
+    -lootSystem: LootSystem
+    -inputMode: InputModeManager
+    -mapTransitionSystem: MapTransitionSystem
+    -floorManager: DungeonFloorManager
+    -playerMetrics: PlayerMetrics
+    -difficultyManager: DifficultyManager
+    -equipmentSystem: EquipmentSystem
+    -_shopSystem: ShopSystem
+    -_spellSystem: SpellSystem
+    -_spellCastingSystem: SpellCastingSystem
+    -_eventMemory: EventMemory
+    -_narrativeService: NarrativeService
+    -_dungeonCache: Map~number,DungeonState~
+    -_currentArea: string
+    -_enemies: EnemySystem[]
+    -_items: Item[]
+    +create() void
+    +update(time, delta) void
+    -_loadTown(spawnX, spawnY) void
+    -_loadDungeonFloor(floor, spawnPos) void
+    -_cleanup() void
+    -_handleInput(time) void
+    -_registerEvents() void
+  }
+
+  class UIScene {
+    -_logSystem: LogSystem
+    -_logPanel: LogPanel
+    -_inventoryPanel: InventoryPanel
+    -_statusPanel: StatusPanel
+    -_spellsPanel: SpellsPanel
+    -_shopPanel: ShopPanel
+    -_dialogPanel: DialogPanel
+    -_actionBar: ActionBarPanel
+    +create() void
+  }
+
+  class GameOverScene {
+    -playerData: GameOverData
+    -_storyText: Text
+    +init(data) void
+    +create() void
+    -_generateDeathStory() void
+    -_restart() void
+  }
+
+  class CharacterSelectScene {
+    -_selectedIdx: number
+    -_previewSprite: Sprite
+    +create() void
+    -_confirm() void
+  }
+
+  class BootScene {
+    +preload() void
+    +create() void
+    -_registerEnemyAnims() void
+    -_registerSpellAnims() void
+  }
+
+  %% ═══════════════════════════════════════════════════════════════
+  %% RELAÇÕES
+  %% ═══════════════════════════════════════════════════════════════
+
+  %% GameScene → Systems
+  GameScene --> Player : cria e controla
+  GameScene --> EnemySystem : cria via createEnemies()
+  GameScene --> Item : gerencia no chão
+  GameScene --> XPSystem : usa
+  GameScene --> CombatSystem : usa
+  GameScene --> TurnManager : usa
+  GameScene --> LootSystem : usa
+  GameScene --> EquipmentSystem : usa
+  GameScene --> SpellSystem : usa
+  GameScene --> SpellCastingSystem : usa
+  GameScene --> ShopSystem : usa
+  GameScene --> DungeonFloorManager : usa
+  GameScene --> MapTransitionSystem : usa
+  GameScene --> DifficultyManager : usa
+  GameScene --> PlayerMetrics : usa
+  GameScene --> DungeonGenerator : instancia
+  GameScene --> DungeonFeatureGenerator : usa
+  GameScene --> EventMemory : usa
+  GameScene --> NarrativeService : usa
+  GameScene --> InputModeManager : usa
+
+  %% Player
+  Player --> InventorySystem : possui
+  Player --> PlayerClassDef : referencia
+
+  %% Combat
+  TurnManager --> CombatSystem : usa
+  TurnManager --> ClassRulesEngine : usa
+  TurnManager --> PlayerMetrics : registra métricas
+  CombatSystem --> XPSystem : addXP ao matar
+
+  %% Loot & Shop
+  LootSystem --> ClassRulesEngine : usa
+  LootSystem --> Item : cria
+  ShopSystem --> ClassRulesEngine : usa
+
+  %% Equipment
+  EquipmentSystem --> ClassRulesEngine : usa
+
+  %% Spells
+  SpellSystem --> ClassRulesEngine : usa
+  SpellCastingSystem --> SpellSystem : usa
+  SpellCastingSystem --> EnemySystem : busca alvos
+
+  %% Difficulty
+  DifficultyManager --> PlayerMetrics : lê performance
+  DifficultyManager --> DifficultyScalingSystem : tabela base
+
+  %% AI
+  NarrativeService --> AIService : usa
+  GameOverScene --> NarrativeService : usa
+
+  %% Projectile
+  Projectile --> DungeonGenerator : colisão
+  Projectile --> EnemySystem : detecta hit
+
+  %% UI
+  UIScene --> LogSystem : usa
+  UIScene --> LogPanel : usa
+  UIScene --> InventoryPanel : usa
+  UIScene --> StatusPanel : usa
+  UIScene --> SpellsPanel : usa
+  UIScene --> ShopPanel : usa
+  UIScene --> DialogPanel : usa
+  UIScene --> ActionBarPanel : usa
+
+  class PlayerClassDef {
+    +id: PlayerClass
+    +label, description: string
+    +frame: number
+    +statBonus: StatBonusMap
+    +attackType: string
+    +attackRange: number
+    +physicalDamageReceived: number
+    +canMelee: boolean
+    +usesArrows: boolean
+    +startingArrows: number
+    +manaCostMultiplier: number
+    +manaRegenPerTurn: number
+    +exclusiveSpells: string[]
+    +enemyApproachBias: number
+  }
+
+  class LogPanel { +render(lines) void }
+  class InventoryPanel { +render(viewModel) void }
+  class StatusPanel { +render(viewModel) void }
+  class SpellsPanel { +render(viewModel) void }
+  class ShopPanel { +render(viewModel) void }
+  class DialogPanel { +render(options, title) void }
+  class ActionBarPanel { +render(items) void }
