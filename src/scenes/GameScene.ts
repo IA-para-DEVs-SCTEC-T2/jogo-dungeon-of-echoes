@@ -35,6 +35,7 @@ import { SHOP_CATALOG, STARTING_ITEMS } from '../config/shop.catalog';
 import { CATEGORY_TEXTURE_KEYS } from '../config/enemies.config';
 import { SpellSystem } from '../systems/SpellSystem';
 import { SpellCastingSystem } from '../systems/SpellCastingSystem';
+import { FogOfWarSystem } from '../systems/FogOfWarSystem';
 import { SPELLS_DB } from '../config/spells.db';
 import type { TransitionResolution } from '../types/transitions';
 import type { GridPos } from '../generators/DungeonGenerator';
@@ -77,6 +78,7 @@ export class GameScene extends Phaser.Scene {
   private _shopSystem!: ShopSystem;
   private _spellSystem!: SpellSystem;
   private _spellCastingSystem!: SpellCastingSystem;
+  private _fogOfWar!: FogOfWarSystem;
   private gameState!: string;
 
   // ─── Narrativa emergente (Fase 6) ─────────────────────────────────────────
@@ -176,6 +178,7 @@ export class GameScene extends Phaser.Scene {
     this._shopSystem          = new ShopSystem(SHOP_CATALOG);
     this._spellSystem         = new SpellSystem();
     this._spellCastingSystem  = new SpellCastingSystem();
+    this._fogOfWar = new FogOfWarSystem();
     this._registerTransitions();
 
     // ─── Narrativa emergente (Fase 6) ──────────────────────────────────────
@@ -327,6 +330,10 @@ export class GameScene extends Phaser.Scene {
 
     this._enemies.forEach(e => this._removeEnemySprite(e));
     this._enemies = [];
+
+    if (this._currentArea === 'dungeon') {
+      this._fogOfWar?.reset();
+    }
   }
 
   private _loadTown(spawnX = TOWN.START_X, spawnY = TOWN.START_Y): void {
@@ -502,6 +509,9 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, W * TILE_SIZE, H * TILE_SIZE);
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.cameras.main.setZoom(2);
+
+    // Aplicar fog of war inicial ao carregar o andar
+    this._fogOfWar.update(this._tileObjects, this.player.gridX, this.player.gridY);
 
     EventBus.emit(EVENTS.AREA_CHANGED, { area: 'dungeon', floor, timestamp: Date.now() });
     EventBus.emit(EVENTS.UI_LOG, cached ? `Você está no andar ${floor}.` : `Você desce para o andar ${floor}. Cuidado!`);
@@ -981,6 +991,9 @@ export class GameScene extends Phaser.Scene {
       this._checkItemPickup();
       this._checkChestInteraction();
       this._checkAreaTransition();
+      if (this._currentArea === 'dungeon') {
+        this._fogOfWar.update(this._tileObjects, this.player.gridX, this.player.gridY);
+      }
     }
 
     this._enemies.forEach(e => this._syncEnemySprite(e));
@@ -1445,6 +1458,21 @@ export class GameScene extends Phaser.Scene {
         .setPosition(pos.x - TILE_SIZE / 2 + barWidth / 2, pos.y - TILE_SIZE / 2 - 2);
       enemy.hpBarBg?.setPosition(pos.x, pos.y - TILE_SIZE / 2 - 2);
     }
+    // Destaque de inimigos próximos (raio 3 tiles)
+    if (enemy.sprite?.active) {
+      const dist = Math.max(
+        Math.abs(enemy.gridX - this.player.gridX),
+        Math.abs(enemy.gridY - this.player.gridY),
+      );
+      // Só aplica tint de proximidade se não estiver em flash de dano
+      if (!enemy.sprite.getData('flashing')) {
+        if (dist <= 3) {
+          enemy.sprite.setTint(0xff9999);
+        } else {
+          enemy.sprite.clearTint();
+        }
+      }
+    }
   }
 
   // ─── Feedback Visual ─────────────────────────────────────────────────────
@@ -1463,13 +1491,17 @@ export class GameScene extends Phaser.Scene {
 
   /** Flash vermelho no sprite atingido (pisca uma vez). */
   private _flashSprite(sprite: Phaser.GameObjects.Sprite): void {
+    sprite.setData('flashing', true);
     this.tweens.add({
       targets: sprite,
       alpha: 0.2,
       duration: 80,
       yoyo: true,
       repeat: 1,
-      onComplete: () => { sprite.setAlpha(1); },
+      onComplete: () => {
+        sprite.setAlpha(1);
+        sprite.setData('flashing', false);
+      },
     });
     sprite.setTint(0xff4444);
     this.time.delayedCall(160, () => { if (sprite.active) sprite.clearTint(); });

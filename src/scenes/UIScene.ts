@@ -46,6 +46,7 @@ export class UIScene extends Phaser.Scene {
   // Classe e flechas
   private _classLabel!: Phaser.GameObjects.Text;
   private _arrowLabel!: Phaser.GameObjects.Text;
+  private _floorLabel!: Phaser.GameObjects.Text;
 
   // Log
   private _logSystem!: LogSystem;
@@ -163,6 +164,7 @@ export class UIScene extends Phaser.Scene {
     EventBus.off(EVENTS.STAT_POINT_SPENT,           undefined,            this);
     EventBus.off(EVENTS.SPELL_UNLOCKED,             undefined,            this);
     EventBus.off(EVENTS.SPELL_CAST,                 undefined,            this);
+    EventBus.off(EVENTS.AREA_CHANGED,               undefined,            this);
   }
 
   // ─── Spell Bar no footer (canto direito) ────────────────────────────────
@@ -459,9 +461,13 @@ export class UIScene extends Phaser.Scene {
       .text(PANEL_X, xpY + 48, '', { ...TEXT_STYLE, color: '#fbbf24' })
       .setScrollFactor(0).setDepth(d + 1).setVisible(false);
 
+    this._floorLabel = this.add
+      .text(PANEL_X, xpY + 60, 'Cidade', { ...TEXT_STYLE, color: '#88ddff' })
+      .setScrollFactor(0).setDepth(d + 1);
+
     // Fundo do painel de stats (altura extra para acomodar classe e flechas)
     this.add
-      .rectangle(0, 0, panelW, 88, 0x000000, 0.55)
+      .rectangle(0, 0, panelW, 104, 0x000000, 0.55)
       .setOrigin(0, 0).setScrollFactor(0).setDepth(d - 1);
   }
 
@@ -491,6 +497,14 @@ export class UIScene extends Phaser.Scene {
     EventBus.on(EVENTS.CLASS_INFO, (data: { label: string; usesArrows: boolean; arrows: number }) => {
       if (!this.sys.isActive()) return;
       this.setClassInfo(data.label, data.usesArrows, data.arrows);
+    }, this);
+    EventBus.on(EVENTS.AREA_CHANGED, (data: { area: string; floor?: number }) => {
+      if (!this.sys.isActive() || !this._floorLabel?.active) return;
+      if (data.area === 'dungeon') {
+        this._floorLabel.setText(`Andar: ${data.floor ?? 1}`);
+      } else {
+        this._floorLabel.setText('Cidade');
+      }
     }, this);
     EventBus.on(EVENTS.ITEM_PICKED_UP,      this._onItemPickedUp, this);
     EventBus.on(EVENTS.ITEM_USED,           this._onItemUsed,     this);
