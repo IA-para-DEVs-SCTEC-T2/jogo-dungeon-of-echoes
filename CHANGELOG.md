@@ -48,6 +48,16 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Documentação técnica** (`docs/diagrama-casos-de-uso-walktrough.md`): walkthrough completo do fluxo do jogador, 9 casos de uso reais, fluxos técnicos e problemas arquiteturais
+- **Documentação técnica** (`docs/diagrama-classes.md`): diagrama de classes completo, diagramas por contexto, diagramas de sequência e guia de evolução arquitetural
+- **Diagramas Mermaid** (`docs/diagrams/casos-de-uso.mmd`, `docs/diagrams/diagrama-classes.mmd`): diagramas em formato `.mmd` para edição e versionamento
+- **Diagramas exportados** (`docs/diagrams/*.png`): versões PNG dos diagramas geradas via mermaid.live
+
+---
+
 ## [0.6.0] — 2026-05-16
 
 ### Added
