@@ -1,9 +1,14 @@
+import type { LootModifiers } from './global-difficulty.config';
+
 export interface FloorDifficulty {
   floor: number;
   enemyHpMultiplier: number;
   enemyAtkMultiplier: number;
   enemyCount: number;
   lootQualityBonus: number;
+  /** Se definido, sobrescreve o count calculado pela dificuldade (encounters fixos/scripted). */
+  overrideEnemyCount?: number;
+  lootModifiers?: LootModifiers;
 }
 
 export const FLOOR_DIFFICULTY_TABLE: Record<number, FloorDifficulty> = {

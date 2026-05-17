@@ -35,6 +35,7 @@ import { SHOP_CATALOG, STARTING_ITEMS } from '../config/shop.catalog';
 import { CATEGORY_TEXTURE_KEYS } from '../config/enemies.config';
 import { SpellSystem } from '../systems/SpellSystem';
 import { SpellCastingSystem } from '../systems/SpellCastingSystem';
+import { FogOfWarSystem } from '../systems/FogOfWarSystem';
 import { SPELLS_DB } from '../config/spells.db';
 import type { TransitionResolution } from '../types/transitions';
 import type { GridPos } from '../generators/DungeonGenerator';
@@ -77,6 +78,7 @@ export class GameScene extends Phaser.Scene {
   private _shopSystem!: ShopSystem;
   private _spellSystem!: SpellSystem;
   private _spellCastingSystem!: SpellCastingSystem;
+  private _fogOfWar!: FogOfWarSystem;
   private gameState!: string;
 
   // ─── Narrativa emergente (Fase 6) ─────────────────────────────────────────
@@ -85,10 +87,11 @@ export class GameScene extends Phaser.Scene {
 
   // Cache de andares visitados (runtime — não serializado ainda)
   private _dungeonCache = new Map<number, {
-    dungeon:    DungeonGenerator;
-    items:      Item[];
-    floorFrame: number;
-    features:   DungeonFeature[];
+    dungeon:     DungeonGenerator;
+    items:       Item[];
+    floorFrame:  number;
+    features:    DungeonFeature[];
+    fogVisited?: Set<string>;
   }>();
 
   // ─── Estado da área atual ─────────────────────────────────────────────────
@@ -122,6 +125,7 @@ export class GameScene extends Phaser.Scene {
   private vKey!: Phaser.Input.Keyboard.Key;
   private enterKey!: Phaser.Input.Keyboard.Key;
   private numKeys!: Phaser.Input.Keyboard.Key[];
+  private hKey!: Phaser.Input.Keyboard.Key;
   private jKey!: Phaser.Input.Keyboard.Key;
   private kKey!: Phaser.Input.Keyboard.Key;
   private lKey!: Phaser.Input.Keyboard.Key;
@@ -176,6 +180,7 @@ export class GameScene extends Phaser.Scene {
     this._shopSystem          = new ShopSystem(SHOP_CATALOG);
     this._spellSystem         = new SpellSystem();
     this._spellCastingSystem  = new SpellCastingSystem();
+    this._fogOfWar = new FogOfWarSystem();
     this._registerTransitions();
 
     // ─── Narrativa emergente (Fase 6) ──────────────────────────────────────
@@ -186,8 +191,8 @@ export class GameScene extends Phaser.Scene {
     // Player criado uma vez — moves between areas
     this.player = new Player(this, TOWN.START_X, TOWN.START_Y);
 
-    // Aplicar classe selecionada na CharacterSelectScene
-    const initData = this.scene.settings.data as { playerClass?: string } | undefined;
+    // Aplicar classe e dificuldade selecionadas na CharacterSelectScene
+    const initData = this.scene.settings.data as { playerClass?: string; difficulty?: string } | undefined;
     if (initData?.playerClass) {
       const classDef = PLAYER_CLASSES.find(c => c.id === initData.playerClass) ?? null;
       if (classDef) {
@@ -195,6 +200,10 @@ export class GameScene extends Phaser.Scene {
         this.player.applyClassBonus(classDef);
       }
     }
+    // Deve ocorrer ANTES de qualquer createEnemies/_loadArea
+    this.difficultyManager.setGlobalDifficulty(
+      (initData?.difficulty ?? 'medium') as import('../config/global-difficulty.config').GlobalDifficultyLevel,
+    );
 
     // Desbloquear magias do nível 1 para novo jogo
     this._spellSystem.unlockSpellsForLevel(this.player, 1);
@@ -205,7 +214,7 @@ export class GameScene extends Phaser.Scene {
     this._emitInitialUIState();
     this._applyClassStartingItems();
 
-    // Aplicar sprite e animação da classe (após UIScene estar ativa)
+    // Aplicar sprite, animação e estado inicial da spell bar (após UIScene estar ativa)
     this.time.delayedCall(50, () => {
       const cd = this.player.classDef;
       if (cd) {
@@ -216,6 +225,8 @@ export class GameScene extends Phaser.Scene {
           arrows:     this.player.arrows,
         });
       }
+      // Inicializar spell bar com o número correto de slots para a classe
+      this._emitSpellsState();
     });
 
     this._loadArea('town');
@@ -327,6 +338,16 @@ export class GameScene extends Phaser.Scene {
 
     this._enemies.forEach(e => this._removeEnemySprite(e));
     this._enemies = [];
+
+    if (this._currentArea === 'dungeon') {
+      // Persistir exploração do andar atual antes de resetar o fog
+      const currentFloor = this.floorManager.currentFloor;
+      const cached = this._dungeonCache.get(currentFloor);
+      if (cached && this._fogOfWar) {
+        cached.fogVisited = this._fogOfWar.exportVisited();
+      }
+      this._fogOfWar?.reset();
+    }
   }
 
   private _loadTown(spawnX = TOWN.START_X, spawnY = TOWN.START_Y): void {
@@ -437,6 +458,9 @@ export class GameScene extends Phaser.Scene {
       this._floorFrame = cached.floorFrame;
       this._items      = cached.items;
       this._dungeonFeatures = cached.features;
+      if (cached.fogVisited) {
+        this._fogOfWar.importVisited(cached.fogVisited);
+      }
     } else {
       this._dungeon = new DungeonGenerator();
       this._dungeon.generate();
@@ -502,6 +526,10 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, W * TILE_SIZE, H * TILE_SIZE);
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.cameras.main.setZoom(2);
+
+    // Aplicar fog of war inicial ao carregar o andar
+    this._fogOfWar.update(this._tileObjects, this.player.gridX, this.player.gridY);
+    this._syncEntityFogVisibility();
 
     EventBus.emit(EVENTS.AREA_CHANGED, { area: 'dungeon', floor, timestamp: Date.now() });
     EventBus.emit(EVENTS.UI_LOG, cached ? `Você está no andar ${floor}.` : `Você desce para o andar ${floor}. Cuidado!`);
@@ -573,6 +601,7 @@ export class GameScene extends Phaser.Scene {
     const { texture, frame } = this._getItemVisual(item.type, item.goldAmount);
     item.sprite?.destroy();
     item.sprite = this.add.sprite(px, py, texture, frame).setDepth(3);
+    item.sprite.setVisible(this._fogOfWar.isVisible(item.gridX!, item.gridY!));
     if (!this._items.includes(item)) {
       this._items.push(item);
     }
@@ -844,6 +873,7 @@ export class GameScene extends Phaser.Scene {
     this.dKey      = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D);
     this.vKey      = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.V);
     this.enterKey  = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
+    this.hKey      = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.H);
     this.jKey      = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.J);
     this.kKey      = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.K);
     this.lKey      = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.L);
@@ -922,10 +952,18 @@ export class GameScene extends Phaser.Scene {
     if (!this.inputMode.is('GAMEPLAY')) return;
     if (!this.turnManager.isPlayerTurn()) return;
 
-    // J/K: disparar magia ativa (real-time, não consome turno de movimento)
-    if (JD(this.jKey)) { this._castSpell(0); }
-    if (JD(this.kKey)) { this._castSpell(1); }
-    // lKey reservado para ultimate futuro
+    // H/J/K/L: disparar magia ativa (real-time, não consome turno de movimento)
+    // Mago: slots 0–3 (H,J,K,L). Demais classes: slots 0–1 (J,K)
+    const isMagoClass = this.player.classDef?.maxSpellSlots === 4;
+    if (isMagoClass) {
+      if (JD(this.hKey)) { this._castSpell(0); }
+      if (JD(this.jKey)) { this._castSpell(1); }
+      if (JD(this.kKey)) { this._castSpell(2); }
+      if (JD(this.lKey)) { this._castSpell(3); }
+    } else {
+      if (JD(this.jKey)) { this._castSpell(0); }
+      if (JD(this.kKey)) { this._castSpell(1); }
+    }
 
     // Teclas 1–9: usar item do slot
     for (let i = 0; i < this.numKeys.length; i++) {
@@ -966,6 +1004,8 @@ export class GameScene extends Phaser.Scene {
         ? { type: 'ATTACK' as const, target: targetEnemy }
         : { type: 'MOVE' as const, dx, dy };
 
+    const enemyAtkMult = this.difficultyManager
+      .getAdaptiveDifficulty(this.floorManager.currentFloor).enemyAtkMultiplier;
     const result = this.turnManager.processPlayerAction(
       action,
       this.player,
@@ -973,6 +1013,7 @@ export class GameScene extends Phaser.Scene {
       this._currentMap,
       this.combatSystem,
       this.playerMetrics,
+      enemyAtkMult,
     );
 
     result.messages.forEach(msg => EventBus.emit(EVENTS.UI_LOG, msg));
@@ -981,6 +1022,10 @@ export class GameScene extends Phaser.Scene {
       this._checkItemPickup();
       this._checkChestInteraction();
       this._checkAreaTransition();
+      if (this._currentArea === 'dungeon') {
+        this._fogOfWar.update(this._tileObjects, this.player.gridX, this.player.gridY);
+        this._syncEntityFogVisibility();
+      }
     }
 
     this._enemies.forEach(e => this._syncEnemySprite(e));
@@ -989,7 +1034,11 @@ export class GameScene extends Phaser.Scene {
     result.enemiesDied.forEach(e => {
       EventBus.emit(EVENTS.UI_LOG, `+${e.xpReward} XP`);
       this._removeEnemySprite(e);
-      const dropped = this.lootSystem.roll(e.gridX, e.gridY, this.floorManager.currentFloor, e.isElite);
+      const dropped = this.lootSystem.roll(
+        e.gridX, e.gridY, this.floorManager.currentFloor, e.isElite,
+        this.player.classDef,
+        this.difficultyManager.globalConfig.lootModifiers,
+      );
       if (dropped && e.gridX === this.player.gridX && e.gridY === this.player.gridY) {
         anyDroppedOnPlayerTile = true;
       }
@@ -1040,16 +1089,35 @@ export class GameScene extends Phaser.Scene {
         EventBus.emit(EVENTS.SPELLS_SELECTION_CHANGED, { index: this._spellsSelectedIndex });
         return;
       }
-      // J — equipa no slot 0; K — equipa no slot 1; Enter/E — slot 0 por padrão
-      if (JD(this.jKey) || JD(this.enterKey) || JD(this.eKey)) {
-        const spellId = this.player.unlockedSpells[this._spellsSelectedIndex] ?? null;
-        if (spellId) EventBus.emit(EVENTS.SPELL_EQUIP_REQUEST, { slotIndex: 0, spellId });
-        return;
-      }
-      if (JD(this.kKey)) {
-        const spellId = this.player.unlockedSpells[this._spellsSelectedIndex] ?? null;
-        if (spellId) EventBus.emit(EVENTS.SPELL_EQUIP_REQUEST, { slotIndex: 1, spellId });
-        return;
+      // Equipar magia: J/K para classes normais; H/J/K/L para Mago (slots 0-3)
+      const isMago = this.player.classDef?.maxSpellSlots === 4;
+      const spellId = this.player.unlockedSpells[this._spellsSelectedIndex] ?? null;
+      if (isMago) {
+        if (JD(this.hKey) || JD(this.enterKey) || JD(this.eKey)) {
+          if (spellId) EventBus.emit(EVENTS.SPELL_EQUIP_REQUEST, { slotIndex: 0, spellId });
+          return;
+        }
+        if (JD(this.jKey)) {
+          if (spellId) EventBus.emit(EVENTS.SPELL_EQUIP_REQUEST, { slotIndex: 1, spellId });
+          return;
+        }
+        if (JD(this.kKey)) {
+          if (spellId) EventBus.emit(EVENTS.SPELL_EQUIP_REQUEST, { slotIndex: 2, spellId });
+          return;
+        }
+        if (JD(this.lKey)) {
+          if (spellId) EventBus.emit(EVENTS.SPELL_EQUIP_REQUEST, { slotIndex: 3, spellId });
+          return;
+        }
+      } else {
+        if (JD(this.jKey) || JD(this.enterKey) || JD(this.eKey)) {
+          if (spellId) EventBus.emit(EVENTS.SPELL_EQUIP_REQUEST, { slotIndex: 0, spellId });
+          return;
+        }
+        if (JD(this.kKey)) {
+          if (spellId) EventBus.emit(EVENTS.SPELL_EQUIP_REQUEST, { slotIndex: 1, spellId });
+          return;
+        }
       }
       return;
     }
@@ -1349,33 +1417,52 @@ export class GameScene extends Phaser.Scene {
     EventBus.emit(EVENTS.SHOP_UPDATED, vm);
   }
 
-  private _castSpell(slotIndex: 0 | 1): void {
+  private _castSpell(slotIndex: number): void {
     if (this._currentArea !== 'dungeon') return;
     const result = this._spellCastingSystem.cast(
       slotIndex, this.player, this._spellSystem, this._enemies, Date.now(),
     );
     if (!result) return;
 
-    if (result.hitEnemies.length === 0) {
-      EventBus.emit(EVENTS.UI_LOG, `${result.spellName} — nenhum alvo adjacente.`);
+    // Cura: sem turno de inimigos (não é ofensivo)
+    if (result.heal !== undefined) {
+      EventBus.emit(EVENTS.UI_LOG, `${result.spellName} recuperou ${result.heal} de vida!`);
       return;
     }
 
-    for (const enemy of result.hitEnemies) {
-      enemy.takeDamage(result.damage, this.events);
-      EventBus.emit(EVENTS.UI_LOG, `${result.spellName} causou ${result.damage} de dano!`);
+    if (result.hitEnemies.length === 0) {
+      EventBus.emit(EVENTS.UI_LOG, `${result.spellName} — nenhum alvo no alcance.`);
+    } else {
+      for (const enemy of result.hitEnemies) {
+        enemy.takeDamage(result.damage, this.events);
+        EventBus.emit(EVENTS.UI_LOG, `${result.spellName} causou ${result.damage} de dano!`);
 
-      if (!enemy.alive) {
-        const pos = enemy.getPixelPos();
-        this._showDamageText(pos, result.damage, COLORS.XP_TEXT);
-        this._removeEnemySprite(enemy);
-        const xpGain = enemy.xpReward ?? 0;
-        if (xpGain > 0) this.xpSystem.addXP(this.player, xpGain);
-      } else {
-        this._syncEnemySprite(enemy);
-        this._showDamageText(enemy.getPixelPos(), result.damage, COLORS.XP_TEXT);
-        if (enemy.sprite) this._flashSprite(enemy.sprite);
+        if (!enemy.alive) {
+          const pos = enemy.getPixelPos();
+          this._showDamageText(pos, result.damage, COLORS.XP_TEXT);
+          this._removeEnemySprite(enemy);
+          const xpGain = enemy.xpReward ?? 0;
+          if (xpGain > 0) this.xpSystem.addXP(this.player, xpGain);
+        } else {
+          this._syncEnemySprite(enemy);
+          this._showDamageText(enemy.getPixelPos(), result.damage, COLORS.XP_TEXT);
+          if (enemy.sprite) this._flashSprite(enemy.sprite);
+        }
       }
+    }
+
+    // Turno dos inimigos após lançar magia ofensiva
+    const spellEnemyAtkMult = this.difficultyManager
+      .getAdaptiveDifficulty(this.floorManager.currentFloor).enemyAtkMultiplier;
+    const enemyResult = this.turnManager.processEnemyTurns(
+      this.player, this._enemies, this._currentMap, this.combatSystem, this.playerMetrics,
+      spellEnemyAtkMult,
+    );
+    enemyResult.messages.forEach(msg => EventBus.emit(EVENTS.UI_LOG, msg));
+    this._enemies.forEach(e => this._syncEnemySprite(e));
+
+    if (enemyResult.playerDied) {
+      this.events.emit(EVENTS.PLAYER_DIED);
     }
   }
 
@@ -1393,13 +1480,18 @@ export class GameScene extends Phaser.Scene {
 
   private _emitSpellsState(): void {
     const nowMs = Date.now();
-    const slots = this._spellSystem.getSlots();
+    const maxSlots = this.player.classDef?.maxSpellSlots ?? 2;
+    const slotKeys = maxSlots === 4 ? ['H', 'J', 'K', 'L'] : ['J', 'K'];
+    const slots = this._spellSystem.getActiveSlots(maxSlots);
+    // physicalOffset: não-Mago usa slots J(1) e K(2) na barra; Mago usa H(0),J(1),K(2),L(3)
+    const physicalOffset = maxSlots === 4 ? 0 : 1;
     const activeSlots = slots.map((slot, i) => ({
-      slotIndex: i as 0 | 1,
-      key: (i === 0 ? 'J' : 'K') as 'J' | 'K',
+      slotIndex: i,
+      key: slotKeys[i],
+      physicalIndex: i + physicalOffset,
       spellId: slot.spellId,
       spellName: slot.spellId ? (SPELLS_DB[slot.spellId]?.name ?? '?') : '—',
-      cooldownRatio: this._spellSystem.getCooldownRatio(i as 0 | 1, nowMs),
+      cooldownRatio: this._spellSystem.getCooldownRatio(i, nowMs),
     }));
 
     const unlockedSpells = this.player.unlockedSpells.map(id => {
@@ -1434,6 +1526,25 @@ export class GameScene extends Phaser.Scene {
     enemy.hpBarBg = null;
   }
 
+  private _syncEntityFogVisibility(): void {
+    for (const enemy of this._enemies) {
+      if (!enemy.alive || !enemy.sprite || !enemy.sprite.active) continue;
+      const visible = this._fogOfWar.isVisible(enemy.gridX, enemy.gridY);
+      enemy.sprite.setVisible(visible);
+      enemy.hpBar?.setVisible(visible);
+      enemy.hpBarBg?.setVisible(visible);
+    }
+    for (const item of this._items) {
+      if (!item.sprite?.active) continue;
+      item.sprite.setVisible(this._fogOfWar.isVisible(item.gridX!, item.gridY!));
+    }
+    for (const [key, sprite] of this._chestSprites) {
+      if (!sprite.active) continue;
+      const [gx, gy] = key.split(',').map(Number);
+      sprite.setVisible(this._fogOfWar.isVisible(gx, gy));
+    }
+  }
+
   private _syncEnemySprite(enemy: EnemySystem): void {
     if (!enemy.alive || !enemy.sprite || !enemy.sprite.active) return;
     const pos = enemy.getPixelPos();
@@ -1444,6 +1555,21 @@ export class GameScene extends Phaser.Scene {
       enemy.hpBar.setSize(barWidth, 3)
         .setPosition(pos.x - TILE_SIZE / 2 + barWidth / 2, pos.y - TILE_SIZE / 2 - 2);
       enemy.hpBarBg?.setPosition(pos.x, pos.y - TILE_SIZE / 2 - 2);
+    }
+    // Destaque de inimigos próximos (raio 3 tiles)
+    if (enemy.sprite?.active) {
+      const dist = Math.max(
+        Math.abs(enemy.gridX - this.player.gridX),
+        Math.abs(enemy.gridY - this.player.gridY),
+      );
+      // Só aplica tint de proximidade se não estiver em flash de dano
+      if (!enemy.sprite.getData('flashing')) {
+        if (dist <= 3) {
+          enemy.sprite.setTint(0xff9999);
+        } else {
+          enemy.sprite.clearTint();
+        }
+      }
     }
   }
 
@@ -1463,13 +1589,17 @@ export class GameScene extends Phaser.Scene {
 
   /** Flash vermelho no sprite atingido (pisca uma vez). */
   private _flashSprite(sprite: Phaser.GameObjects.Sprite): void {
+    sprite.setData('flashing', true);
     this.tweens.add({
       targets: sprite,
       alpha: 0.2,
       duration: 80,
       yoyo: true,
       repeat: 1,
-      onComplete: () => { sprite.setAlpha(1); },
+      onComplete: () => {
+        sprite.setAlpha(1);
+        sprite.setData('flashing', false);
+      },
     });
     sprite.setTint(0xff4444);
     this.time.delayedCall(160, () => { if (sprite.active) sprite.clearTint(); });
@@ -1594,7 +1724,7 @@ export class GameScene extends Phaser.Scene {
     }, this);
 
     // Equipar magia em slot
-    EventBus.on(EVENTS.SPELL_EQUIP_REQUEST, (data: { slotIndex: 0 | 1; spellId: string | null }) => {
+    EventBus.on(EVENTS.SPELL_EQUIP_REQUEST, (data: { slotIndex: number; spellId: string | null }) => {
       if (data.spellId) {
         this._spellSystem.equipSpell(this.player, data.spellId, data.slotIndex);
       } else {
@@ -1798,6 +1928,8 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    const rangedAtkMult = this.difficultyManager
+      .getAdaptiveDifficulty(this.floorManager.currentFloor).enemyAtkMultiplier;
     const result = this.turnManager.processPlayerAction(
       { type: 'ATTACK', target: enemy },
       this.player,
@@ -1805,6 +1937,7 @@ export class GameScene extends Phaser.Scene {
       this._currentMap,
       this.combatSystem,
       this.playerMetrics,
+      rangedAtkMult,
     );
 
     result.messages.forEach(msg => EventBus.emit(EVENTS.UI_LOG, msg));
@@ -1812,7 +1945,11 @@ export class GameScene extends Phaser.Scene {
     result.enemiesDied.forEach(e => {
       EventBus.emit(EVENTS.UI_LOG, `+${e.xpReward} XP`);
       this._removeEnemySprite(e);
-      this.lootSystem.roll(e.gridX, e.gridY, this.floorManager.currentFloor, e.isElite, this.player.classDef);
+      this.lootSystem.roll(
+        e.gridX, e.gridY, this.floorManager.currentFloor, e.isElite,
+        this.player.classDef,
+        this.difficultyManager.globalConfig.lootModifiers,
+      );
     });
   }
 }

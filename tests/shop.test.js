@@ -118,8 +118,9 @@ describe('ShopSystem — buyItem', () => {
 
   it('emite PLAYER_GOLD_CHANGED após compra', () => {
     const idx = SHOP_CATALOG.findIndex(e => e.id === 'potion_heal_shop'); // preço 30
+    const entry = SHOP_CATALOG[idx];
     shop.buyItem(player, idx, inv);
-    expect(EventBus.emit).toHaveBeenCalledWith('player-gold-changed', { gold: 460 });
+    expect(EventBus.emit).toHaveBeenCalledWith('player-gold-changed', { gold: 500 - entry.price });
   });
 });
 

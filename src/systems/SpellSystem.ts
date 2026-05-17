@@ -8,12 +8,14 @@ import type { PlayerClassDef } from '../config/player-classes.config';
 
 type SpellPlayer = {
   unlockedSpells: string[];
-  equippedSpells: [string | null, string | null];
+  equippedSpells: (string | null)[];
   classDef?: PlayerClassDef;
 };
 
 export class SpellSystem {
   private _slots: SpellSlotState[] = [
+    { spellId: null, lastCastMs: 0, cooldownMs: 0 },
+    { spellId: null, lastCastMs: 0, cooldownMs: 0 },
     { spellId: null, lastCastMs: 0, cooldownMs: 0 },
     { spellId: null, lastCastMs: 0, cooldownMs: 0 },
   ];
@@ -39,9 +41,11 @@ export class SpellSystem {
     return ClassRulesEngine.effectiveManaCost(classDef, base);
   }
 
-  equipSpell(player: SpellPlayer, spellId: string, slotIndex: 0 | 1): boolean {
+  equipSpell(player: SpellPlayer, spellId: string, slotIndex: number): boolean {
     if (!player.unlockedSpells.includes(spellId)) return false;
     if (!SPELLS_DB[spellId]) return false;
+    const maxSlots = player.classDef?.maxSpellSlots ?? 2;
+    if (slotIndex >= maxSlots) return false;
 
     player.equippedSpells[slotIndex] = spellId;
     this._slots[slotIndex].spellId   = spellId;
@@ -50,7 +54,7 @@ export class SpellSystem {
     return true;
   }
 
-  unequipSpell(player: SpellPlayer, slotIndex: 0 | 1): void {
+  unequipSpell(player: SpellPlayer, slotIndex: number): void {
     player.equippedSpells[slotIndex] = null;
     this._slots[slotIndex].spellId   = null;
     this._slots[slotIndex].cooldownMs = 0;
@@ -58,20 +62,20 @@ export class SpellSystem {
     EventBus.emit(EVENTS.SPELL_EQUIPPED, { slotIndex, spellId: null });
   }
 
-  canCast(slotIndex: 0 | 1, nowMs: number): boolean {
+  canCast(slotIndex: number, nowMs: number): boolean {
     const slot = this._slots[slotIndex];
-    if (!slot.spellId) return false;
+    if (!slot || !slot.spellId) return false;
     return (nowMs - slot.lastCastMs) >= slot.cooldownMs;
   }
 
-  recordCast(slotIndex: 0 | 1, nowMs: number): void {
+  recordCast(slotIndex: number, nowMs: number): void {
     const slot = this._slots[slotIndex];
-    slot.lastCastMs = nowMs;
+    if (slot) slot.lastCastMs = nowMs;
   }
 
-  getCooldownRatio(slotIndex: 0 | 1, nowMs: number): number {
+  getCooldownRatio(slotIndex: number, nowMs: number): number {
     const slot = this._slots[slotIndex];
-    if (!slot.spellId || slot.cooldownMs === 0) return 0;
+    if (!slot || !slot.spellId || slot.cooldownMs === 0) return 0;
     const elapsed = nowMs - slot.lastCastMs;
     if (elapsed >= slot.cooldownMs) return 0;
     return 1 - elapsed / slot.cooldownMs;
@@ -81,9 +85,15 @@ export class SpellSystem {
     return this._slots;
   }
 
+  /** Retorna apenas os slots ativos para a classe do player */
+  getActiveSlots(maxSlots: number): SpellSlotState[] {
+    return this._slots.slice(0, maxSlots);
+  }
+
   syncFromPlayer(player: SpellPlayer): void {
-    for (let i = 0; i < 2; i++) {
-      const id = player.equippedSpells[i as 0 | 1];
+    const maxSlots = player.classDef?.maxSpellSlots ?? 2;
+    for (let i = 0; i < maxSlots; i++) {
+      const id = player.equippedSpells[i] ?? null;
       this._slots[i].spellId   = id;
       this._slots[i].cooldownMs = id ? (SPELLS_DB[id]?.cooldownMs ?? 0) : 0;
     }

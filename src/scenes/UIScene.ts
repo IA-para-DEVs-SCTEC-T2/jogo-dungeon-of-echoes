@@ -46,6 +46,7 @@ export class UIScene extends Phaser.Scene {
   // Classe e flechas
   private _classLabel!: Phaser.GameObjects.Text;
   private _arrowLabel!: Phaser.GameObjects.Text;
+  private _floorLabel!: Phaser.GameObjects.Text;
 
   // Log
   private _logSystem!: LogSystem;
@@ -163,6 +164,7 @@ export class UIScene extends Phaser.Scene {
     EventBus.off(EVENTS.STAT_POINT_SPENT,           undefined,            this);
     EventBus.off(EVENTS.SPELL_UNLOCKED,             undefined,            this);
     EventBus.off(EVENTS.SPELL_CAST,                 undefined,            this);
+    EventBus.off(EVENTS.AREA_CHANGED,               undefined,            this);
   }
 
   // ─── Spell Bar no footer (canto direito) ────────────────────────────────
@@ -183,10 +185,10 @@ export class UIScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(DEPTH_SPELL_BAR);
 
-    const slotKeys = ['J', 'K'] as const;
+    const slotKeys = ['H', 'J', 'K', 'L'] as const;
     this._spellBarSlots = [];
 
-    // Slots da direita para a esquerda: K é mais à direita, J fica à sua esquerda
+    // Slots da direita para a esquerda: L é mais à direita, H fica à esquerda
     slotKeys.forEach((key, i) => {
       const slotX = rightEdge - (slotKeys.length - i) * (slotSize + slotGap);
 
@@ -214,17 +216,35 @@ export class UIScene extends Phaser.Scene {
         .rectangle(slotX, slotY + slotSize - 3, 0, 3, 0x4499ff)
         .setOrigin(0, 0);
 
+      // Slots H e L (índices 0 e 3) iniciam ocultos; só o Mago os recebe via updateSpellBar
+      const isExtraSlot = i === 0 || i === 3;
+      [bg, keyTxt, nameTxt, cdBar, cdBarFill].forEach(obj => obj.setVisible(!isExtraSlot));
+
       this._spellBarContainer!.add([bg, keyTxt, nameTxt, cdBar, cdBarFill]);
       this._spellBarSlots.push({ bg, keyTxt, nameTxt, cdBar, cdBarFill });
     });
   }
 
-  updateSpellBar(slots: Array<{ spellId: string | null; spellName: string; cooldownRatio: number }>): void {
+  updateSpellBar(slots: Array<{ spellId: string | null; spellName: string; cooldownRatio: number; physicalIndex?: number }>): void {
     if (!this._spellBarContainer) return;
     const slotSize = 20;
+    // Ocultar todos os slots e depois mostrar apenas os ativos
+    this._spellBarSlots.forEach(s => {
+      s.bg.setVisible(false);
+      s.keyTxt.setVisible(false);
+      s.nameTxt.setVisible(false);
+      s.cdBar.setVisible(false);
+      s.cdBarFill.setVisible(false);
+    });
     slots.forEach((slot, i) => {
-      const s = this._spellBarSlots[i];
+      const physIdx = slot.physicalIndex ?? i;
+      const s = this._spellBarSlots[physIdx];
       if (!s) return;
+      s.bg.setVisible(true);
+      s.keyTxt.setVisible(true);
+      s.nameTxt.setVisible(true);
+      s.cdBar.setVisible(true);
+      s.cdBarFill.setVisible(true);
 
       const hasSpell = !!slot.spellId;
       // Abreviar nome para caber no slot 20px
@@ -459,9 +479,13 @@ export class UIScene extends Phaser.Scene {
       .text(PANEL_X, xpY + 48, '', { ...TEXT_STYLE, color: '#fbbf24' })
       .setScrollFactor(0).setDepth(d + 1).setVisible(false);
 
+    this._floorLabel = this.add
+      .text(PANEL_X, xpY + 60, 'Cidade', { ...TEXT_STYLE, color: '#88ddff' })
+      .setScrollFactor(0).setDepth(d + 1);
+
     // Fundo do painel de stats (altura extra para acomodar classe e flechas)
     this.add
-      .rectangle(0, 0, panelW, 88, 0x000000, 0.55)
+      .rectangle(0, 0, panelW, 104, 0x000000, 0.55)
       .setOrigin(0, 0).setScrollFactor(0).setDepth(d - 1);
   }
 
@@ -491,6 +515,14 @@ export class UIScene extends Phaser.Scene {
     EventBus.on(EVENTS.CLASS_INFO, (data: { label: string; usesArrows: boolean; arrows: number }) => {
       if (!this.sys.isActive()) return;
       this.setClassInfo(data.label, data.usesArrows, data.arrows);
+    }, this);
+    EventBus.on(EVENTS.AREA_CHANGED, (data: { area: string; floor?: number }) => {
+      if (!this.sys.isActive() || !this._floorLabel?.active) return;
+      if (data.area === 'dungeon') {
+        this._floorLabel.setText(`Andar: ${data.floor ?? 1}`);
+      } else {
+        this._floorLabel.setText('Cidade');
+      }
     }, this);
     EventBus.on(EVENTS.ITEM_PICKED_UP,      this._onItemPickedUp, this);
     EventBus.on(EVENTS.ITEM_USED,           this._onItemUsed,     this);

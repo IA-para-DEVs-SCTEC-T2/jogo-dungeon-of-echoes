@@ -14,11 +14,11 @@ para criar sprites e processar resultados.
 
 | Andar | Nada  | Poção | Ouro  |
 |-------|-------|-------|-------|
-| 1     | 50%   | 8%    | 42%   |
-| 2     | 47%   | 8%    | 45%   |
-| 3     | 44%   | 7%    | 49%   |
-| 4     | 41%   | 7%    | 52%   |
-| 5+    | 38%   | 6%    | 56%   |
+| 1     | 35%   | 8%    | 57%   |
+| 2     | 32%   | 8%    | 60%   |
+| 3     | 29%   | 7%    | 64%   |
+| 4     | 26%   | 7%    | 67%   |
+| 5+    | 23%   | 6%    | 71%   |
 
 ### Valor de Ouro
 
@@ -70,11 +70,18 @@ interface ChestLootResult {
 
 ---
 
+### Modificadores de Dificuldade Global
+
+- `LootModifiers { goldMultiplier, potionMultiplier }` definidos em `global-difficulty.config.ts` e repassados via `DifficultyManager.globalConfig.lootModifiers`
+- `goldMultiplier` é aplicado ao `base` de `pickGoldAmount()`
+- `potionMultiplier` expande a faixa de chance de poção proporcionalmente, reduzindo a faixa de `nada`
+- Fácil: `{ goldMultiplier: 1.30, potionMultiplier: 1.30 }` | Médio: `1.0 / 1.0` | Difícil: `0.75 / 0.75`
+
 ## API
 
 ```ts
 class LootSystem {
-  roll(gridX, gridY, floor?, elite?, classDef?): Item | null
+  roll(gridX, gridY, floor?, elite?, classDef?, lootMods?: LootModifiers): Item | null
   rollChestLoot(floor: number): ChestLootResult
 }
 ```
