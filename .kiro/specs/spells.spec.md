@@ -21,13 +21,15 @@ O sistema de magias permite ao jogador desbloquear, equipar e usar feitiços mel
 
 ## Tipos de Magia Disponíveis
 
-| ID | Nome | Elemento | Dano | Mana | Cooldown | Nível mínimo |
-|----|------|----------|------|------|----------|-------------|
-| `fire_bolt` | Fire Bolt | fire | 15 | 8 | 800ms | 1 |
-| `ice_shard` | Ice Shard | ice | 20 | 12 | 1100ms | 5 |
-| `wind_cyclone` | Wind Cyclone | wind | 18 | 10 | 950ms | 10 |
-| `fire_explosion` | Fire Explosion | fire | 35 | 22 | 2000ms | 15 |
-| `blizzard` | Blizzard | ice | 45 | 30 | 2500ms | 20 |
+| ID | Nome | Elemento | Dano | Mana | Cooldown | Área | Alcance | Nível mínimo |
+|----|------|----------|------|------|----------|------|---------|-------------|
+| `fire_bolt` | Fire Bolt | fire | 15 | 8 | 800ms | line | 2 | 1 |
+| `ice_bolt` | Ice Bolt | ice | 18 | 8 | 900ms | line | 2 | 1 |
+| `great_fire` | Great Fire | fire | 20 | 14 | 1500ms | radial | 3 | 1 (Mago) |
+| `ice_shard` | Ice Shard | ice | 20 | 12 | 1100ms | adjacent | 1 | 5 |
+| `wind_cyclone` | Wind Cyclone | wind | 18 | 10 | 950ms | adjacent | 1 | 10 |
+| `fire_explosion` | Fire Explosion | fire | 35 | 22 | 2000ms | adjacent | 1 | 15 |
+| `blizzard` | Blizzard | ice | 45 | 30 | 2500ms | adjacent | 1 | 20 |
 
 ---
 
@@ -49,7 +51,15 @@ O sistema de magias permite ao jogador desbloquear, equipar e usar feitiços mel
 
 ---
 
-## Fluxo de Cast (Melee-Range)
+## Tipos de Área (`SpellAreaType`)
+
+| Tipo | Comportamento |
+|------|--------------|
+| `adjacent` | 4 tiles cardinais imediatamente adjacentes ao player |
+| `line` | Cada direção cardinal percorrida tile a tile até `range`; para ao atingir um inimigo ou o limite |
+| `radial` | Todas as 8 direções (cardinais + diagonais) percorridas até `range`; pode acertar múltiplos alvos |
+
+## Fluxo de Cast
 
 1. Player pressiona `J` (slot 0) ou `K` (slot 1)
 2. `GameScene` chama `SpellCastingSystem.cast(slotIndex, player, spellSystem, enemies, now)`
@@ -57,9 +67,10 @@ O sistema de magias permite ao jogador desbloquear, equipar e usar feitiços mel
    - Slot tem magia equipada → senão retorna `null`
    - `spellSystem.canCast(slotIndex, now)` → cooldown zerado
    - `player.mana >= spell.manaCost` → mana suficiente
-4. Se válido: desconta mana, registra `recordCast`, coleta todos os `EnemySystem` vivos nos 4 tiles cardinais adjacentes ao player
+4. Se válido: desconta mana, registra `recordCast`, chama `findTargets(px, py, enemies, areaType, range)` para coletar alvos vivos
 5. Retorna `SpellCastResult { success, damage, spellName, hitEnemies }`
 6. `GameScene` itera `hitEnemies`: aplica dano, sincroniza barra de HP, concede XP se morreu
+7. Se magia ofensiva (`hitEnemies` possível): chama `processEnemyTurns()` para disparar turno dos inimigos
 
 ---
 

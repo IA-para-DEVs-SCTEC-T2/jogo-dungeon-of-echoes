@@ -4,14 +4,17 @@ import { EVENTS } from '../utils/constants';
 import { ClassRulesEngine } from './ClassRulesEngine';
 import type { PlayerClassDef } from '../config/player-classes.config';
 import type { EquippableItemType, EquipmentSlotId, ItemRarity, StatBonuses } from '../types/equipment';
+import type { LootModifiers } from '../config/global-difficulty.config';
+
+const DEFAULT_LOOT_MODS: LootModifiers = { goldMultiplier: 1.0, potionMultiplier: 1.0 };
 
 // Tabela de loot por andar — ouro é a recompensa principal e deve ser frequente.
 const LOOT_TABLE: Array<{ nothing: number; potion: number; gold: number }> = [
-  { nothing: 0.50, potion: 0.08, gold: 0.42 }, // andar 1
-  { nothing: 0.47, potion: 0.08, gold: 0.45 }, // andar 2
-  { nothing: 0.44, potion: 0.07, gold: 0.49 }, // andar 3
-  { nothing: 0.41, potion: 0.07, gold: 0.52 }, // andar 4
-  { nothing: 0.38, potion: 0.06, gold: 0.56 }, // andar 5+
+  { nothing: 0.35, potion: 0.08, gold: 0.57 }, // andar 1
+  { nothing: 0.32, potion: 0.08, gold: 0.60 }, // andar 2
+  { nothing: 0.29, potion: 0.07, gold: 0.64 }, // andar 3
+  { nothing: 0.26, potion: 0.07, gold: 0.67 }, // andar 4
+  { nothing: 0.23, potion: 0.06, gold: 0.71 }, // andar 5+
 ];
 
 function getTable(floor: number) {
@@ -36,27 +39,35 @@ function pickManaTier(floor: number): ManaTier {
 }
 
 // Ouro: base maior e escala mais agressiva com o andar (±30% de variação)
-function pickGoldAmount(floor: number, elite = false): number {
-  const base = 5 + floor * 6;
+function pickGoldAmount(floor: number, elite = false, goldMult = 1.0): number {
+  const base = (5 + floor * 6) * goldMult;
   const variance = Math.floor(base * 0.3);
   const amount = base + Math.floor(Math.random() * (variance * 2 + 1)) - variance;
-  return elite ? Math.floor(amount * 1.8) : amount;
+  return elite ? Math.floor(amount * 1.8) : Math.max(1, Math.floor(amount));
 }
 
-function rollOne(gridX: number, gridY: number, floor: number, elite: boolean, id: number): { item: Item | null; nextId: number } {
+function rollOne(
+  gridX: number, gridY: number,
+  floor: number, elite: boolean, id: number,
+  lootMods: LootModifiers,
+): { item: Item | null; nextId: number } {
   const t = getTable(floor);
   const r = elite ? 1 : Math.random();
+
+  // potionMultiplier expande a faixa de poção proporcionalmente
+  const potionRange = t.potion * lootMods.potionMultiplier;
+  const adjustedNothing = elite ? 0 : Math.max(0, t.nothing - (potionRange - t.potion));
 
   let type: ItemType | null = null;
   let goldAmount: number | undefined;
 
-  if (r < t.nothing) {
+  if (r < adjustedNothing) {
     return { item: null, nextId: id };
-  } else if (r < t.nothing + t.potion) {
+  } else if (r < adjustedNothing + potionRange) {
     type = Math.random() < 0.5 ? pickHealTier(floor) : pickManaTier(floor);
   } else {
     type = 'gold';
-    goldAmount = pickGoldAmount(floor, elite);
+    goldAmount = pickGoldAmount(floor, elite, lootMods.goldMultiplier);
   }
 
   const item = new Item(`loot_${id}`, type, gridX, gridY);
@@ -163,33 +174,32 @@ export class LootSystem {
    * Roda a tabela de loot para a posição dada e emite ITEM_DROPPED se sortear item.
    * classDef opcional aplica luckMultiplier e extraDropChance do Aventureiro.
    */
-  roll(gridX: number, gridY: number, floor = 1, elite = false, classDef?: PlayerClassDef): Item | null {
-    const luck   = classDef ? ClassRulesEngine.luckMultiplier(classDef) : 1.0;
-    const extra  = classDef ? ClassRulesEngine.extraDropChance(classDef) : 0.0;
+  roll(
+    gridX: number, gridY: number,
+    floor = 1, elite = false,
+    classDef?: PlayerClassDef,
+    lootMods: LootModifiers = DEFAULT_LOOT_MODS,
+  ): Item | null {
+    const luck  = classDef ? ClassRulesEngine.luckMultiplier(classDef) : 1.0;
+    const extra = classDef ? ClassRulesEngine.extraDropChance(classDef) : 0.0;
 
-    // Luck modifica a chance de "nada" — reduz proporcionalmente
+    // Luck reduz a chance base de "nada" adicionalmente ao potionMultiplier
     const t = getTable(floor);
-    const adjustedNothing = elite ? 0 : Math.max(0, t.nothing / luck);
-    const r = elite ? 1 : Math.random();
-    const effectiveR = r < adjustedNothing ? 0 : r; // forçar drop se sorte reduziu threshold
+    const baseNothing = elite ? 0 : Math.max(0, t.nothing / luck);
+    const r = Math.random();
 
-    const { item, nextId } = rollOne(gridX, gridY, floor, elite, this._nextId);
+    // Rolar o item com os modificadores de dificuldade
+    const { item, nextId } = rollOne(gridX, gridY, floor, elite, this._nextId, lootMods);
     this._nextId = nextId;
 
-    // Re-roll com ajuste de sorte: usar effectiveR reaproveitado ou rolar de novo
-    let primary: Item | null;
-    if (r < adjustedNothing) {
-      primary = null;
-    } else {
-      void effectiveR; // usamos o item já rolado
-      primary = item;
-    }
+    // Se sorte reduziu o threshold de "nada" e o r caiu nessa zona, forçar drop
+    const primary: Item | null = (!elite && r < baseNothing) ? null : item;
 
     if (primary) EventBus.emit(EVENTS.ITEM_DROPPED, { item: primary });
 
     // Chance de drop extra (Aventureiro)
     if (extra > 0 && Math.random() < extra) {
-      const { item: bonus, nextId: nextId2 } = rollOne(gridX, gridY, floor, false, this._nextId);
+      const { item: bonus, nextId: nextId2 } = rollOne(gridX, gridY, floor, false, this._nextId, lootMods);
       this._nextId = nextId2;
       if (bonus) EventBus.emit(EVENTS.ITEM_DROPPED, { item: bonus });
     }

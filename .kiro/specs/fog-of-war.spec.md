@@ -1,8 +1,10 @@
 # Spec: Fog of War
 
-**Versão:** 0.1  
-**Status:** Rascunho  
+**Versão:** 0.2  
+**Status:** Parcialmente implementado — ver nota de implementação atual  
 **Relacionado a:** dungeon.spec.md, player.spec.md, gameloop.spec.md
+
+> **Nota de implementação atual (v1.0.0):** `FogOfWarSystem` implementa visibilidade por alpha com dois estados (`_visible` / `_visited`) usando distância euclidiana (raio 5, circular). Tiles explorados são persistidos por andar via `exportVisited()` / `importVisited()` no cache de `_dungeonCache`. As regras R4 (revelação de sala inteira) e a renderização com `FogOverlay` Graphics ainda não estão implementadas — o controle de alpha é feito diretamente nos sprites de tile.
 
 ---
 

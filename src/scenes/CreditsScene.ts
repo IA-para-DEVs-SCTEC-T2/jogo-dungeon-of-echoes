@@ -7,6 +7,9 @@ const CREDITS: Array<{ role: string; names: string[] }> = [
 ];
 
 export class CreditsScene extends Phaser.Scene {
+  private _escKey!: Phaser.Input.Keyboard.Key;
+  private _transitioning = false;
+
   constructor() {
     super({ key: 'CreditsScene' });
   }
@@ -57,6 +60,27 @@ export class CreditsScene extends Phaser.Scene {
 
     btn.on('pointerover', () => btn.setStyle({ color: '#ffd700' }));
     btn.on('pointerout', () => btn.setStyle({ color: '#ffffff' }));
-    btn.on('pointerdown', () => this.scene.start('MainMenuScene'));
+    btn.on('pointerdown', () => {
+      if (!this._transitioning) {
+        this._transitioning = true;
+        this.scene.start('MainMenuScene');
+      }
+    });
+
+    this._transitioning = false;
+    this._escKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+
+    this.events.once('shutdown', () => {
+      this.input.removeAllListeners();
+      this.input.keyboard?.clearCaptures();
+    });
+  }
+
+  update(): void {
+    if (this._transitioning) return;
+    if (Phaser.Input.Keyboard.JustDown(this._escKey)) {
+      this._transitioning = true;
+      this.scene.start('MainMenuScene');
+    }
   }
 }
