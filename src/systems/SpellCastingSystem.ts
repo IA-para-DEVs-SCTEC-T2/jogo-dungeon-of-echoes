@@ -5,11 +5,22 @@ import type { SpellSystem } from './SpellSystem';
 import type { Player } from '../entities/Player';
 import type { EnemySystem } from './EnemySystem';
 
-const ADJACENT = [
+const CARDINAL = [
   { dx:  0, dy: -1 },
   { dx:  0, dy:  1 },
   { dx: -1, dy:  0 },
   { dx:  1, dy:  0 },
+];
+
+const ALL_DIRS = [
+  { dx:  0, dy: -1 },
+  { dx:  0, dy:  1 },
+  { dx: -1, dy:  0 },
+  { dx:  1, dy:  0 },
+  { dx: -1, dy: -1 },
+  { dx:  1, dy: -1 },
+  { dx: -1, dy:  1 },
+  { dx:  1, dy:  1 },
 ];
 
 export type SpellCastResult = {
@@ -20,9 +31,51 @@ export type SpellCastResult = {
   hitEnemies: EnemySystem[];
 };
 
+function findTargets(
+  px: number, py: number,
+  enemies: EnemySystem[],
+  areaType: string,
+  range: number,
+): EnemySystem[] {
+  const hit = new Set<EnemySystem>();
+
+  if (areaType === 'line') {
+    for (const { dx, dy } of CARDINAL) {
+      for (let r = 1; r <= range; r++) {
+        const tx = px + dx * r;
+        const ty = py + dy * r;
+        for (const e of enemies) {
+          if (e.alive && e.gridX === tx && e.gridY === ty) hit.add(e);
+        }
+      }
+    }
+  } else if (areaType === 'radial') {
+    for (const { dx, dy } of ALL_DIRS) {
+      for (let r = 1; r <= range; r++) {
+        const tx = px + dx * r;
+        const ty = py + dy * r;
+        for (const e of enemies) {
+          if (e.alive && e.gridX === tx && e.gridY === ty) hit.add(e);
+        }
+      }
+    }
+  } else {
+    // adjacent (default, range=1)
+    for (const { dx, dy } of CARDINAL) {
+      const tx = px + dx;
+      const ty = py + dy;
+      for (const e of enemies) {
+        if (e.alive && e.gridX === tx && e.gridY === ty) hit.add(e);
+      }
+    }
+  }
+
+  return [...hit];
+}
+
 export class SpellCastingSystem {
   cast(
-    slotIndex: 0 | 1,
+    slotIndex: number,
     player: Player,
     spellSystem: SpellSystem,
     enemies: EnemySystem[],
@@ -42,9 +95,9 @@ export class SpellCastingSystem {
 
     if (player.mana < spell.manaCost) return null;
 
-    const targets = ADJACENT
-      .map(({ dx, dy }) => ({ tx: player.gridX + dx, ty: player.gridY + dy }))
-      .flatMap(({ tx, ty }) => enemies.filter(e => e.alive && e.gridX === tx && e.gridY === ty));
+    const areaType = spell.areaType ?? 'adjacent';
+    const range    = spell.range ?? 1;
+    const targets  = findTargets(player.gridX, player.gridY, enemies, areaType, range);
 
     player.mana = Math.max(0, player.mana - spell.manaCost);
     EventBus.emit(EVENTS.PLAYER_MANA_CHANGED, { mana: player.mana, maxMana: player.maxMana });

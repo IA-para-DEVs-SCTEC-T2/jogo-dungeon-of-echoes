@@ -54,6 +54,22 @@ export class FogOfWarSystem {
     }
   }
 
+  isVisible(gridX: number, gridY: number): boolean {
+    return this._visible.has(`${gridX},${gridY}`);
+  }
+
+  /** Exporta snapshot dos tiles explorados para persistência no cache de andares. */
+  exportVisited(): Set<string> {
+    return new Set(this._visited);
+  }
+
+  /** Restaura tiles explorados ao revisitar um andar cacheado. */
+  importVisited(visited: Set<string>): void {
+    for (const key of visited) {
+      this._visited.add(key);
+    }
+  }
+
   /**
    * Reseta o estado ao trocar de andar ou área.
    * Todos os tiles voltam a ser invisíveis.

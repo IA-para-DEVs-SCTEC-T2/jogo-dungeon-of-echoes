@@ -1,15 +1,10 @@
-/**
- * DifficultyManager.ts — Gerenciador de dificuldade adaptativa
- * Fase 5: IA Adaptativa
- *
- * Combina a dificuldade estática por andar (DifficultyScalingSystem)
- * com ajuste dinâmico baseado nas métricas do jogador (PlayerMetrics).
- *
- * Usa "histerese" para evitar mudanças bruscas:
- * a dificuldade só muda após o score ultrapassar o limiar por HYSTERESIS_CYCLES ciclos.
- */
-
 import { getFloorDifficulty, type FloorDifficulty } from '../config/difficulty.config';
+import {
+  GLOBAL_DIFFICULTY_CONFIGS,
+  type GlobalDifficultyConfig,
+  type GlobalDifficultyLevel,
+  type LootModifiers,
+} from '../config/global-difficulty.config';
 import type { PlayerMetrics } from './PlayerMetrics';
 
 export enum DifficultyLevel {
@@ -20,18 +15,24 @@ export enum DifficultyLevel {
 
 export interface AdaptiveDifficulty extends FloorDifficulty {
   level:            DifficultyLevel;
-  aggressionLevel:  number;   // 0–1: controla comportamento da IA dos inimigos
-  narrativeHint:    string;   // Mensagem sutil para o jogador
+  aggressionLevel:  number;
+  narrativeHint:    string;
+  lootModifiers:    LootModifiers;
 }
 
-// Limiares de score para mudança de dificuldade
+export interface DifficultySnapshot {
+  globalLevel:         GlobalDifficultyLevel;
+  adaptiveLevel:       DifficultyLevel;
+  effectiveHpMult:     number;
+  effectiveAtkMult:    number;
+  effectiveEnemyCount: number;
+  lootModifiers:       LootModifiers;
+}
+
 const SCORE_EASY_THRESHOLD   = -20;
 const SCORE_HARD_THRESHOLD   =  20;
-
-// Histerese: quantos ciclos o score precisa manter o limiar antes de mudar
 const HYSTERESIS_CYCLES = 3;
 
-// Modificadores por nível de dificuldade
 const MODIFIERS: Record<DifficultyLevel, { hp: number; atk: number; countDelta: number; aggression: number }> = {
   [DifficultyLevel.EASY]:   { hp: 0.80, atk: 0.80, countDelta: -1, aggression: 0.2 },
   [DifficultyLevel.NORMAL]: { hp: 1.00, atk: 1.00, countDelta:  0, aggression: 0.5 },
@@ -45,37 +46,43 @@ const NARRATIVE_HINTS: Record<DifficultyLevel, string> = {
 };
 
 export class DifficultyManager {
-  private _currentLevel: DifficultyLevel = DifficultyLevel.NORMAL;
+  private _currentLevel: DifficultyLevel    = DifficultyLevel.NORMAL;
+  private _globalConfig: GlobalDifficultyConfig = GLOBAL_DIFFICULTY_CONFIGS['medium'];
 
-  // Contadores de histerese
-  private _cyclesBelow = 0;  // ciclos com score < EASY_THRESHOLD
-  private _cyclesAbove = 0;  // ciclos com score > HARD_THRESHOLD
-
-  // Turno do último recálculo
+  private _cyclesBelow = 0;
+  private _cyclesAbove = 0;
   private _lastRecalcTurn = 0;
-  private readonly _recalcInterval = 10; // recalcular a cada 10 turnos
+  private readonly _recalcInterval = 10;
 
   get currentLevel(): DifficultyLevel {
     return this._currentLevel;
   }
 
+  get globalConfig(): GlobalDifficultyConfig {
+    return this._globalConfig;
+  }
+
   /**
-   * Atualiza o nível de dificuldade com base nas métricas do jogador.
-   * Deve ser chamado a cada turno — internamente controla o intervalo.
-   *
-   * @returns true se o nível mudou
+   * Define a dificuldade global escolhida pelo jogador.
+   * Deve ser chamado antes do primeiro spawn (em GameScene.create).
    */
+  setGlobalDifficulty(level: GlobalDifficultyLevel): void {
+    this._globalConfig = GLOBAL_DIFFICULTY_CONFIGS[level];
+    // Resetar contadores adaptativos para a nova run
+    this._cyclesBelow = 0;
+    this._cyclesAbove = 0;
+    this._lastRecalcTurn = 0;
+    this._currentLevel = DifficultyLevel.NORMAL;
+  }
+
   update(metrics: PlayerMetrics): boolean {
     const turn = metrics.turnsSurvived;
-
-    // Só recalcula a cada N turnos
     if (turn - this._lastRecalcTurn < this._recalcInterval) return false;
     this._lastRecalcTurn = turn;
 
     const score = metrics.getRecentPerformanceScore();
     const prev  = this._currentLevel;
 
-    // Atualizar contadores de histerese
     if (score < SCORE_EASY_THRESHOLD) {
       this._cyclesBelow++;
       this._cyclesAbove = 0;
@@ -87,7 +94,6 @@ export class DifficultyManager {
       this._cyclesAbove = 0;
     }
 
-    // Mudar dificuldade apenas após histerese atingida
     if (this._cyclesBelow >= HYSTERESIS_CYCLES) {
       this._currentLevel = DifficultyLevel.EASY;
       this._cyclesBelow  = 0;
@@ -101,32 +107,46 @@ export class DifficultyManager {
     return this._currentLevel !== prev;
   }
 
-  /**
-   * Retorna a dificuldade adaptativa para o andar atual.
-   * Combina a tabela estática de andares com os modificadores adaptativos.
-   */
   getAdaptiveDifficulty(floor: number): AdaptiveDifficulty {
     const base = getFloorDifficulty(floor);
     const mod  = MODIFIERS[this._currentLevel];
+    const g    = this._globalConfig;
+
+    // Respeitar overrideEnemyCount (encounters fixos/scripted)
+    const enemyCount = base.overrideEnemyCount !== undefined
+      ? base.overrideEnemyCount
+      : Math.max(1, base.enemyCount + mod.countDelta + g.enemyCountDelta);
 
     return {
       ...base,
-      enemyHpMultiplier:  base.enemyHpMultiplier  * mod.hp,
-      enemyAtkMultiplier: base.enemyAtkMultiplier * mod.atk,
-      enemyCount:         Math.max(1, base.enemyCount + mod.countDelta),
-      level:              this._currentLevel,
-      aggressionLevel:    mod.aggression,
-      narrativeHint:      NARRATIVE_HINTS[this._currentLevel],
+      enemyHpMultiplier:  base.enemyHpMultiplier  * mod.hp  * g.enemyHpMultiplier,
+      enemyAtkMultiplier: base.enemyAtkMultiplier * mod.atk * g.enemyAtkMultiplier,
+      enemyCount,
+      level:           this._currentLevel,
+      aggressionLevel: mod.aggression,
+      narrativeHint:   NARRATIVE_HINTS[this._currentLevel],
+      lootModifiers:   g.lootModifiers,
     };
   }
 
-  /**
-   * Reseta para o estado inicial (nova sessão).
-   */
+  /** Snapshot do estado atual para debug/log. */
+  get snapshot(): DifficultySnapshot {
+    const adaptive = this.getAdaptiveDifficulty(1); // floor 1 como referência
+    return {
+      globalLevel:         this._globalConfig.level,
+      adaptiveLevel:       this._currentLevel,
+      effectiveHpMult:     adaptive.enemyHpMultiplier,
+      effectiveAtkMult:    adaptive.enemyAtkMultiplier,
+      effectiveEnemyCount: adaptive.enemyCount,
+      lootModifiers:       this._globalConfig.lootModifiers,
+    };
+  }
+
   reset(): void {
-    this._currentLevel = DifficultyLevel.NORMAL;
-    this._cyclesBelow  = 0;
-    this._cyclesAbove  = 0;
+    // Não reseta _globalConfig — ela persiste durante toda a run
+    this._currentLevel   = DifficultyLevel.NORMAL;
+    this._cyclesBelow    = 0;
+    this._cyclesAbove    = 0;
     this._lastRecalcTurn = 0;
   }
 }
