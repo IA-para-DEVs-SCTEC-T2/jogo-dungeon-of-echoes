@@ -1,0 +1,76 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [staging]
+
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build game
+        run: npm run build
+        env:
+          GITHUB_ACTIONS: true
+
+      # Reorganiza dist/ para que o jogo fique em dist/game/
+      - name: Move build to game/ subfolder
+        run: |
+          mkdir -p dist/game
+          # Move todos os arquivos gerados (exceto a pasta game/ recém criada)
+          find dist -maxdepth 1 -mindepth 1 ! -name game -exec mv {} dist/game/ \;
+
+      # Copia o dashboard e os diagramas para dentro do dist
+      - name: Copy dashboard and docs
+        run: |
+          cp -r dashboard dist/dashboard
+          mkdir -p dist/docs/diagrams
+          cp -r docs/diagrams/. dist/docs/diagrams/
+
+      # Página raiz redireciona para o dashboard
+      - name: Create root index redirect
+        run: |
+          cat > dist/index.html <<'EOF'
+          <!DOCTYPE html>
+          <html lang="pt-br">
+          <head>
+            <meta charset="UTF-8">
+            <meta http-equiv="refresh" content="0; url=dashboard/">
+            <title>Dungeon of Echoes</title>
+          </head>
+          <body>
+            <p>Redirecionando para o <a href="dashboard/">dashboard</a>…</p>
+          </body>
+          </html>
+          EOF
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          publish_branch: gh-pages
+          force_orphan: true
+          user_name: github-actions[bot]
+          user_email: github-actions[bot]@users.noreply.github.com
+          commit_message: "chore(deploy): build ${{ github.sha }}"
