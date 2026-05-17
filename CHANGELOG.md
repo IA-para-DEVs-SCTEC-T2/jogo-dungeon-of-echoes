@@ -48,6 +48,62 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ---
 
+## [1.0.0] — 2026-05-17
+
+### Added
+
+#### Seleção de Dificuldade Global
+
+- **`global-difficulty.config.ts`**: três níveis escolhidos antes de iniciar a partida (Fácil / Médio / Difícil), cada um com multiplicadores próprios de HP e ATK dos inimigos, delta de quantidade de inimigos por andar e `LootModifiers { goldMultiplier, potionMultiplier }`
+- **`DifficultyManager.setGlobalDifficulty()`**: persiste o nível escolhido durante toda a run; coexiste com o sistema adaptativo existente sem interferência — Médio equivale exatamente ao comportamento anterior (todos os multiplicadores em 1.0×)
+- `DifficultySnapshot` adicionado ao `DifficultyManager` para debug: expõe nível global, nível adaptativo, multiplicadores efetivos e modificadores de loot no momento da consulta
+- `overrideEnemyCount` em `FloorDifficulty` protege encounters scripted/fixos do ajuste automático de quantidade
+- `CharacterSelectScene` exibe a seção de dificuldade com três cards coloridos (verde / dourado / vermelho); seleção é passada para `GameScene` via `scene.start({ playerClass, difficulty })`
+
+#### Magias do Mago — Alcance em Linha e Great Fire
+
+- **Fire Bolt** e **Ice Bolt** reconfigurados com `areaType: 'line'` e `range: 2` — atingem inimigos em linha reta nas 4 direções cardinais até 2 tiles de distância, podendo acertar múltiplos alvos
+- **Great Fire**: nova magia exclusiva do Mago — `areaType: 'radial'`, alcance de 3 tiles em todas as 8 direções, custo de 14 MP, animação de fogo; adicionada à `spell-progression` do nível 1 e a `exclusiveSpells` do Mago
+- `SpellAreaType = 'adjacent' | 'line' | 'radial'` e campo `range?: number` adicionados a `SpellDef`
+- `findTargets()` em `SpellCastingSystem`: lógica unificada de coleta de alvos por tipo de área — cardinais para `line`, 8 direções para `radial`, 4 adjacentes para `adjacent`
+- Magias ofensivas disparam o turno dos inimigos via `processEnemyTurns()` após o cast; magias de cura não disparam turno inimigo
+
+#### Melhoria no Sistema de Drops
+
+- Tabela de loot de inimigos rebalanceada: gold sobe de 42% → 57% no andar 1 e de 56% → 71% no andar 5+
+- `LootModifiers { goldMultiplier, potionMultiplier }` integrados a `LootSystem.roll()` e `rollChestLoot()`, respeitando a dificuldade global escolhida
+- `TurnManager.processPlayerAction()` e `processEnemyTurns()` recebem `enemyAtkMult` como parâmetro opcional — o multiplicador de ATK da dificuldade global antes era calculado mas nunca aplicado
+
+#### Redesign Visual da CharacterSelectScene
+
+- Interface reconstruída com estética dark fantasy premium: painéis com bordas `Graphics`, acentos de canto em L dourados, overlay escuro com partículas de poeira animadas
+- Painel esquerdo: 4 cards de classe com ícone sprite (scale 3×), nome e tag descritiva por linha
+- Painel direito: sprite de preview em scale 8× com bob tween (±3 px / 1 400 ms), glow pulsante, elipse de pedestal e frame decorativo
+- 3 cards de dificuldade com identidade visual própria: verde (Fácil), dourado (Médio), vermelho (Difícil); borda brilhante na selecionada
+- Botões de rodapé "Voltar" e "Confirmar" com bordas `Graphics` e estados de hover
+- Toda a lógica existente (confirmação, teclado, `_transitioning`, passagem de dados para `GameScene`) preservada intacta
+
+#### Persistência do Mapa Explorado Entre Andares
+
+- `FogOfWarSystem.exportVisited()`: retorna snapshot do Set de tiles explorados (cópia defensiva)
+- `FogOfWarSystem.importVisited(visited)`: mescla tiles salvos ao estado atual ao retornar a um andar
+- `_dungeonCache` estendido com campo `fogVisited?: Set<string>` — salvo no `_cleanup()` antes do reset do fog e restaurado no `_loadDungeonFloor()` ao carregar andar cacheado
+- Tiles explorados reaparecem com alpha 0.35 (visitado mas fora do campo de visão) ao retornar para andares anteriores ou à dungeon após passar pela cidade
+
+### Fixed
+
+- **Crash `glTexture/frame.source is null`** ao retornar à `CharacterSelectScene` pela segunda vez: arrays `_buttons` e `_difficultyButtons` nunca eram limpos entre visitas, acumulando referências a `TextGameObjects` destruídos; corrigido com reset completo de todos os arrays e timers no início de `create()`
+- **Teclas persistindo entre cenas**: listeners de teclado na `CharacterSelectScene` e `CreditsScene` agora são removidos via `shutdown` event + `clearCaptures()`; ESC migrado de listener persistente para `addKey` + `JustDown` em `update()`
+- `enemyAtkMultiplier` calculado pelo `DifficultyManager` mas nunca repassado ao `TurnManager`; corrigido como parâmetro opcional `enemyAtkMult = 1.0` nos dois métodos de processamento de turno
+
+### Changed
+
+- `CharacterSelectScene` agora usa `Zone` como hit area dos cards em vez de listeners diretos nos sprites/textos — evita conflito de captura de eventos entre camadas
+- Descrições de dificuldade reduzidas a no máximo 2 palavras para caber nos cards sem quebra de linha
+- `DifficultyManager.reset()` não toca `_globalConfig` — a dificuldade escolhida pelo jogador persiste durante toda a run
+
+---
+
 ## [0.6.0] — 2026-05-16
 
 ### Added

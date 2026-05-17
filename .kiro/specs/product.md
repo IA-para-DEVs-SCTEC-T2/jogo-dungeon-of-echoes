@@ -4,7 +4,7 @@
 
 Dungeon of Echoes é um RPG roguelike tile-based jogado inteiramente no navegador. Inspirado no clássico Castle of the Winds (1989–1993), o jogo combina exploração de masmorras geradas proceduralmente com combate turn-based e progressão de personagem. O MVP entrega uma experiência jogável e coesa, priorizando mecânicas sólidas antes de qualquer complexidade adicional.
 
-O projeto é de contexto acadêmico e serve como demonstração de arquitetura modular em JavaScript com Phaser 4, com estrutura preparada para integração futura de IA generativa.
+O projeto é de contexto acadêmico e serve como demonstração de arquitetura modular em JavaScript com Phaser 3, com estrutura preparada para integração futura de IA generativa.
 
 ## Público-Alvo
 
@@ -17,11 +17,13 @@ O projeto é de contexto acadêmico e serve como demonstração de arquitetura m
 ```
 BootScene (preload de assets + registro de animações)
     ↓ 200ms
-MainMenuScene  →  [Novo Jogo]  →  GameScene
-               →  [Créditos]  →  CreditsScene  →  [Voltar]  →  MainMenuScene
+MainMenuScene  →  [Novo Jogo]  →  CharacterSelectScene  →  [Confirmar]  →  GameScene
+               →  [Créditos]  →  CreditsScene           →  [Voltar]    →  MainMenuScene
+CharacterSelectScene  →  [Voltar / ESC]  →  MainMenuScene
 ```
 
 - `MainMenuScene`: fundo `game_bg.png`, botões "Novo Jogo" / "Créditos", rodapé "Equipe 7 / vX.Y.Z" (versão lida dinamicamente do `package.json` via `__APP_VERSION__`)
+- `CharacterSelectScene`: seleção de classe (Aventureiro / Guerreiro / Arqueiro / Mago) + nível de dificuldade (Fácil / Médio / Difícil); preview animado da classe; dados passados ao `GameScene` via `scene.start({ playerClass, difficulty })`
 - `CreditsScene`: exibe roles e nomes da equipe (Bardo, Magos, Paladinos); botão voltar
 - `DEV_CONFIG.devMode = true` faz o `BootScene` pular o menu e ir direto à `GameScene`
 
@@ -145,11 +147,15 @@ Input do jogador → Resolve ação (mover/atacar/item/magia/esperar) → Turno 
 - Level up: +3 pontos de atributo para distribuir
 - HP e Mana recalculados automaticamente
 
-### Magias (v0.5.4)
+### Magias (v1.0.0)
 
-- 5 magias data-driven (`spells.db.ts`): Fire Bolt, Ice Shard, Wind Cyclone, Fire Explosion, Blizzard
+- 6 magias data-driven (`spells.db.ts`): Fire Bolt, Ice Bolt, Ice Shard, Wind Cyclone, Fire Explosion, Blizzard + Great Fire (exclusiva do Mago)
 - Desbloqueio automático por nível (`spell-progression.ts`): nível 1, 5, 10, 15, 20
-- Melee-range AoE: atinge todos os inimigos nos 4 tiles cardinais adjacentes
+- `SpellAreaType`: `'adjacent'` (4 cardinais, padrão), `'line'` (linha reta, N direções), `'radial'` (8 direções)
+- `range?: number` em `SpellDef` define alcance máximo em tiles (padrão: 1)
+- Fire Bolt / Ice Bolt: `areaType: 'line'`, alcance 2, acerta múltiplos inimigos em linha reta
+- Great Fire: `areaType: 'radial'`, alcance 3, atinge todas as 8 direções, custo 14 MP
+- Magias ofensivas disparam turno dos inimigos via `processEnemyTurns()` após o cast
 - Mana e cooldown por slot, verificados antes do cast
 - UI: `SpellsPanel` na aba `I`, slots J/K no action bar com barra de cooldown
 
@@ -160,17 +166,18 @@ Input do jogador → Resolve ação (mover/atacar/item/magia/esperar) → Turno 
 - Cache por sessão — sem chamadas duplicadas
 - Fallback gracioso quando API indisponível
 
-### Dificuldade Adaptativa
+### Dificuldade Global + Adaptativa
 
-- `PlayerMetrics`: sliding window de 20 turnos (dano recebido, kills, mortes)
-- `DifficultyManager`: calcula aggression score (0–1) com histeresis para evitar oscilação
+- **Dificuldade global** (escolha do jogador): Fácil / Médio / Difícil, definida na `CharacterSelectScene` e persistida em `DifficultyManager` durante toda a run; afeta HP/ATK dos inimigos, quantidade por andar e multiplicadores de loot (`goldMultiplier`, `potionMultiplier`)
+- **Dificuldade adaptativa** (baseada em performance): `PlayerMetrics` rastreia dano, kills e mortes em janela deslizante de 20 turnos; `DifficultyManager` ajusta nível adaptativo (EASY/NORMAL/HARD) com histeresis; os dois sistemas são multiplicados — Médio equivale a ×1.0 em todos os fatores
 - `DifficultyScalingSystem`: multiplicadores fixos por andar (1.0× → 2.0× HP/ATK)
+- `DifficultySnapshot`: snapshot de debug com nível global, nível adaptativo, multiplicadores efetivos e modificadores de loot
 
 ## Funcionalidades Fora do Escopo Atual (Planejadas)
 
 Estas features **não estão implementadas** mas têm specs ou estrutura preparada:
 
-- **Fog of War**: spec pronta em `.kiro/specs/fog-of-war.spec.md` (HIDDEN/VISIBLE/REVEALED)
+- **Fog of War completo com revelação de sala**: implementação atual usa alpha por tile (visited/visible); spec completa em `.kiro/specs/fog-of-war.spec.md` define `HIDDEN/VISIBLE/REVEALED` com revelação de sala inteira ao entrar
 - **Minimap**: spec pronta em `.kiro/specs/minimap.spec.md`
 - **Árvore de habilidades por classe**
 - **Sistema de save / placar local**
