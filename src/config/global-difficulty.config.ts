@@ -19,7 +19,7 @@ export const GLOBAL_DIFFICULTY_CONFIGS: Record<GlobalDifficultyLevel, GlobalDiff
   easy: {
     level: 'easy',
     label: 'Fácil',
-    description: 'Experiência mais tranquila e acessível',
+    description: 'Mais tranquilo',
     enemyHpMultiplier:  0.75,
     enemyAtkMultiplier: 0.75,
     enemyCountDelta:    -2,
@@ -28,7 +28,7 @@ export const GLOBAL_DIFFICULTY_CONFIGS: Record<GlobalDifficultyLevel, GlobalDiff
   medium: {
     level: 'medium',
     label: 'Médio',
-    description: 'Experiência padrão recomendada',
+    description: 'Padrão recomendado',
     enemyHpMultiplier:  1.00,
     enemyAtkMultiplier: 1.00,
     enemyCountDelta:    0,
@@ -37,7 +37,7 @@ export const GLOBAL_DIFFICULTY_CONFIGS: Record<GlobalDifficultyLevel, GlobalDiff
   hard: {
     level: 'hard',
     label: 'Difícil',
-    description: 'Para jogadores experientes',
+    description: 'Alta dificuldade',
     enemyHpMultiplier:  1.25,
     enemyAtkMultiplier: 1.30,
     enemyCountDelta:    +2,

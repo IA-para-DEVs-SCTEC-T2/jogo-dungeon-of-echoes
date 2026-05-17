@@ -87,10 +87,11 @@ export class GameScene extends Phaser.Scene {
 
   // Cache de andares visitados (runtime — não serializado ainda)
   private _dungeonCache = new Map<number, {
-    dungeon:    DungeonGenerator;
-    items:      Item[];
-    floorFrame: number;
-    features:   DungeonFeature[];
+    dungeon:     DungeonGenerator;
+    items:       Item[];
+    floorFrame:  number;
+    features:    DungeonFeature[];
+    fogVisited?: Set<string>;
   }>();
 
   // ─── Estado da área atual ─────────────────────────────────────────────────
@@ -339,6 +340,12 @@ export class GameScene extends Phaser.Scene {
     this._enemies = [];
 
     if (this._currentArea === 'dungeon') {
+      // Persistir exploração do andar atual antes de resetar o fog
+      const currentFloor = this.floorManager.currentFloor;
+      const cached = this._dungeonCache.get(currentFloor);
+      if (cached && this._fogOfWar) {
+        cached.fogVisited = this._fogOfWar.exportVisited();
+      }
       this._fogOfWar?.reset();
     }
   }
@@ -451,6 +458,9 @@ export class GameScene extends Phaser.Scene {
       this._floorFrame = cached.floorFrame;
       this._items      = cached.items;
       this._dungeonFeatures = cached.features;
+      if (cached.fogVisited) {
+        this._fogOfWar.importVisited(cached.fogVisited);
+      }
     } else {
       this._dungeon = new DungeonGenerator();
       this._dungeon.generate();
