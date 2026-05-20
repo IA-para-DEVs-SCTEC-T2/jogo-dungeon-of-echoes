@@ -35,7 +35,7 @@ classDiagram
     +reset(gridX, gridY) void
   }
 
-  class EnemySystem {
+  class Enemy {
     +id: number
     +hp, maxHp, attack, xpReward: number
     +gridX, gridY: number
@@ -323,7 +323,7 @@ classDiagram
     -_narrativeService: NarrativeService
     -_dungeonCache: Map~number,DungeonState~
     -_currentArea: string
-    -_enemies: EnemySystem[]
+    -_enemies: Enemy[]
     -_items: Item[]
     +create() void
     +update(time, delta) void
@@ -375,7 +375,7 @@ classDiagram
 
   %% GameScene → Systems
   GameScene --> Player : cria e controla
-  GameScene --> EnemySystem : cria via createEnemies()
+  GameScene --> Enemy : cria via createEnemies()
   GameScene --> Item : gerencia no chão
   GameScene --> XPSystem : usa
   GameScene --> CombatSystem : usa
@@ -416,7 +416,7 @@ classDiagram
   %% Spells
   SpellSystem --> ClassRulesEngine : usa
   SpellCastingSystem --> SpellSystem : usa
-  SpellCastingSystem --> EnemySystem : busca alvos
+  SpellCastingSystem --> Enemy : busca alvos
 
   %% Difficulty
   DifficultyManager --> PlayerMetrics : lê performance
@@ -428,7 +428,7 @@ classDiagram
 
   %% Projectile
   Projectile --> DungeonGenerator : colisão
-  Projectile --> EnemySystem : detecta hit
+  Projectile --> Enemy : detecta hit
 
   %% UI
   UIScene --> LogSystem : usa

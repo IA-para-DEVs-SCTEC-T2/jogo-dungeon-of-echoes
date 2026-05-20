@@ -236,6 +236,40 @@ Os requisitos abaixo são derivados diretamente das specs em `.kiro/specs/`.
 
 ---
 
+## 8.1 User Stories
+
+As histórias abaixo representam os principais fluxos do jogador e guiaram as decisões de design e implementação do produto.
+
+**US-01 — Seleção de Classe**
+> Como jogador, quero escolher uma classe antes de iniciar a partida (Guerreiro, Arqueiro, Mago ou Aventureiro), para que minha experiência de jogo reflita um estilo de combate distinto desde o primeiro turno.
+
+**Critérios de aceite:**
+- Tela de seleção exibe as 4 classes com atributos e habilidades de cada uma
+- Ao confirmar, os bônus da classe são aplicados aos atributos base do personagem
+- Não é possível trocar de classe após iniciar a partida
+
+---
+
+**US-02 — Exploração com Memória de Mapa**
+> Como jogador, quero que as áreas já exploradas permaneçam visíveis no mapa mesmo após sair do andar ou visitar a cidade, para que eu possa me orientar sem precisar reexplorar áreas já conhecidas.
+
+**Critérios de aceite:**
+- Tiles visitados ficam com iluminação reduzida (estado REVEALED) ao saírem do campo de visão
+- O estado de exploração persiste ao transitar entre dungeon e cidade
+- Tiles nunca visitados permanecem completamente escuros (estado HIDDEN)
+
+---
+
+**US-03 — Narrativa Dinâmica via IA**
+> Como jogador, quero receber descrições narrativas geradas por IA ao encontrar inimigos elite e ao interagir com NPCs, para que cada partida tenha uma identidade única e imersiva.
+
+**Critérios de aceite:**
+- Inimigos elite recebem nome e habilidade especial gerados pelo modelo de linguagem
+- Diálogos de NPCs são contextualizados com os eventos recentes da partida
+- A narrativa é exibida no painel de log sem interromper o fluxo de jogo
+
+---
+
 ## 9. Escopo
 
 ### Dentro do escopo (v0.6.0 — estado atual)
