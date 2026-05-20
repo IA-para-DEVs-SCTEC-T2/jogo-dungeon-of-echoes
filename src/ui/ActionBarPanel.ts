@@ -87,6 +87,7 @@ export class ActionBarPanel {
       case 'potion_mana':
       case 'potion_mana_high':  return { texture: SPRITES.POTION, frame: DAWNLIKE_FRAMES.POTION_MANA };
       case 'gold':              return { texture: SPRITES.MONEY,  frame: DAWNLIKE_FRAMES.GOLD_SMALL };
+      default:                  return { texture: SPRITES.POTION, frame: 0 };
     }
   }
 }
