@@ -1,5 +1,7 @@
 # Spec — Sistema de Magias (Spells)
 
+> **Última revisão:** v1.0.1 — Corrigido label dos botões "Equipar" no `SpellsPanel`: classes não-Mago usam slots `J`/`K` mas os botões exibiam `H`/`J` (hardcoded). Labels agora derivados de `vm.activeSlots[i].key` em tempo de render; botões também mostram a magia já equipada no slot.
+
 ## Descrição
 
 O sistema de magias permite ao jogador desbloquear, equipar e usar feitiços melee-range durante a exploração da dungeon. As magias atingem todos os inimigos adjacentes (4 tiles cardinais) ao custo de mana e respeitam cooldown por slot. São desbloqueadas automaticamente ao subir de nível e equipadas em dois slots (`J` e `K`).

@@ -48,6 +48,16 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ---
 
+## [1.0.1] — 2026-05-20
+
+### Fixed
+
+- **Crash ao pegar muitas poções**: `ActionBarPanel._getItemVisual()` não tinha `default` no `switch`, retornando `undefined` para itens equipáveis e causando `TypeError: this._getItemVisual(...) is undefined`. Adicionado `default` com fallback para o frame 0 do sprite de poção (mesmo padrão já usado na `GameScene`)
+- **Magias não equipáveis (não-Mago)**: botões "Equipar" no painel de magias exibiam labels `[H]`/`[J]` fixos em código, mas classes não-Mago usam os slots `[J]`/`[K]`. O jogador clicava em "Equipar [H]", a magia ia para `[J]` (correto internamente), e ao tentar conjurar com `H` nada acontecia. Labels agora são derivados dinamicamente do `vm.activeSlots[i].key` em tempo de render; botões também exibem o nome da magia já equipada no slot como feedback visual
+- **Promises de narrativa sem tratamento de erro**: chamadas assíncronas a `generateNarrative()` e `generateDeathStory()` na `GameScene` não tinham `.catch()`, podendo gerar `UnhandledPromiseRejection` em caso de timeout ou falha de rede. Adicionado `.catch()` silencioso em ambas (narrativa é opcional)
+
+---
+
 ## [1.0.0] — 2026-05-17
 
 ### Added

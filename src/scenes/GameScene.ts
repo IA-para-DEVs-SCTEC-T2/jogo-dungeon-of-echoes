@@ -544,7 +544,8 @@ export class GameScene extends Phaser.Scene {
         .then((narrative) => {
           EventBus.emit(EVENTS.UI_LOG, narrative);
           EventBus.emit(EVENTS.NARRATIVE_GENERATED, { narrative, floor });
-        });
+        })
+        .catch(() => { /* narrativa opcional — falha silenciosa */ });
     }
   }
 
@@ -1632,7 +1633,8 @@ export class GameScene extends Phaser.Scene {
       this._narrativeService.generateDeathStory(importantEvents)
         .then((story) => {
           EventBus.emit(EVENTS.DEATH_STORY_GENERATED, { story });
-        });
+        })
+        .catch(() => { /* narrativa opcional — falha silenciosa */ });
 
       this.cameras.main.flash(500, 255, 0, 0);
       this.time.delayedCall(600, () => {

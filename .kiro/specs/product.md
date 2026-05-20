@@ -147,7 +147,7 @@ Input do jogador → Resolve ação (mover/atacar/item/magia/esperar) → Turno 
 - Level up: +3 pontos de atributo para distribuir
 - HP e Mana recalculados automaticamente
 
-### Magias (v1.0.0)
+### Magias (v1.0.1)
 
 - 6 magias data-driven (`spells.db.ts`): Fire Bolt, Ice Bolt, Ice Shard, Wind Cyclone, Fire Explosion, Blizzard + Great Fire (exclusiva do Mago)
 - Desbloqueio automático por nível (`spell-progression.ts`): nível 1, 5, 10, 15, 20

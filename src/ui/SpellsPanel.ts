@@ -218,8 +218,21 @@ export class SpellsPanel {
     if (sel) {
       this._detailName.setText(sel.name);
       this._detailDesc.setText(`[${sel.element}] Dano:${sel.damage} Mana:${sel.manaCost} CD:${(sel.cooldownMs/1000).toFixed(1)}s`);
-      this._equipBtns.forEach((b, i) => b.setVisible(i < activeSlotCount));
-      this._equipTxts.forEach((t, i) => t.setVisible(i < activeSlotCount));
+      this._equipBtns.forEach((b, i) => {
+        b.setVisible(i < activeSlotCount);
+        if (i < activeSlotCount) {
+          const slotOccupied = !!vm.activeSlots[i]?.spellId;
+          b.setFillStyle(slotOccupied ? 0x3a5c3a : 0x224422, 1);
+        }
+      });
+      this._equipTxts.forEach((t, i) => {
+        t.setVisible(i < activeSlotCount);
+        if (i < activeSlotCount) {
+          const key = vm.activeSlots[i]?.key ?? String(i);
+          const slotSpellName = vm.activeSlots[i]?.spellId ? vm.activeSlots[i].spellName : '—';
+          t.setText(`[${key}]: ${slotSpellName}`);
+        }
+      });
     } else {
       this._detailName.setText('');
       this._detailDesc.setText('Selecione uma magia para ver detalhes.');

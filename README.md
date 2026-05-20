@@ -39,7 +39,7 @@ https://ia-para-devs-sctec-t2.github.io/jogo-dungeon-of-echoes/dashboard/
 | **Integração com IA Generativa (LLM)** | ✅ **Implementado** |
 | **Renderização Shell-not-Volume (bitmask 8-bit)** | ✅ **Implementado** |
 | **Sistema de Magias com projéteis** | ✅ **Implementado** |
-| FOG of War | 🔜 Planejado |
+| FOG of War | ✅ **Implementado** |
 
 ---
 
@@ -209,6 +209,28 @@ dungeon-of-echoes/
 ```
 
 **Princípio de arquitetura:** cenas orquestram, sistemas executam. Uma cena nunca calcula dano ou gera dungeon diretamente. Sistemas comunicam-se via `EventBus` (cross-cena) ou `scene.events` (local) — nunca por importação direta.
+
+---
+
+## Escolhas Técnicas
+
+### Phaser 4 como engine de jogo
+Optamos pelo Phaser 4 por sua maturidade no ecossistema browser-game, suporte nativo a tilemaps, sistema de cenas e gerenciamento de assets — eliminando a necessidade de bibliotecas auxiliares para rendering e input.
+
+### Arquitetura: Cenas orquestram, Sistemas executam
+Nenhuma cena calcula dano, gera dungeon ou manipula inventário diretamente. Toda lógica de domínio vive em sistemas (`CombatSystem`, `XPSystem`, `DungeonGenerator`, etc.) que são puramente TypeScript, sem dependência de Phaser — o que os torna testáveis em Node.js sem inicializar a engine.
+
+### Comunicação via EventBus
+Sistemas se comunicam por um EventBus singleton desacoplado de Phaser (`src/utils/EventBus.ts`). Isso evita importação direta entre sistemas e permite que a UIScene (overlay) reaja a eventos da GameScene sem acoplamento estrutural.
+
+### TypeScript + Vite
+TypeScript garante segurança de tipos em ~80 arquivos de lógica de jogo. Vite oferece HMR instantâneo durante o desenvolvimento e build otimizado para GitHub Pages via `npm run build`.
+
+### Testes com Vitest (sem Phaser)
+A separação entre sistemas e cenas permite rodar toda a suite de testes unitários em Node.js puro. Os 15 arquivos de teste cobrem os sistemas críticos (combat, XP, dungeon, fog of war, inventory, spells) sem necessidade de um browser.
+
+### IA Generativa como camada opcional
+A integração com Claude (Anthropic) é encapsulada em `src/ai/` e tratada como serviço externo: o jogo é 100% funcional sem a API key. Quando presente, narrativas dinâmicas enriquecem encontros com inimigos elite e diálogos de NPC sem bloquear o loop de jogo.
 
 ---
 
