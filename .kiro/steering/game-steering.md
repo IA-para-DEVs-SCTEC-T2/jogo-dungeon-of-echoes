@@ -126,6 +126,9 @@ Dungeon of Echoes é um RPG 2D tile-based jogado no navegador. O jogador explora
 
 ## Histórico de Correções Críticas
 
+### v1.0.2 (2026-05-21)
+- **`spell-system.test.js` — testes desatualizados**: 3 casos falhavam após rebalanceamento da implementação — `fire_bolt.manaCost` 8 → 6, `fire_bolt` com `range: 2 / areaType: 'line'`, nível 1 com 4 magias. Testes corrigidos para refletir o comportamento atual
+
 ### v1.0.1 (2026-05-20)
 - **`ActionBarPanel._getItemVisual()`**: `switch` sem `default` retornava `undefined` para `EquippableItemType`, causando crash ao coletar equipamentos. Adicionado `default` com fallback para frame 0
 - **`SpellsPanel` — labels dos botões Equipar**: labels fixos `['H','J','K','L']` não correspondiam aos slots reais de classes não-Mago (`J`/`K`). Labels agora derivados de `vm.activeSlots[i].key` em `render()`; botão também exibe o nome da magia já equipada no slot

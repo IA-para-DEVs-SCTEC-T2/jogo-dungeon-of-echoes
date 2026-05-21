@@ -48,6 +48,14 @@ Escopos sugeridos: player, dungeon, combat, xp, enemy, input, render, config, ci
 
 ---
 
+## [1.0.2] — 2026-05-21
+
+### Fixed
+
+- **Testes do sistema de magias desatualizados**: `spell-system.test.js` falhava em 3 casos após mudanças na implementação — `fire_bolt.manaCost` reduzido de 8 → 6, `fire_bolt` reconfigurado com `range: 2 / areaType: 'line'` (inimigo a 2 tiles em linha agora é alcançado), e nível 1 passou a desbloquear 4 magias (`fire_bolt`, `minor_healing`, `ice_bolt`, `great_fire`). Testes atualizados para refletir o comportamento atual da implementação
+
+---
+
 ## [1.0.1] — 2026-05-20
 
 ### Fixed
@@ -690,6 +698,9 @@ procedural de masmorras, combate turno-a-turno e progressão de personagem.
 
 ---
 
+[1.0.2]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v1.0.1...v1.0.2
+[1.0.1]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.6.0...v1.0.0
 [0.6.0]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.5.4...v0.6.0
 [0.5.4]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/IA-para-DEVs-SCTEC-T2/projeto_final/compare/v0.5.2...v0.5.3
