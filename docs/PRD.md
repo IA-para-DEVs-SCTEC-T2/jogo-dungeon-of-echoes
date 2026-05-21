@@ -1,10 +1,10 @@
 # PRD — Product Requirements Document
 # Dungeon of Echoes
 
-**Versão:** 1.0.1  
-**Data:** 2026-05-20  
+**Versão:** 1.0.2  
+**Data:** 2026-05-21  
 **Equipe:** Equipe 7 — IA para DEVs SCTEC T2  
-**Status:** v1.0.1 — Hotfix: crash ao coletar poções, labels incorretos no painel de magias e promises sem tratamento de erro
+**Status:** v1.0.2 — Fix: testes do sistema de magias desatualizados após rebalanceamento de fire_bolt e spell-progression
 
 ---
 

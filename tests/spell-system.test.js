@@ -52,7 +52,7 @@ describe('SpellSystem — desbloqueio por nível', () => {
   });
 
   it('não adiciona magia duplicada se já desbloqueada', () => {
-    const player = makePlayer({ unlockedSpells: ['fire_bolt', 'minor_healing'] });
+    const player = makePlayer({ unlockedSpells: ['fire_bolt', 'minor_healing', 'ice_bolt', 'great_fire'] });
     const added = spellSystem.unlockSpellsForLevel(player, 1);
     expect(added).toHaveLength(0);
     expect(player.unlockedSpells.filter(s => s === 'fire_bolt')).toHaveLength(1);
@@ -156,7 +156,7 @@ describe('SpellCastingSystem — cast bem-sucedido', () => {
   it('desconta mana ao cast', () => {
     const enemies = [];
     castingSystem.cast(0, player, spellSystem, enemies, 1000);
-    expect(player.mana).toBe(42); // 50 - 8 (fire_bolt manaCost)
+    expect(player.mana).toBe(44); // 50 - 6 (fire_bolt manaCost)
   });
 
   it('inclui todos os inimigos adjacentes nos 4 cardinais', () => {
@@ -171,7 +171,7 @@ describe('SpellCastingSystem — cast bem-sucedido', () => {
   });
 
   it('não inclui inimigos não adjacentes', () => {
-    const enemies = [makeEnemy(5, 3), makeEnemy(8, 5)]; // fora do alcance
+    const enemies = [makeEnemy(5, 2), makeEnemy(9, 5)]; // fora do alcance (range=2 em linha)
     const result = castingSystem.cast(0, player, spellSystem, enemies, 1000);
     expect(result.hitEnemies).toHaveLength(0);
   });
