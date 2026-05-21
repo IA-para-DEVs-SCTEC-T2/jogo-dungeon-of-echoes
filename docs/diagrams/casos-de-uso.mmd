@@ -1,0 +1,110 @@
+---
+title: Dungeon of Echoes — Casos de Uso (v0.6.0)
+---
+flowchart TD
+  %% ─── Atores ──────────────────────────────────────────────────────────────
+  Player(["👤 Jogador"])
+  AI(["🤖 IA Narrativa\n(Claude - Anthropic)"])
+
+  %% ─── Sistema ─────────────────────────────────────────────────────────────
+  subgraph GAME["🎮 Dungeon of Echoes"]
+
+    subgraph MENU["Menu e Seleção"]
+      UC01["Iniciar Jogo"]
+      UC02["Selecionar Classe\n(Aventureiro / Guerreiro / Arqueiro / Mago)"]
+      UC03["Ver Créditos"]
+    end
+
+    subgraph CIDADE["Cidade (Hub)"]
+      UC04["Explorar Cidade"]
+      UC05["Interagir com NPC\n(tecla E)"]
+      UC06["Comprar Item na Loja\n(Mercador)"]
+      UC07["Vender Item na Loja"]
+      UC08["Descansar na Taverna\n(20 ouro → HP+Mana full)"]
+      UC09["Ler Placa Interativa"]
+      UC10["Entrar na Dungeon\n(tile pit0)"]
+      UC11["Entrar na Área Bônus\n(tile norte)"]
+    end
+
+    subgraph DUNGEON["Dungeon"]
+      UC12["Mover no Grid\n(WASD / Setas)"]
+      UC13["Atacar Inimigo (Melee)\n(mover em direção ao inimigo)"]
+      UC14["Atacar Inimigo (Ranged)\n(Arqueiro — clique no sprite)"]
+      UC15["Lançar Magia\n(tecla J ou K)"]
+      UC16["Coletar Item do Chão\n(pisar no tile)"]
+      UC17["Abrir Baú\n(pisar no tile)"]
+      UC18["Descer Andar\n(stairDown)"]
+      UC19["Subir Andar\n(stairUp)"]
+      UC20["Retornar à Cidade\n(stairUp no andar 1)"]
+      UC21["Passar Turno\n(SPACE)"]
+    end
+
+    subgraph INVENTARIO["Inventário (tecla I)"]
+      UC22["Ver Inventário"]
+      UC23["Usar Item\n(ENTER no slot)"]
+      UC24["Equipar / Desequipar Item\n(tecla E)"]
+      UC25["Ver Status do Personagem\n(aba Status)"]
+      UC26["Gastar Ponto de Atributo"]
+      UC27["Ver e Equipar Magias\n(aba Magias)"]
+    end
+
+    subgraph PROGRESSAO["Progressão"]
+      UC28["Ganhar XP ao Matar Inimigo"]
+      UC29["Subir de Nível\n(automático)"]
+      UC30["Desbloquear Magia\n(automático por nível)"]
+    end
+
+    subgraph GAMEOVER["Game Over"]
+      UC31["Ver Estatísticas da Partida\n(nível, XP, andares, kills, dano...)"]
+      UC32["Receber Narrativa de Morte\n(gerada por IA)"]
+      UC33["Reiniciar Partida"]
+    end
+
+  end
+
+  %% ─── Relações Jogador → Casos de Uso ─────────────────────────────────────
+  Player --> UC01
+  Player --> UC02
+  Player --> UC03
+  Player --> UC04
+  Player --> UC05
+  Player --> UC06
+  Player --> UC07
+  Player --> UC08
+  Player --> UC09
+  Player --> UC10
+  Player --> UC11
+  Player --> UC12
+  Player --> UC13
+  Player --> UC14
+  Player --> UC15
+  Player --> UC16
+  Player --> UC17
+  Player --> UC18
+  Player --> UC19
+  Player --> UC20
+  Player --> UC21
+  Player --> UC22
+  Player --> UC23
+  Player --> UC24
+  Player --> UC25
+  Player --> UC26
+  Player --> UC27
+  Player --> UC31
+  Player --> UC33
+
+  %% ─── Relações IA → Casos de Uso ──────────────────────────────────────────
+  AI --> UC32
+
+  %% ─── Includes / Extends ──────────────────────────────────────────────────
+  UC13 -->|"«include»"| UC28
+  UC14 -->|"«include»"| UC28
+  UC15 -->|"«include»"| UC28
+  UC28 -->|"«include»"| UC29
+  UC29 -->|"«include»"| UC30
+  UC06 -->|"«include»"| UC22
+  UC24 -->|"«extend»"| UC22
+  UC26 -->|"«extend»"| UC25
+  UC31 -->|"«include»"| UC32
+  UC10 -->|"«include»"| UC12
+  UC18 -->|"«include»"| UC12
